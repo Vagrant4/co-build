@@ -114,6 +114,7 @@ button {
   width: 100%;
   border: 1px solid #cbc7bb;
   background: white;
+  border-radius: 4px;
   min-height: 2.9rem;
   padding: 0.76rem 0.85rem;
   color: #111111;
@@ -123,6 +124,21 @@ button {
     border-color 140ms ease,
     box-shadow 140ms ease,
     background 140ms ease;
+}
+
+select.field {
+  appearance: none;
+  background-color: #ffffff;
+  background-image:
+    linear-gradient(45deg, transparent 50%, var(--ink) 50%),
+    linear-gradient(135deg, var(--ink) 50%, transparent 50%);
+  background-position:
+    calc(100% - 1.05rem) 50%,
+    calc(100% - 0.72rem) 50%;
+  background-repeat: no-repeat;
+  background-size: 0.35rem 0.35rem;
+  padding-right: 2.35rem;
+  text-overflow: ellipsis;
 }
 
 .field:focus {
@@ -193,6 +209,99 @@ input[type="checkbox"] {
   font-weight: 900;
   letter-spacing: 0;
   text-transform: uppercase;
+}
+
+.search-form {
+  display: grid;
+  gap: 0.9rem;
+  width: 100%;
+}
+
+.search-form--panel {
+  border: 1px solid var(--ink);
+  background: #ffffff;
+  padding: 1rem;
+  box-shadow: 6px 6px 0 rgba(16, 18, 20, 0.16);
+}
+
+.search-form__controls {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
+  gap: 0.75rem;
+  align-items: end;
+}
+
+.search-form__location,
+.search-form__size,
+.search-form__work,
+.search-form__duration,
+.search-form__power {
+  min-width: 0;
+}
+
+.search-form__button {
+  width: 100%;
+  white-space: nowrap;
+}
+
+.search-form__equipment {
+  min-width: 0;
+}
+
+.search-form__equipment-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(10.5rem, 1fr));
+  gap: 0.5rem;
+  align-items: stretch;
+}
+
+.search-form__checkbox {
+  display: flex;
+  min-height: 3rem;
+  align-items: center;
+  gap: 0.55rem;
+  border: 1px solid #d5d1c6;
+  background: #ffffff;
+  padding: 0.65rem 0.72rem;
+  color: var(--ink);
+  font-size: 0.88rem;
+  font-weight: 800;
+  line-height: 1.15;
+}
+
+.search-form__checkbox:hover,
+.search-form__checkbox:has(input:focus-visible) {
+  border-color: var(--hazard);
+  box-shadow: inset 0.25rem 0 0 var(--hazard);
+}
+
+.search-form__other-equipment {
+  grid-column: span 2;
+  min-width: 0;
+}
+
+@media (max-width: 640px) {
+  .search-form--panel {
+    padding: 0.85rem;
+  }
+
+  .search-form__controls {
+    grid-template-columns: 1fr;
+  }
+
+  .search-form__location,
+  .search-form__size,
+  .search-form__work,
+  .search-form__duration,
+  .search-form__power,
+  .search-form__button,
+  .search-form__other-equipment {
+    grid-column: 1 / -1;
+  }
+
+  .search-form__equipment-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
 .section-shell {

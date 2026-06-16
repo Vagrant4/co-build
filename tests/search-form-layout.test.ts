@@ -1,0 +1,29 @@
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+import { describe, expect, it } from "vitest";
+
+const root = process.cwd();
+
+function read(path: string) {
+  return readFileSync(join(root, path), "utf8");
+}
+
+describe("search form layout", () => {
+  it("uses a dedicated responsive grid for aligned search controls", () => {
+    const source = read("components/search-form.tsx");
+
+    expect(source).toContain("search-form__controls");
+    expect(source).toContain("search-form__size");
+    expect(source).toContain("search-form__button");
+    expect(source).not.toContain("lg:grid-cols-8");
+  });
+
+  it("keeps native select text and arrow spacing stable", () => {
+    const css = read("app/globals.css");
+
+    expect(css).toContain("select.field");
+    expect(css).toContain("appearance: none");
+    expect(css).toContain("padding-right: 2.35rem");
+    expect(css).toContain("repeat(auto-fit, minmax(12rem, 1fr))");
+  });
+});
