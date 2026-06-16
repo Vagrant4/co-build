@@ -33,7 +33,13 @@ describe("production deployment setup", () => {
     expect(packageJson.scripts["db:push:prod"]).toBe(
       "prisma db push --schema prisma/schema.postgres.prisma"
     );
-    expect(packageJson.scripts["vercel-build"]).toBe("npm run prisma:generate:prod && next build");
+    expect(packageJson.scripts["db:deploy:prod"]).toBe(
+      "prisma db push --schema prisma/schema.postgres.prisma --skip-generate"
+    );
+    expect(packageJson.scripts["db:seed:if-empty"]).toBe("tsx prisma/seed-if-empty.ts");
+    expect(packageJson.scripts["vercel-build"]).toBe(
+      "npm run db:deploy:prod && npm run prisma:generate:prod && npm run db:seed:if-empty && next build"
+    );
 
     expect(read("vercel.json")).toContain('"buildCommand": "npm run vercel-build"');
 

@@ -12,8 +12,10 @@
     "prisma:generate:prod": "prisma generate --schema prisma/schema.postgres.prisma",
     "db:push": "prisma db push",
     "db:push:prod": "prisma db push --schema prisma/schema.postgres.prisma",
+    "db:deploy:prod": "prisma db push --schema prisma/schema.postgres.prisma --skip-generate",
     "db:seed": "tsx prisma/seed.ts",
-    "vercel-build": "npm run prisma:generate:prod && next build"
+    "db:seed:if-empty": "tsx prisma/seed-if-empty.ts",
+    "vercel-build": "npm run db:deploy:prod && npm run prisma:generate:prod && npm run db:seed:if-empty && next build"
   },
   "dependencies": {
     "@prisma/client": "6.19.3",

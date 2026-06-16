@@ -30,21 +30,23 @@ Vercel uses:
 npm run vercel-build
 ```
 
-That command generates Prisma Client from `prisma/schema.postgres.prisma` and then builds Next.js.
+That command pushes the Prisma schema to the connected Postgres database, generates Prisma Client from
+`prisma/schema.postgres.prisma`, seeds demo data only when the database is empty, and then builds Next.js.
 
 ## First Database Setup
 
-After adding `DATABASE_URL`, push the MVP schema to the live Postgres database:
+After adding `DATABASE_URL`, Vercel will push the MVP schema during `npm run vercel-build`.
+You can also run it manually when needed:
 
 ```bash
 npm run db:push:prod
 ```
 
-To seed demo data into the live database after generating the production Prisma client:
+To seed demo data into an empty live database after generating the production Prisma client:
 
 ```bash
 npm run prisma:generate:prod
-npm run db:seed
+npm run db:seed:if-empty
 ```
 
 For local development, switch Prisma Client back to SQLite:
