@@ -226,8 +226,8 @@ input[type="checkbox"] {
 
 .search-form__controls {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
-  gap: 0.75rem;
+  grid-template-columns: repeat(auto-fit, minmax(13.5rem, 1fr));
+  gap: 0.85rem;
   align-items: end;
 }
 
@@ -241,6 +241,7 @@ input[type="checkbox"] {
 
 .search-form__button {
   width: 100%;
+  min-height: 2.9rem;
   white-space: nowrap;
 }
 
@@ -250,7 +251,7 @@ input[type="checkbox"] {
 
 .search-form__equipment-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(10.5rem, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(11.25rem, 1fr));
   gap: 0.5rem;
   align-items: stretch;
 }
@@ -287,6 +288,7 @@ input[type="checkbox"] {
 
   .search-form__controls {
     grid-template-columns: 1fr;
+    gap: 0.7rem;
   }
 
   .search-form__location,

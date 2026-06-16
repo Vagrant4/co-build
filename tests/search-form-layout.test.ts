@@ -24,6 +24,7 @@ describe("search form layout", () => {
     expect(css).toContain("select.field");
     expect(css).toContain("appearance: none");
     expect(css).toContain("padding-right: 2.35rem");
-    expect(css).toContain("repeat(auto-fit, minmax(12rem, 1fr))");
+    expect(css).toContain("repeat(auto-fit, minmax(13.5rem, 1fr))");
+    expect(css).toContain("min-height: 2.9rem");
   });
 });
