@@ -45,6 +45,23 @@ export default async function HomePage() {
       text: "Hosts declare landlord approval, insurance, fire safety, electrical supply, and allowed work."
     }
   ];
+  const workspacePhotos = [
+    {
+      src: "/assets/maker-bench.png",
+      label: "Bench workspace",
+      detail: "Compact setup for assembly and repairs"
+    },
+    {
+      src: "/assets/medium-bay.png",
+      label: "Project bay",
+      detail: "Open floor area with power and staging"
+    },
+    {
+      src: "/assets/large-bay.png",
+      label: "Large workshop area",
+      detail: "Bigger bay for fabrication projects"
+    }
+  ];
 
   return (
     <main>
@@ -164,6 +181,17 @@ export default async function HomePage() {
               <span key={addon.slug} className="border border-neutral-300 bg-white px-3 py-2 text-sm font-bold">
                 {addon.name}
               </span>
+            ))}
+          </div>
+          <div className="workspace-photo-grid mt-6 grid gap-3 sm:grid-cols-3">
+            {workspacePhotos.map((photo) => (
+              <figure key={photo.src} className="overflow-hidden border border-neutral-300 bg-white">
+                <img src={photo.src} alt={photo.label} className="aspect-[4/3] w-full object-cover" />
+                <figcaption className="border-t border-neutral-200 p-3">
+                  <p className="text-sm font-black">{photo.label}</p>
+                  <p className="mt-1 text-xs font-bold leading-5 text-steel">{photo.detail}</p>
+                </figcaption>
+              </figure>
             ))}
           </div>
         </div>
