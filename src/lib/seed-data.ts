@@ -20,6 +20,8 @@ export const workTypes = [
   "Chemical work, approval-only"
 ] as const;
 
+export const humanServiceAddonSlugs = ["forklift-assistance", "operator-assistance", "cleaning-service"] as const;
+
 export const seedEquipmentAddons: EquipmentAddon[] = [
   { slug: "hand-tools", name: "Hand tools", pricePerBooking: 15, category: "Tools" },
   { slug: "workbench", name: "Workbench", pricePerBooking: 10, category: "Workspace" },
@@ -29,13 +31,10 @@ export const seedEquipmentAddons: EquipmentAddon[] = [
   { slug: "drill", name: "Drill", pricePerBooking: 20, category: "Tools" },
   { slug: "welding-set", name: "Welding set", pricePerBooking: 120, category: "Hot work" },
   { slug: "compressor", name: "Compressor", pricePerBooking: 55, category: "Tools" },
-  { slug: "forklift-assistance", name: "Forklift assistance", pricePerBooking: 85, category: "Logistics" },
   { slug: "3d-printer", name: "3D printer", pricePerBooking: 75, category: "Machines" },
   { slug: "laser-cutter", name: "Laser cutter", pricePerBooking: 130, category: "Machines" },
   { slug: "cnc-machine", name: "CNC machine", pricePerBooking: 180, category: "Machines" },
-  { slug: "operator-assistance", name: "Operator assistance", pricePerBooking: 160, category: "Services" },
-  { slug: "material-storage", name: "Material storage", pricePerBooking: 60, category: "Storage" },
-  { slug: "cleaning-service", name: "Cleaning service", pricePerBooking: 90, category: "Services" }
+  { slug: "material-storage", name: "Material storage", pricePerBooking: 60, category: "Storage" }
 ];
 
 export const commonSafetyRules = [
@@ -134,9 +133,7 @@ export const seedListings: Listing[] = [
       "power-tools",
       "grinder",
       "compressor",
-      "forklift-assistance",
       "cnc-machine",
-      "operator-assistance",
       "material-storage"
     ],
     includedAmenities: ["Three-phase isolator", "Shared compressor line", "Pallet staging", "Fire extinguishers"],
@@ -186,10 +183,7 @@ export const seedListings: Listing[] = [
       "grinder",
       "welding-set",
       "compressor",
-      "forklift-assistance",
-      "operator-assistance",
-      "material-storage",
-      "cleaning-service"
+      "material-storage"
     ],
     includedAmenities: ["Ground-floor loading", "Three-phase power", "Marked work zone", "Spill kit", "Fire point"],
     permittedWork: [

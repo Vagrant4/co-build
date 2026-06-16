@@ -86,6 +86,22 @@ describe("zoning and risk", () => {
 });
 
 describe("search filtering", () => {
+  it("keeps human service items out of equipment add-ons", () => {
+    const equipmentNames = seedEquipmentAddons.map((item) => item.name);
+    const equipmentSlugs = seedEquipmentAddons.map((item) => item.slug);
+    const listingEquipmentSlugs = seedListings.flatMap((listing) => listing.equipmentSlugs);
+
+    expect(equipmentNames).not.toContain("Forklift assistance");
+    expect(equipmentNames).not.toContain("Operator assistance");
+    expect(equipmentNames).not.toContain("Cleaning service");
+    expect(equipmentSlugs).not.toContain("forklift-assistance");
+    expect(equipmentSlugs).not.toContain("operator-assistance");
+    expect(equipmentSlugs).not.toContain("cleaning-service");
+    expect(listingEquipmentSlugs).not.toContain("forklift-assistance");
+    expect(listingEquipmentSlugs).not.toContain("operator-assistance");
+    expect(listingEquipmentSlugs).not.toContain("cleaning-service");
+  });
+
   it("labels renter size requirements without Maker Bench, Small Bay, Medium Bay, or Large Bay terms", () => {
     expect(sizeBandLabel("UNDER_1000")).toBe("Smaller than 1,000 sqft");
     expect(sizeBandLabel("UNDER_5000")).toBe("Smaller than 5,000 sqft");

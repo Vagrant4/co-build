@@ -1,6 +1,7 @@
 import type { EquipmentAddon, Listing, ListingFilters } from "./fabrication";
 import { filterListings } from "./fabrication";
 import { prisma } from "./db";
+import { humanServiceAddonSlugs } from "./seed-data";
 
 type ListingRecord = Awaited<ReturnType<typeof prisma.listing.findMany>>[number] & {
   equipmentAddons?: { equipmentAddon: EquipmentAddon }[];
@@ -8,6 +9,7 @@ type ListingRecord = Awaited<ReturnType<typeof prisma.listing.findMany>>[number]
 
 export async function getEquipmentAddons(): Promise<EquipmentAddon[]> {
   return prisma.equipmentAddon.findMany({
+    where: { slug: { notIn: [...humanServiceAddonSlugs] } },
     orderBy: [{ category: "asc" }, { name: "asc" }]
   });
 }
@@ -55,7 +57,10 @@ export async function getDashboardData() {
       orderBy: { createdAt: "desc" },
       take: 12
     }),
-    prisma.equipmentAddon.findMany({ orderBy: { name: "asc" } })
+    prisma.equipmentAddon.findMany({
+      where: { slug: { notIn: [...humanServiceAddonSlugs] } },
+      orderBy: { name: "asc" }
+    })
   ]);
 
   return { users, listings, bookings, uploads, approvalEvents, equipment };
@@ -74,7 +79,10 @@ export function toListing(record: ListingRecord): Listing {
     accessHours: record.accessHours,
     powerType: record.powerType,
     loadingAccess: parseJsonArray(record.loadingAccessJson),
-    equipmentSlugs: record.equipmentAddons?.map((item) => item.equipmentAddon.slug) ?? [],
+    equipmentSlugs:
+      record.equipmentAddons
+        ?.map((item) => item.equipmentAddon.slug)
+        .filter((slug) => !humanServiceAddonSlugs.includes(slug as (typeof humanServiceAddonSlugs)[number])) ?? [],
     includedAmenities: parseJsonArray(record.amenitiesJson),
     permittedWork: parseJsonArray(record.permittedWorkJson),
     prohibitedWork: parseJsonArray(record.prohibitedWorkJson),
