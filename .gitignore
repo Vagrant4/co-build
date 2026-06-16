@@ -1,0 +1,16 @@
+.env
+.env.local
+.next/
+node_modules/
+.npm-cache/
+.appdata/
+uploads/
+verification/
+output/
+.vercel/
+prisma/dev.db
+prisma/dev.db-journal
+coverage/
+dist/
+npm-debug.log*
+*.log

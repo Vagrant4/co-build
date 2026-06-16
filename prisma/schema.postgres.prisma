@@ -1,0 +1,260 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  RENTER
+  HOST
+  ADMIN
+}
+
+enum VerificationStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum ListingStatus {
+  DRAFT
+  PENDING_ADMIN
+  APPROVED
+  REJECTED
+  SUSPENDED
+}
+
+enum SpaceType {
+  MAKER_BENCH
+  SMALL_BAY
+  MEDIUM_BAY
+  LARGE_BAY
+}
+
+enum Zoning {
+  B1
+  B2
+  UNKNOWN
+}
+
+enum PowerType {
+  SINGLE_PHASE
+  THREE_PHASE
+}
+
+enum BookingStatus {
+  DRAFT
+  PENDING_HOST
+  PENDING_ADMIN_HIGH_RISK
+  APPROVED_FOR_PAYMENT
+  PAID_CONFIRMED
+  CHECKED_IN
+  CHECKED_OUT
+  HOST_REJECTED
+  ADMIN_REJECTED
+  CANCELLED
+}
+
+enum RiskLevel {
+  STANDARD
+  ADMIN_APPROVAL
+}
+
+enum UploadType {
+  VERIFICATION
+  CHECK_IN
+  CHECK_OUT
+  LISTING_PHOTO
+  FLOOR_PLAN
+}
+
+enum ApprovalDecision {
+  APPROVED
+  REJECTED
+  SUSPENDED
+}
+
+enum AdditionalRequirementStatus {
+  PENDING_HOST
+  APPROVED_FOR_PAYMENT
+  PAID_CONFIRMED
+  HOST_REJECTED
+  CANCELLED
+}
+
+enum PlatformSubscriptionStatus {
+  UNPAID
+  PENDING_ADMIN
+  ACTIVE
+}
+
+model User {
+  id                              String                     @id
+  role                            UserRole
+  fullName                        String
+  mobile                          String
+  email                           String                     @unique
+  companyName                     String
+  uen                             String?
+  workType                        String?
+  experienceLevel                 String?
+  verificationStatus              VerificationStatus         @default(PENDING)
+  platformSubscriptionStatus      PlatformSubscriptionStatus @default(UNPAID)
+  platformSubscriptionReference   String?
+  platformSubscriptionPaidAt      DateTime?
+  platformSubscriptionPeriodStart DateTime?
+  platformSubscriptionPeriodEnd   DateTime?
+  platformSubscriptionNextBilling DateTime?
+  suspended                       Boolean                    @default(false)
+  bookings                        Booking[]
+  hostListings                    Listing[]                  @relation("HostListings")
+  additionalRequirements          AdditionalRequirement[]
+  uploads                         Upload[]
+  approvalEvents                  ApprovalEvent[]            @relation("ApprovalActor")
+  createdAt                       DateTime                   @default(now())
+  updatedAt                       DateTime                   @updatedAt
+}
+
+model Listing {
+  id                 String             @id @default(cuid())
+  slug               String             @unique
+  title              String
+  address            String
+  location           String
+  sizeSqft           Int
+  spaceType          SpaceType
+  zoning             Zoning
+  status             ListingStatus      @default(PENDING_ADMIN)
+  accessHours        String
+  powerType          PowerType
+  loadingAccessJson  String
+  amenitiesJson      String
+  permittedWorkJson  String
+  prohibitedWorkJson String
+  safetyRulesJson    String
+  cancellationPolicy String
+  photoUrlsJson      String
+  floorPlanUrl       String
+  priceDay           Int
+  priceSevenDays     Int
+  priceThirtyDays    Int
+  priceSixtyDays     Int
+  depositStandard    Int
+  depositHighRisk    Int
+  cleaningFee        Int
+  landlordApproval   String             @default("unknown")
+  insuranceStatus    String             @default("unknown")
+  fireSafety         String             @default("Fire extinguishers on site")
+  electricalSupply   String             @default("Declared by host")
+  hostId             String?
+  host               User?              @relation("HostListings", fields: [hostId], references: [id])
+  equipmentAddons    ListingEquipment[]
+  bookings           Booking[]
+  uploads            Upload[]
+  approvalEvents     ApprovalEvent[]
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+}
+
+model EquipmentAddon {
+  id              String             @id @default(cuid())
+  slug            String             @unique
+  name            String
+  pricePerBooking Int
+  category        String
+  listings        ListingEquipment[]
+  bookings        BookingAddon[]
+}
+
+model ListingEquipment {
+  listingId        String
+  equipmentAddonId String
+  listing          Listing        @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  equipmentAddon   EquipmentAddon @relation(fields: [equipmentAddonId], references: [id], onDelete: Cascade)
+
+  @@id([listingId, equipmentAddonId])
+}
+
+model Booking {
+  id                     String                  @id @default(cuid())
+  listingId              String
+  userId                 String
+  durationDays           Int
+  workType               String
+  riskLevel              RiskLevel
+  status                 BookingStatus           @default(PENDING_HOST)
+  rentalTotal            Int
+  deposit                Int
+  cleaningFee            Int
+  addonTotal             Int
+  grandTotal             Int
+  safetyAcceptedAt       DateTime?
+  renterDealConfirmedAt  DateTime?
+  hostDealConfirmedAt    DateTime?
+  listing                Listing                 @relation(fields: [listingId], references: [id])
+  user                   User                    @relation(fields: [userId], references: [id])
+  addons                 BookingAddon[]
+  uploads                Upload[]
+  approvalEvents         ApprovalEvent[]
+  additionalRequirements AdditionalRequirement[]
+  createdAt              DateTime                @default(now())
+  updatedAt              DateTime                @updatedAt
+}
+
+model AdditionalRequirement {
+  id           String                      @id @default(cuid())
+  bookingId    String
+  userId       String
+  detail       String
+  status       AdditionalRequirementStatus @default(PENDING_HOST)
+  quotedRate   Int                         @default(0)
+  contractText String?
+  emailedTo    String?
+  emailedAt    DateTime?
+  paidAt       DateTime?
+  booking      Booking                     @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  user         User                        @relation(fields: [userId], references: [id])
+  createdAt    DateTime                    @default(now())
+  updatedAt    DateTime                    @updatedAt
+}
+
+model BookingAddon {
+  bookingId        String
+  equipmentAddonId String
+  priceAtBooking   Int
+  booking          Booking        @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  equipmentAddon   EquipmentAddon @relation(fields: [equipmentAddonId], references: [id])
+
+  @@id([bookingId, equipmentAddonId])
+}
+
+model Upload {
+  id           String     @id @default(cuid())
+  type         UploadType
+  originalName String
+  localPath    String
+  userId       String?
+  bookingId    String?
+  listingId    String?
+  user         User?      @relation(fields: [userId], references: [id])
+  booking      Booking?   @relation(fields: [bookingId], references: [id])
+  listing      Listing?   @relation(fields: [listingId], references: [id])
+  createdAt    DateTime   @default(now())
+}
+
+model ApprovalEvent {
+  id        String           @id @default(cuid())
+  actorId   String?
+  listingId String?
+  bookingId String?
+  target    String
+  decision  ApprovalDecision
+  note      String
+  actor     User?            @relation("ApprovalActor", fields: [actorId], references: [id])
+  listing   Listing?         @relation(fields: [listingId], references: [id])
+  booking   Booking?         @relation(fields: [bookingId], references: [id])
+  createdAt DateTime         @default(now())
+}
