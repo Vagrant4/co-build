@@ -10,6 +10,7 @@ export async function seedDemoData(prisma: PrismaClient, options: { reset?: bool
     await prisma.bookingMessage.deleteMany();
     await prisma.bookingAddon.deleteMany();
     await prisma.booking.deleteMany();
+    await prisma.listingMessage.deleteMany();
     await prisma.listingEquipment.deleteMany();
     await prisma.listing.deleteMany();
     await prisma.equipmentAddon.deleteMany();
@@ -101,6 +102,25 @@ export async function seedDemoData(prisma: PrismaClient, options: { reset?: bool
       }
     });
   }
+
+  const preDealListing = await prisma.listing.findUniqueOrThrow({
+    where: { slug: "small-bay-eunos" },
+    select: { id: true }
+  });
+  await prisma.listingMessage.createMany({
+    data: [
+      {
+        listingId: preDealListing.id,
+        senderId: "demo-renter",
+        body: "Can we use the loading ramp for two pallet deliveries before booking?"
+      },
+      {
+        listingId: preDealListing.id,
+        senderId: "demo-host",
+        body: "Yes, loading ramp access is available during the stated access hours."
+      }
+    ]
+  });
 
   const normalListing = seedListings.find((listing) => listing.slug === "small-bay-eunos")!;
   const handTools = seedEquipmentAddons.find((addon) => addon.slug === "hand-tools")!;

@@ -1,7 +1,9 @@
 import { ArrowRight, Bolt, CalendarDays, Check, ClipboardList, Ruler, ShieldAlert, Truck, X, type LucideIcon } from "lucide-react";
 import { notFound } from "next/navigation";
+import { ListingChat } from "@/components/listing-chat";
 import { StatusBadge } from "@/components/status-badge";
 import { formatCurrency, sizeRequirementLabel } from "@/src/lib/fabrication";
+import { prisma } from "@/src/lib/db";
 import { getEquipmentAddons, getListingBySlug } from "@/src/lib/repository";
 
 export const dynamic = "force-dynamic";
@@ -12,7 +14,15 @@ type PageProps = {
 
 export default async function ListingDetailPage({ params }: PageProps) {
   const { slug } = await params;
-  const [listing, addons] = await Promise.all([getListingBySlug(slug), getEquipmentAddons()]);
+  const [listing, addons, listingMessages] = await Promise.all([
+    getListingBySlug(slug),
+    getEquipmentAddons(),
+    prisma.listingMessage.findMany({
+      where: { listing: { slug } },
+      include: { sender: true },
+      orderBy: { createdAt: "asc" }
+    })
+  ]);
   if (!listing) notFound();
 
   const listingAddons = addons.filter((addon) => listing.equipmentSlugs.includes(addon.slug));
@@ -101,6 +111,15 @@ export default async function ListingDetailPage({ params }: PageProps) {
           <a className="button-dark mt-5 w-full" href={`/checkout/${listing.slug}`}>
             Continue to checkout
           </a>
+          <div className="mt-5">
+            <ListingChat
+              listingSlug={listing.slug}
+              messages={listingMessages}
+              senderRole="RENTER"
+              title="Chat with host before booking"
+              placeholder="Ask about access, loading, power, equipment, or timing before checkout."
+            />
+          </div>
         </aside>
       </section>
     </main>

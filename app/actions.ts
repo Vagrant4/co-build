@@ -366,6 +366,39 @@ export async function sendBookingMessageAction(formData: FormData) {
   revalidatePath("/dashboard/host");
 }
 
+export async function sendListingMessageAction(formData: FormData) {
+  const listingSlug = requireString(formData, "listingSlug");
+  const senderRole = requireString(formData, "senderRole");
+  const body = requireString(formData, "message").slice(0, 1000);
+  if (containsRestrictedContactDetail(body)) {
+    throw new Error(CONTACT_POLICY_MESSAGE);
+  }
+  const senderId = senderRole === "HOST" ? "demo-host" : senderRole === "RENTER" ? "demo-renter" : "";
+  if (!senderId) {
+    throw new Error("Message sender must be renter or host.");
+  }
+
+  const listing = await prisma.listing.findUnique({
+    where: { slug: listingSlug },
+    select: { id: true, slug: true, hostId: true }
+  });
+  if (!listing) throw new Error("Listing not found.");
+  if (senderRole === "HOST" && listing.hostId !== "demo-host") {
+    throw new Error("Host can only message on their own listings.");
+  }
+
+  await prisma.listingMessage.create({
+    data: {
+      listing: { connect: { id: listing.id } },
+      sender: { connect: { id: senderId } },
+      body
+    }
+  });
+
+  revalidatePath(`/listings/${listing.slug}`);
+  revalidatePath("/dashboard/host");
+}
+
 export async function createAdditionalRequirementAction(formData: FormData) {
   const bookingId = requireString(formData, "bookingId");
   const detail = requireString(formData, "additionalDetail");

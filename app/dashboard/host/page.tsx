@@ -7,6 +7,7 @@ import {
   updateBookingStatusAction
 } from "@/app/actions";
 import { BookingChat } from "@/components/booking-chat";
+import { ListingChat } from "@/components/listing-chat";
 import { StatusBadge } from "@/components/status-badge";
 import { dealConfirmationStatus, formatCurrency, PLATFORM_SUBSCRIPTION_MONTHLY } from "@/src/lib/fabrication";
 import { prisma } from "@/src/lib/db";
@@ -18,7 +19,10 @@ export default async function HostDashboardPage() {
     prisma.user.findUniqueOrThrow({ where: { id: "demo-host" } }),
     prisma.listing.findMany({
       where: { hostId: "demo-host" },
-      include: { bookings: true },
+      include: {
+        bookings: true,
+        listingMessages: { include: { sender: true }, orderBy: { createdAt: "asc" } }
+      },
       orderBy: { createdAt: "desc" }
     }),
     prisma.booking.findMany({
@@ -127,6 +131,15 @@ export default async function HostDashboardPage() {
               </div>
               <h3 className="text-xl font-black">{listing.title}</h3>
               <p className="text-sm font-bold text-steel">{listing.address}</p>
+              <div className="mt-4">
+                <ListingChat
+                  listingSlug={listing.slug}
+                  messages={listing.listingMessages}
+                  senderRole="HOST"
+                  title="Chat with renter before deal"
+                  placeholder="Reply about availability, access, loading, equipment, or timing."
+                />
+              </div>
               <p className="mt-3 font-black">
                 {listing.sizeSqft} sqft · {formatCurrency(listing.priceDay)}/day · {formatCurrency(listing.priceThirtyDays)}/30 days
               </p>
