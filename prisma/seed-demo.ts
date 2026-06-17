@@ -7,6 +7,7 @@ export async function seedDemoData(prisma: PrismaClient, options: { reset?: bool
     await prisma.approvalEvent.deleteMany();
     await prisma.upload.deleteMany();
     await prisma.additionalRequirement.deleteMany();
+    await prisma.bookingMessage.deleteMany();
     await prisma.bookingAddon.deleteMany();
     await prisma.booking.deleteMany();
     await prisma.listingEquipment.deleteMany();
@@ -109,7 +110,7 @@ export async function seedDemoData(prisma: PrismaClient, options: { reset?: bool
     workType: "Packing",
     addons: [handTools]
   });
-  await prisma.booking.create({
+  const normalBooking = await prisma.booking.create({
     data: {
       listing: { connect: { slug: normalListing.slug } },
       user: { connect: { id: "demo-renter" } },
@@ -161,6 +162,26 @@ export async function seedDemoData(prisma: PrismaClient, options: { reset?: bool
         }
       }
     }
+  });
+
+  await prisma.bookingMessage.createMany({
+    data: [
+      {
+        bookingId: normalBooking.id,
+        senderId: "demo-renter",
+        body: "Hi Marcus, we will use the space for packing and light assembly only."
+      },
+      {
+        bookingId: normalBooking.id,
+        senderId: "demo-host",
+        body: "Confirmed. Loading ramp is available from 8am; please upload check-in photos before work starts."
+      },
+      {
+        bookingId: highRiskBooking.id,
+        senderId: "demo-host",
+        body: "Welding request received. We are waiting for admin high-risk approval before payment."
+      }
+    ]
   });
 
   await prisma.approvalEvent.create({

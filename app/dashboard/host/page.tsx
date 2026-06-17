@@ -6,6 +6,7 @@ import {
   submitPlatformSubscriptionPaymentAction,
   updateBookingStatusAction
 } from "@/app/actions";
+import { BookingChat } from "@/components/booking-chat";
 import { StatusBadge } from "@/components/status-badge";
 import { dealConfirmationStatus, formatCurrency, PLATFORM_SUBSCRIPTION_MONTHLY } from "@/src/lib/fabrication";
 import { prisma } from "@/src/lib/db";
@@ -22,7 +23,12 @@ export default async function HostDashboardPage() {
     }),
     prisma.booking.findMany({
       where: { listing: { hostId: "demo-host" } },
-      include: { listing: true, user: true, addons: { include: { equipmentAddon: true } } },
+      include: {
+        listing: true,
+        user: true,
+        addons: { include: { equipmentAddon: true } },
+        messages: { include: { sender: true }, orderBy: { createdAt: "asc" } }
+      },
       orderBy: { createdAt: "desc" }
     }),
     prisma.additionalRequirement.findMany({
@@ -90,6 +96,15 @@ export default async function HostDashboardPage() {
                   {booking.user.fullName} · {booking.workType} · {booking.durationDays} days
                 </p>
                 <p className="mt-2 font-black">{formatCurrency(booking.grandTotal)} total</p>
+                <div className="mt-4">
+                  <BookingChat
+                    bookingId={booking.id}
+                    messages={booking.messages}
+                    senderRole="HOST"
+                    title="Chat with renter"
+                    placeholder="Message the renter about access, safety, equipment, or timing."
+                  />
+                </div>
               </div>
               <div className="grid gap-2">
                 <BookingAction bookingId={booking.id} action="HOST_APPROVE" label="Approve" icon="approve" disabled={booking.status !== "PENDING_HOST"} />

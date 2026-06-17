@@ -110,6 +110,7 @@ model User {
   platformSubscriptionNextBilling DateTime?
   suspended                       Boolean                    @default(false)
   bookings                        Booking[]
+  sentMessages                    BookingMessage[]           @relation("MessageSender")
   hostListings                    Listing[]                  @relation("HostListings")
   additionalRequirements          AdditionalRequirement[]
   uploads                         Upload[]
@@ -198,6 +199,7 @@ model Booking {
   user                   User                    @relation(fields: [userId], references: [id])
   addons                 BookingAddon[]
   uploads                Upload[]
+  messages        BookingMessage[]
   approvalEvents         ApprovalEvent[]
   additionalRequirements AdditionalRequirement[]
   createdAt              DateTime                @default(now())
@@ -219,6 +221,18 @@ model AdditionalRequirement {
   user         User                        @relation(fields: [userId], references: [id])
   createdAt    DateTime                    @default(now())
   updatedAt    DateTime                    @updatedAt
+}
+
+model BookingMessage {
+  id        String   @id @default(cuid())
+  bookingId String
+  senderId  String
+  body      String
+  booking   Booking  @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  sender    User     @relation("MessageSender", fields: [senderId], references: [id])
+  createdAt DateTime @default(now())
+
+  @@index([bookingId, createdAt])
 }
 
 model BookingAddon {

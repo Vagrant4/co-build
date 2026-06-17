@@ -7,6 +7,7 @@ import {
   submitPlatformSubscriptionPaymentAction,
   uploadBookingPhotoAction
 } from "@/app/actions";
+import { BookingChat } from "@/components/booking-chat";
 import { StatusBadge } from "@/components/status-badge";
 import { dealConfirmationStatus, formatCurrency, PLATFORM_SUBSCRIPTION_MONTHLY } from "@/src/lib/fabrication";
 import { prisma } from "@/src/lib/db";
@@ -22,6 +23,7 @@ export default async function UserDashboardPage() {
         listing: true,
         addons: { include: { equipmentAddon: true } },
         uploads: true,
+        messages: { include: { sender: true }, orderBy: { createdAt: "asc" } },
         additionalRequirements: { orderBy: { createdAt: "desc" } }
       },
       orderBy: { createdAt: "desc" }
@@ -95,6 +97,13 @@ export default async function UserDashboardPage() {
                 </form>
               )}
               <DealConfirmationForm bookingId={booking.id} confirmed={Boolean(booking.renterDealConfirmedAt)} role="RENTER" label="Confirm deal as renter" />
+              <BookingChat
+                bookingId={booking.id}
+                messages={booking.messages}
+                senderRole="RENTER"
+                title="Chat with host"
+                placeholder="Ask the host about access, loading, timing, or setup."
+              />
               <AdditionalRequirementForm bookingId={booking.id} />
               <PhotoForm bookingId={booking.id} type="CHECK_IN" label="Upload check-in photos" />
               <PhotoForm bookingId={booking.id} type="CHECK_OUT" label="Upload check-out photos" />
