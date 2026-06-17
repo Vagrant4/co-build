@@ -1,5 +1,6 @@
 import { MessageSquare, Send } from "lucide-react";
 import { sendBookingMessageAction } from "@/app/actions";
+import { CONTACT_POLICY_MESSAGE } from "@/src/lib/contact-policy";
 
 export type BookingChatMessage = {
   id: string;
@@ -25,7 +26,7 @@ export function BookingChat({
   placeholder: string;
 }) {
   return (
-    <section data-booking-chat className="grid gap-3 border border-neutral-300 bg-white p-3">
+    <section data-booking-chat aria-label="Keep all communication inside Co-Build chat" className="grid gap-3 border border-neutral-300 bg-white p-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <p className="flex items-center gap-2 text-sm font-black uppercase text-steel">
           <MessageSquare size={17} className="text-hazard" /> {title}
@@ -34,6 +35,9 @@ export function BookingChat({
           {messages.length} {messages.length === 1 ? "message" : "messages"}
         </span>
       </div>
+      <p className="border border-hazard/40 bg-hazard/10 px-3 py-2 text-xs font-black uppercase leading-relaxed text-ink">
+        {CONTACT_POLICY_MESSAGE}
+      </p>
 
       <div className="grid max-h-72 gap-2 overflow-y-auto border border-neutral-200 bg-smoke p-2">
         {messages.length ? (

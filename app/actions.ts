@@ -14,6 +14,7 @@ import {
   inferSpaceTypeFromSize
 } from "@/src/lib/fabrication";
 import { prisma } from "@/src/lib/db";
+import { CONTACT_POLICY_MESSAGE, containsRestrictedContactDetail } from "@/src/lib/contact-policy";
 import { toListing } from "@/src/lib/repository";
 import { saveUpload } from "@/src/lib/uploads";
 import { commonSafetyRules } from "@/src/lib/seed-data";
@@ -333,6 +334,9 @@ export async function sendBookingMessageAction(formData: FormData) {
   const bookingId = requireString(formData, "bookingId");
   const senderRole = requireString(formData, "senderRole");
   const body = requireString(formData, "message").slice(0, 1000);
+  if (containsRestrictedContactDetail(body)) {
+    throw new Error(CONTACT_POLICY_MESSAGE);
+  }
   const senderId = senderRole === "HOST" ? "demo-host" : senderRole === "RENTER" ? "demo-renter" : "";
   if (!senderId) {
     throw new Error("Message sender must be renter or host.");

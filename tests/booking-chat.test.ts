@@ -26,5 +26,7 @@ describe("booking chat", () => {
     expect(read("app/dashboard/host/page.tsx")).toContain("BookingChat");
     expect(read("app/dashboard/user/page.tsx")).toContain("Chat with host");
     expect(read("app/dashboard/host/page.tsx")).toContain("Chat with renter");
+    expect(read("components/booking-chat.tsx")).toContain("Keep all communication inside Co-Build chat");
+    expect(read("app/actions.ts")).toContain("containsRestrictedContactDetail");
   });
 });
