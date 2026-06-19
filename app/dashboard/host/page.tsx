@@ -138,6 +138,7 @@ export default async function HostDashboardPage() {
                   senderRole="HOST"
                   title="Chat with renter before deal"
                   placeholder="Reply about availability, access, loading, equipment, or timing."
+                  variant="compact"
                 />
               </div>
               <p className="mt-3 font-black">

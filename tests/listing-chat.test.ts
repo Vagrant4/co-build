@@ -28,5 +28,7 @@ describe("listing chat", () => {
     expect(read("app/listings/[slug]/page.tsx")).toContain("ListingChat");
     expect(read("app/listings/[slug]/page.tsx")).toContain("Chat with host before booking");
     expect(read("app/dashboard/host/page.tsx")).toContain("Chat with renter before deal");
+    expect(read("app/dashboard/host/page.tsx")).toContain('variant="compact"');
+    expect(read("components/listing-chat.tsx")).toContain('variant?: "full" | "compact"');
   });
 });
