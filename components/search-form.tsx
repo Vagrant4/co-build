@@ -52,25 +52,32 @@ export function SearchForm({ compact = false }: { compact?: boolean }) {
           <Search size={18} /> Search
         </button>
       </div>
-      <fieldset className="search-form__equipment">
-        <legend className="label">Equipment</legend>
-        <div className="search-form__equipment-grid">
-          {seedEquipmentAddons.map((addon) => (
-            <label key={addon.slug} className="search-form__checkbox">
-              <input className="h-4 w-4 accent-hazard" type="checkbox" name="equipment" value={addon.slug} />
-              <span>{addon.name}</span>
+
+      <details className="search-form__advanced">
+        <summary className="search-form__advanced-summary">
+          <span>Equipment add-ons</span>
+          <span className="search-form__advanced-copy">Optional tools and other requirements</span>
+        </summary>
+        <fieldset className="search-form__equipment">
+          <legend className="label">Select equipment</legend>
+          <div className="search-form__equipment-grid">
+            {seedEquipmentAddons.map((addon) => (
+              <label key={addon.slug} className="search-form__checkbox">
+                <input className="h-4 w-4 accent-hazard" type="checkbox" name="equipment" value={addon.slug} />
+                <span>{addon.name}</span>
+              </label>
+            ))}
+            <label className="search-form__checkbox">
+              <input className="h-4 w-4 accent-hazard" type="checkbox" name="equipment" value="other" />
+              <span>Other</span>
             </label>
-          ))}
-          <label className="search-form__checkbox">
-            <input className="h-4 w-4 accent-hazard" type="checkbox" name="equipment" value="other" />
-            <span>Other</span>
-          </label>
-          <label className="search-form__other-equipment">
-            <span className="label">Other, state:</span>
-            <input className="field" name="equipmentOther" placeholder="State equipment required" />
-          </label>
-        </div>
-      </fieldset>
+            <label className="search-form__other-equipment">
+              <span className="label">Other, state:</span>
+              <input className="field" name="equipmentOther" placeholder="State equipment required" />
+            </label>
+          </div>
+        </fieldset>
+      </details>
     </form>
   );
 }

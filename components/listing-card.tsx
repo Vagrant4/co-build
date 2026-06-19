@@ -4,27 +4,28 @@ import { formatCurrency, sizeRequirementLabel } from "@/src/lib/fabrication";
 
 export function ListingCard({ listing }: { listing: Listing }) {
   return (
-    <article className="card overflow-hidden">
-      <a href={`/listings/${listing.slug}`} className="block">
+    <article className="card listing-card overflow-hidden">
+      <a href={`/listings/${listing.slug}`} className="listing-card__media" aria-label={`View ${listing.title}`}>
         <img src={listing.photoUrls[0]} alt="" className="h-56 w-full object-cover" />
+        <span className="listing-card__badge">{sizeRequirementLabel(listing.sizeSqft)}</span>
       </a>
-      <div className="space-y-4 p-5">
+      <div className="listing-card__body">
         <div className="flex flex-wrap items-start justify-between gap-3">
-          <div>
-            <p className="text-xs font-black uppercase text-hazard">{sizeRequirementLabel(listing.sizeSqft)}</p>
-            <h3 className="mt-1 text-xl font-black">{listing.title}</h3>
-            <p className="mt-1 text-sm text-steel">{listing.address}</p>
+          <div className="min-w-0">
+            <p className="text-xs font-black uppercase text-hazard">Available workspace</p>
+            <h3 className="mt-1 text-xl font-black leading-tight">{listing.title}</h3>
+            <p className="mt-1 text-sm font-bold text-steel">{listing.address}</p>
           </div>
-          <span className="border border-ink px-2 py-1 text-sm font-black">{listing.zoning}</span>
+          <span className="status-pill border-ink bg-safety text-ink">{listing.zoning}</span>
         </div>
-        <div className="grid grid-cols-3 gap-2 text-sm">
-          <span className="flex items-center gap-1 font-bold text-steel">
+        <div className="listing-card__specs">
+          <span className="listing-card__spec">
             <Ruler size={16} /> {listing.sizeSqft} sqft
           </span>
-          <span className="flex items-center gap-1 font-bold text-steel">
+          <span className="listing-card__spec">
             <Bolt size={16} /> {listing.powerType === "THREE_PHASE" ? "3-phase" : "1-phase"}
           </span>
-          <span className="flex items-center gap-1 font-bold text-steel">
+          <span className="listing-card__spec">
             <Truck size={16} /> Loading
           </span>
         </div>
@@ -32,10 +33,10 @@ export function ListingCard({ listing }: { listing: Listing }) {
           <div>
             <p className="text-xs font-bold uppercase text-steel">From</p>
             <p className="text-2xl font-black">{formatCurrency(listing.prices.day)}/day</p>
-            <p className="text-sm text-steel">{formatCurrency(listing.prices.thirtyDays)}/30 days</p>
+            <p className="text-sm font-bold text-steel">{formatCurrency(listing.prices.thirtyDays)}/30 days</p>
           </div>
           <a href={`/listings/${listing.slug}`} className="button-dark">
-            View <ArrowRight size={16} />
+            View details <ArrowRight size={16} />
           </a>
         </div>
       </div>

@@ -15,6 +15,9 @@ describe("search form layout", () => {
     expect(source).toContain("search-form__controls");
     expect(source).toContain("search-form__size");
     expect(source).toContain("search-form__button");
+    expect(source).toContain("search-form__advanced");
+    expect(source).toContain("Equipment add-ons");
+    expect(source).toContain("<summary");
     expect(source).not.toContain("lg:grid-cols-8");
   });
 
@@ -26,5 +29,7 @@ describe("search form layout", () => {
     expect(css).toContain("padding-right: 2.35rem");
     expect(css).toContain("repeat(auto-fit, minmax(13.5rem, 1fr))");
     expect(css).toContain("min-height: 2.9rem");
+    expect(css).toContain(".search-form__advanced");
+    expect(css).toContain(".search-form__advanced[open]");
   });
 });
