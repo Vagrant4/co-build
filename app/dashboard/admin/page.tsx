@@ -1,4 +1,5 @@
-import { CheckCircle2, DollarSign, ShieldAlert, SlidersHorizontal, UserX, XCircle } from "lucide-react";
+import Link from "next/link";
+import { CheckCircle2, DollarSign, Download, ShieldAlert, SlidersHorizontal, UserX, XCircle } from "lucide-react";
 import {
   approvePlatformSubscriptionAction,
   toggleUserSuspensionAction,
@@ -23,13 +24,18 @@ export default async function AdminDashboardPage() {
 
   return (
     <main className="section-shell py-8">
-      <div className="mb-6">
-        <p className="text-sm font-black uppercase text-hazard">Demo admin</p>
-        <h1 className="text-4xl font-black">Admin dashboard</h1>
-        <p className="mt-2 font-bold text-steel">
-          Admin collects {formatCurrency(PLATFORM_SUBSCRIPTION_MONTHLY)}/month from each active renter and host through Stripe.
-          This is recurring monthly subscription revenue; deals are confirmed on-platform, and admin takes no deal commission.
-        </p>
+      <div className="mb-6 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+        <div>
+          <p className="text-sm font-black uppercase text-hazard">Demo admin</p>
+          <h1 className="text-4xl font-black">Admin dashboard</h1>
+          <p className="mt-2 max-w-4xl font-bold text-steel">
+            Admin collects {formatCurrency(PLATFORM_SUBSCRIPTION_MONTHLY)}/month from each active renter and host through Stripe.
+            This is recurring monthly subscription revenue; deals are confirmed on-platform, and admin takes no deal commission.
+          </p>
+        </div>
+        <Link className="button-secondary shrink-0" href="/dashboard/admin/export">
+          <Download size={18} /> Export data
+        </Link>
       </div>
 
       <section className="mb-8 grid gap-4 md:grid-cols-4">
