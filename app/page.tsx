@@ -3,7 +3,7 @@ import { ListingCard } from "@/components/listing-card";
 import { PricingTable } from "@/components/pricing-table";
 import { SearchForm } from "@/components/search-form";
 import { getApprovedListings } from "@/src/lib/repository";
-import { seedEquipmentAddons } from "@/src/lib/seed-data";
+import { sampleWorkshopPhotos, seedEquipmentAddons } from "@/src/lib/seed-data";
 
 export const dynamic = "force-dynamic";
 
@@ -43,23 +43,6 @@ export default async function HomePage() {
     {
       icon: Factory,
       text: "Hosts declare landlord approval, insurance, fire safety, electrical supply, and allowed work."
-    }
-  ];
-  const workspacePhotos = [
-    {
-      src: "/assets/maker-bench.png",
-      label: "Bench workspace",
-      detail: "Compact setup for assembly and repairs"
-    },
-    {
-      src: "/assets/medium-bay.png",
-      label: "Project bay",
-      detail: "Open floor area with power and staging"
-    },
-    {
-      src: "/assets/large-bay.png",
-      label: "Large workshop area",
-      detail: "Bigger bay for fabrication projects"
     }
   ];
 
@@ -183,8 +166,8 @@ export default async function HomePage() {
               </span>
             ))}
           </div>
-          <div className="workspace-photo-grid mt-6 grid gap-3 sm:grid-cols-3">
-            {workspacePhotos.map((photo) => (
+          <div className="workspace-photo-grid mt-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-4" aria-label="sample workshop photos">
+            {sampleWorkshopPhotos.map((photo) => (
               <figure key={photo.src} className="overflow-hidden border border-neutral-300 bg-white">
                 <img src={photo.src} alt={photo.label} className="aspect-[4/3] w-full object-cover" />
                 <figcaption className="border-t border-neutral-200 p-3">

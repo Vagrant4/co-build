@@ -125,7 +125,9 @@ async function upsertDemoListing({ sourceSlug, slug, title, hostId }: { sourceSl
     update: {
       title,
       hostId,
-      status: "APPROVED"
+      status: "APPROVED",
+      photoUrlsJson: JSON.stringify(source.photoUrls),
+      floorPlanUrl: source.floorPlanUrl
     },
     create: {
       slug,

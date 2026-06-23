@@ -836,10 +836,10 @@ async function createStripeSubscriptionCheckoutSession(user: {
 
 function fallbackListingImage(spaceType: SpaceType): string {
   const assets: Record<SpaceType, string> = {
-    MAKER_BENCH: "/assets/maker-bench.png",
-    SMALL_BAY: "/assets/small-bay.png",
-    MEDIUM_BAY: "/assets/medium-bay.png",
-    LARGE_BAY: "/assets/large-bay.png"
+    MAKER_BENCH: "/assets/sample-workshop-photo-bench.png",
+    SMALL_BAY: "/assets/sample-workshop-photo-small-bay.png",
+    MEDIUM_BAY: "/assets/sample-workshop-photo-medium-bay.png",
+    LARGE_BAY: "/assets/sample-workshop-photo-large-bay.png"
   };
   return assets[spaceType];
 }

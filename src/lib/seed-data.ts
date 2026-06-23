@@ -51,6 +51,29 @@ export const commonSafetyRules = [
   "Check-in/out photos required"
 ];
 
+export const sampleWorkshopPhotos = [
+  {
+    src: "/assets/sample-workshop-photo-bench.png",
+    label: "Bench workspace",
+    detail: "Compact bench layout with hand tools, task lighting, and lockable storage."
+  },
+  {
+    src: "/assets/sample-workshop-photo-small-bay.png",
+    label: "Small fabrication bay",
+    detail: "Short-project bay with workbench, staging area, and single-phase power."
+  },
+  {
+    src: "/assets/sample-workshop-photo-medium-bay.png",
+    label: "Medium project bay",
+    detail: "Open workshop floor with machine access, storage racks, and stronger power."
+  },
+  {
+    src: "/assets/sample-workshop-photo-large-bay.png",
+    label: "Large industrial bay",
+    detail: "Wide loading-friendly workspace for bigger fabrication and assembly jobs."
+  }
+] as const;
+
 export const seedListings: Listing[] = [
   {
     slug: "maker-bench-kallang",
@@ -70,7 +93,7 @@ export const seedListings: Listing[] = [
     prohibitedWork: ["Welding", "Grinding", "Spray painting, approval-only", "Chemical work, approval-only"],
     safetyRules: commonSafetyRules,
     cancellationPolicy: "Cancel 24 hours before check-in for a 70% refund.",
-    photoUrls: ["/assets/maker-bench.png"],
+    photoUrls: [sampleWorkshopPhotos[0].src],
     floorPlanUrl: "/assets/floor-plan-maker-bench.png",
     prices: {
       day: 45,
@@ -102,7 +125,7 @@ export const seedListings: Listing[] = [
     prohibitedWork: ["Welding", "Grinding", "Spray painting, approval-only", "Chemical work, approval-only"],
     safetyRules: commonSafetyRules,
     cancellationPolicy: "Cancel 72 hours before check-in for a 70% refund.",
-    photoUrls: ["/assets/small-bay.png"],
+    photoUrls: [sampleWorkshopPhotos[1].src],
     floorPlanUrl: "/assets/floor-plan-small-bay.png",
     prices: {
       day: 120,
@@ -151,7 +174,7 @@ export const seedListings: Listing[] = [
     prohibitedWork: ["Spray painting, approval-only", "Chemical work, approval-only"],
     safetyRules: commonSafetyRules,
     cancellationPolicy: "Cancel 7 days before check-in for a 60% refund.",
-    photoUrls: ["/assets/medium-bay.png"],
+    photoUrls: [sampleWorkshopPhotos[2].src],
     floorPlanUrl: "/assets/floor-plan-medium-bay.png",
     prices: {
       day: 260,
@@ -199,7 +222,7 @@ export const seedListings: Listing[] = [
     prohibitedWork: ["Spray painting, approval-only", "Chemical work, approval-only"],
     safetyRules: commonSafetyRules,
     cancellationPolicy: "Cancel 14 days before check-in for a 50% refund.",
-    photoUrls: ["/assets/large-bay.png"],
+    photoUrls: [sampleWorkshopPhotos[3].src],
     floorPlanUrl: "/assets/floor-plan-large-bay.png",
     prices: {
       day: 650,
