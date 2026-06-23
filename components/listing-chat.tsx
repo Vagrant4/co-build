@@ -7,6 +7,7 @@ export type ListingChatMessage = {
   body: string;
   createdAt: Date;
   sender: {
+    id: string;
     fullName: string;
     role: string;
   };
@@ -16,6 +17,7 @@ export function ListingChat({
   listingSlug,
   messages,
   senderRole,
+  senderId,
   title,
   placeholder,
   variant = "full"
@@ -23,6 +25,7 @@ export function ListingChat({
   listingSlug: string;
   messages: ListingChatMessage[];
   senderRole: "RENTER" | "HOST";
+  senderId?: string;
   title: string;
   placeholder: string;
   variant?: "full" | "compact";
@@ -52,8 +55,8 @@ export function ListingChat({
             <p className="border border-hazard/40 bg-hazard/10 px-3 py-2 text-xs font-black uppercase leading-relaxed text-ink">
               {CONTACT_POLICY_MESSAGE}
             </p>
-            <MessageList messages={messages} senderRole={senderRole} compact />
-            <ListingMessageForm listingSlug={listingSlug} senderRole={senderRole} placeholder={placeholder} />
+            <MessageList messages={messages} senderRole={senderRole} senderId={senderId} compact />
+            <ListingMessageForm listingSlug={listingSlug} senderRole={senderRole} senderId={senderId} placeholder={placeholder} />
           </div>
         </details>
       </section>
@@ -76,8 +79,8 @@ export function ListingChat({
       <p className="border border-hazard/40 bg-hazard/10 px-3 py-2 text-xs font-black uppercase leading-relaxed text-ink">
         {CONTACT_POLICY_MESSAGE}
       </p>
-      <MessageList messages={messages} senderRole={senderRole} />
-      <ListingMessageForm listingSlug={listingSlug} senderRole={senderRole} placeholder={placeholder} />
+      <MessageList messages={messages} senderRole={senderRole} senderId={senderId} />
+      <ListingMessageForm listingSlug={listingSlug} senderRole={senderRole} senderId={senderId} placeholder={placeholder} />
     </section>
   );
 }
@@ -85,10 +88,12 @@ export function ListingChat({
 function MessageList({
   messages,
   senderRole,
+  senderId,
   compact = false
 }: {
   messages: ListingChatMessage[];
   senderRole: "RENTER" | "HOST";
+  senderId?: string;
   compact?: boolean;
 }) {
   const visibleMessages = compact ? messages.slice(-3) : messages;
@@ -97,7 +102,7 @@ function MessageList({
     <div className={compact ? "grid max-h-56 gap-2 overflow-y-auto border border-neutral-200 bg-smoke p-2" : "grid max-h-72 gap-2 overflow-y-auto border border-neutral-200 bg-smoke p-2"}>
       {visibleMessages.length ? (
         visibleMessages.map((message) => {
-          const isMine = message.sender.role === senderRole;
+          const isMine = senderId ? message.sender.id === senderId : message.sender.role === senderRole;
           return (
             <article
               key={message.id}
@@ -127,16 +132,19 @@ function MessageList({
 function ListingMessageForm({
   listingSlug,
   senderRole,
+  senderId,
   placeholder
 }: {
   listingSlug: string;
   senderRole: "RENTER" | "HOST";
+  senderId?: string;
   placeholder: string;
 }) {
   return (
     <form action={sendListingMessageAction} className="grid gap-2">
       <input type="hidden" name="listingSlug" value={listingSlug} />
       <input type="hidden" name="senderRole" value={senderRole} />
+      {senderId && <input type="hidden" name="senderId" value={senderId} />}
       <label className="grid gap-1">
         <span className="label">New message</span>
         <textarea className="field min-h-20 resize-y" name="message" maxLength={1000} required placeholder={placeholder} />

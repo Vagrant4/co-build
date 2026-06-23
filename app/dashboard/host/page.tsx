@@ -7,6 +7,7 @@ import {
   updateBookingStatusAction
 } from "@/app/actions";
 import { BookingChat } from "@/components/booking-chat";
+import { DemoAccountSelector } from "@/components/demo-account-selector";
 import { ListingChat } from "@/components/listing-chat";
 import { StatusBadge } from "@/components/status-badge";
 import { dealConfirmationStatus, formatCurrency, PLATFORM_SUBSCRIPTION_MONTHLY } from "@/src/lib/fabrication";
@@ -14,11 +15,18 @@ import { prisma } from "@/src/lib/db";
 
 export const dynamic = "force-dynamic";
 
-export default async function HostDashboardPage() {
-  const [host, listings, bookings, additionalRequests] = await Promise.all([
-    prisma.user.findUniqueOrThrow({ where: { id: "demo-host" } }),
+type PageProps = {
+  searchParams?: Promise<Record<string, string | string[] | undefined>> | Record<string, string | string[] | undefined>;
+};
+
+export default async function HostDashboardPage({ searchParams }: PageProps) {
+  const params = (await searchParams) ?? {};
+  const requestedAccountId = one(params.account);
+  const hostAccounts = await prisma.user.findMany({ where: { role: "HOST" }, orderBy: { createdAt: "asc" } });
+  const host = hostAccounts.find((account) => account.id === requestedAccountId) ?? hostAccounts.find((account) => account.id === "demo-host") ?? hostAccounts[0];
+  const [listings, bookings, additionalRequests] = await Promise.all([
     prisma.listing.findMany({
-      where: { hostId: "demo-host" },
+      where: { hostId: host.id },
       include: {
         bookings: true,
         listingMessages: { include: { sender: true }, orderBy: { createdAt: "asc" } }
@@ -26,7 +34,7 @@ export default async function HostDashboardPage() {
       orderBy: { createdAt: "desc" }
     }),
     prisma.booking.findMany({
-      where: { listing: { hostId: "demo-host" } },
+      where: { listing: { hostId: host.id } },
       include: {
         listing: true,
         user: true,
@@ -36,7 +44,7 @@ export default async function HostDashboardPage() {
       orderBy: { createdAt: "desc" }
     }),
     prisma.additionalRequirement.findMany({
-      where: { booking: { listing: { hostId: "demo-host" } } },
+      where: { booking: { listing: { hostId: host.id } } },
       include: { user: true, booking: { include: { listing: true } } },
       orderBy: { createdAt: "desc" }
     })
@@ -55,6 +63,8 @@ export default async function HostDashboardPage() {
           <Factory size={18} /> {listingActionLabel}
         </a>
       </div>
+
+      <DemoAccountSelector accounts={hostAccounts} currentAccountId={host.id} hrefBase="/dashboard/host" label="Choose host account" />
 
       <PlatformSubscriptionPanel
         title="Host platform subscription"
@@ -77,7 +87,7 @@ export default async function HostDashboardPage() {
         <h2 className="mb-4 text-2xl font-black">Additional requirement approvals</h2>
         <div className="grid gap-4">
           {additionalRequests.length ? (
-            additionalRequests.map((request) => <AdditionalRequirementApproval key={request.id} request={request} />)
+            additionalRequests.map((request) => <AdditionalRequirementApproval key={request.id} request={request} actorId={host.id} />)
           ) : (
             <div className="border border-neutral-300 bg-white p-5 font-bold text-steel">No additional requirements pending.</div>
           )}
@@ -106,14 +116,15 @@ export default async function HostDashboardPage() {
                     messages={booking.messages}
                     senderRole="HOST"
                     title="Chat with renter"
+                    senderId={host.id}
                     placeholder="Message the renter about access, safety, equipment, or timing."
                   />
                 </div>
               </div>
               <div className="grid gap-2">
-                <BookingAction bookingId={booking.id} action="HOST_APPROVE" label="Approve" icon="approve" disabled={booking.status !== "PENDING_HOST"} />
-                <BookingAction bookingId={booking.id} action="HOST_REJECT" label="Reject" icon="reject" disabled={booking.status !== "PENDING_HOST"} />
-                <DealConfirmationForm bookingId={booking.id} confirmed={Boolean(booking.hostDealConfirmedAt)} />
+                <BookingAction bookingId={booking.id} action="HOST_APPROVE" label="Approve" icon="approve" actorId={host.id} disabled={booking.status !== "PENDING_HOST"} />
+                <BookingAction bookingId={booking.id} action="HOST_REJECT" label="Reject" icon="reject" actorId={host.id} disabled={booking.status !== "PENDING_HOST"} />
+                <DealConfirmationForm bookingId={booking.id} confirmed={Boolean(booking.hostDealConfirmedAt)} actorId={host.id} />
               </div>
             </article>
           ))}
@@ -231,7 +242,7 @@ type HostAdditionalRequirementView = {
   };
 };
 
-function AdditionalRequirementApproval({ request }: { request: HostAdditionalRequirementView }) {
+function AdditionalRequirementApproval({ request, actorId }: { request: HostAdditionalRequirementView; actorId: string }) {
   return (
     <article data-additional-request className="card grid gap-4 p-5 lg:grid-cols-[1fr_320px]">
       <div>
@@ -251,6 +262,7 @@ function AdditionalRequirementApproval({ request }: { request: HostAdditionalReq
           <>
             <form action={approveAdditionalRequirementAction} className="grid gap-2 border border-neutral-200 bg-white p-3">
               <input type="hidden" name="requestId" value={request.id} />
+              <input type="hidden" name="hostId" value={actorId} />
               <label>
                 <span className="label">Add-on rate</span>
                 <input className="field" name="quotedRate" type="number" min="1" defaultValue="150" />
@@ -261,6 +273,7 @@ function AdditionalRequirementApproval({ request }: { request: HostAdditionalReq
             </form>
             <form action={rejectAdditionalRequirementAction}>
               <input type="hidden" name="requestId" value={request.id} />
+              <input type="hidden" name="hostId" value={actorId} />
               <button className="button-secondary w-full" type="submit">
                 <XCircle size={18} /> Reject add-on
               </button>
@@ -276,13 +289,14 @@ function AdditionalRequirementApproval({ request }: { request: HostAdditionalReq
   );
 }
 
-function DealConfirmationForm({ bookingId, confirmed }: { bookingId: string; confirmed: boolean }) {
+function DealConfirmationForm({ bookingId, confirmed, actorId }: { bookingId: string; confirmed: boolean; actorId: string }) {
   return confirmed ? (
     <div className="border border-neutral-200 bg-white p-3 text-sm font-black text-steel">Deal confirmed on platform.</div>
   ) : (
     <form action={confirmDealAction} className="grid gap-2 border border-neutral-200 bg-white p-3">
       <input type="hidden" name="bookingId" value={bookingId} />
       <input type="hidden" name="role" value="HOST" />
+      <input type="hidden" name="actorId" value={actorId} />
       <p className="text-sm font-bold text-steel">Confirm this deal on-platform. Admin does not charge a deal commission.</p>
       <button className="button-secondary" type="submit">
         Confirm deal as host
@@ -305,12 +319,14 @@ function BookingAction({
   action,
   label,
   icon,
+  actorId,
   disabled
 }: {
   bookingId: string;
   action: "HOST_APPROVE" | "HOST_REJECT";
   label: string;
   icon: "approve" | "reject";
+  actorId: string;
   disabled: boolean;
 }) {
   const Icon = icon === "approve" ? CheckCircle2 : XCircle;
@@ -318,10 +334,14 @@ function BookingAction({
     <form action={updateBookingStatusAction}>
       <input type="hidden" name="bookingId" value={bookingId} />
       <input type="hidden" name="action" value={action} />
-      <input type="hidden" name="actorId" value="demo-host" />
+      <input type="hidden" name="actorId" value={actorId} />
       <button className={icon === "approve" ? "button-primary w-full" : "button-secondary w-full"} disabled={disabled} type="submit">
         <Icon size={18} /> {label}
       </button>
     </form>
   );
+}
+
+function one(value: string | string[] | undefined): string | undefined {
+  return Array.isArray(value) ? value[0] : value;
 }

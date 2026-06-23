@@ -7,6 +7,7 @@ export type BookingChatMessage = {
   body: string;
   createdAt: Date;
   sender: {
+    id: string;
     fullName: string;
     role: string;
   };
@@ -16,12 +17,14 @@ export function BookingChat({
   bookingId,
   messages,
   senderRole,
+  senderId,
   title,
   placeholder
 }: {
   bookingId: string;
   messages: BookingChatMessage[];
   senderRole: "RENTER" | "HOST";
+  senderId?: string;
   title: string;
   placeholder: string;
 }) {
@@ -42,7 +45,7 @@ export function BookingChat({
       <div className="grid max-h-72 gap-2 overflow-y-auto border border-neutral-200 bg-smoke p-2">
         {messages.length ? (
           messages.map((message) => {
-            const isMine = message.sender.role === senderRole;
+            const isMine = senderId ? message.sender.id === senderId : message.sender.role === senderRole;
             return (
               <article
                 key={message.id}
@@ -70,6 +73,7 @@ export function BookingChat({
       <form action={sendBookingMessageAction} className="grid gap-2">
         <input type="hidden" name="bookingId" value={bookingId} />
         <input type="hidden" name="senderRole" value={senderRole} />
+        {senderId && <input type="hidden" name="senderId" value={senderId} />}
         <label className="grid gap-1">
           <span className="label">New message</span>
           <textarea className="field min-h-20 resize-y" name="message" maxLength={1000} required placeholder={placeholder} />

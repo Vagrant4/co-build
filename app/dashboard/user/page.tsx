@@ -8,17 +8,24 @@ import {
   uploadBookingPhotoAction
 } from "@/app/actions";
 import { BookingChat } from "@/components/booking-chat";
+import { DemoAccountSelector } from "@/components/demo-account-selector";
 import { StatusBadge } from "@/components/status-badge";
 import { dealConfirmationStatus, formatCurrency, PLATFORM_SUBSCRIPTION_MONTHLY } from "@/src/lib/fabrication";
 import { prisma } from "@/src/lib/db";
 
 export const dynamic = "force-dynamic";
 
-export default async function UserDashboardPage() {
-  const [user, bookings] = await Promise.all([
-    prisma.user.findUniqueOrThrow({ where: { id: "demo-renter" } }),
-    prisma.booking.findMany({
-      where: { userId: "demo-renter" },
+type PageProps = {
+  searchParams?: Promise<Record<string, string | string[] | undefined>> | Record<string, string | string[] | undefined>;
+};
+
+export default async function UserDashboardPage({ searchParams }: PageProps) {
+  const params = (await searchParams) ?? {};
+  const requestedAccountId = one(params.account);
+  const renterAccounts = await prisma.user.findMany({ where: { role: "RENTER" }, orderBy: { createdAt: "asc" } });
+  const user = renterAccounts.find((account) => account.id === requestedAccountId) ?? renterAccounts.find((account) => account.id === "demo-renter") ?? renterAccounts[0];
+  const bookings = await prisma.booking.findMany({
+      where: { userId: user.id },
       include: {
         listing: true,
         addons: { include: { equipmentAddon: true } },
@@ -27,8 +34,7 @@ export default async function UserDashboardPage() {
         additionalRequirements: { orderBy: { createdAt: "desc" } }
       },
       orderBy: { createdAt: "desc" }
-    })
-  ]);
+    });
 
   return (
     <main className="section-shell py-8">
@@ -37,6 +43,7 @@ export default async function UserDashboardPage() {
         <h1 className="text-4xl font-black">User dashboard</h1>
         <p className="mt-2 font-bold text-steel">Track approvals, Stripe-admin payment status, and check-in/check-out photo uploads.</p>
       </div>
+      <DemoAccountSelector accounts={renterAccounts} currentAccountId={user.id} hrefBase="/dashboard/user" label="Choose renter account" />
       <PlatformSubscriptionPanel
         title="Renter platform subscription"
         userId={user.id}
@@ -96,15 +103,16 @@ export default async function UserDashboardPage() {
                   </button>
                 </form>
               )}
-              <DealConfirmationForm bookingId={booking.id} confirmed={Boolean(booking.renterDealConfirmedAt)} role="RENTER" label="Confirm deal as renter" />
+              <DealConfirmationForm bookingId={booking.id} confirmed={Boolean(booking.renterDealConfirmedAt)} role="RENTER" actorId={user.id} label="Confirm deal as renter" />
               <BookingChat
                 bookingId={booking.id}
                 messages={booking.messages}
                 senderRole="RENTER"
                 title="Chat with host"
+                senderId={user.id}
                 placeholder="Ask the host about access, loading, timing, or setup."
               />
-              <AdditionalRequirementForm bookingId={booking.id} />
+              <AdditionalRequirementForm bookingId={booking.id} userId={user.id} />
               <PhotoForm bookingId={booking.id} type="CHECK_IN" label="Upload check-in photos" />
               <PhotoForm bookingId={booking.id} type="CHECK_OUT" label="Upload check-out photos" />
             </aside>
@@ -239,10 +247,11 @@ function Metric({ label, value }: { label: string; value: string }) {
   );
 }
 
-function AdditionalRequirementForm({ bookingId }: { bookingId: string }) {
+function AdditionalRequirementForm({ bookingId, userId }: { bookingId: string; userId: string }) {
   return (
     <form action={createAdditionalRequirementAction} className="grid gap-3 border border-neutral-200 bg-white p-3">
       <input type="hidden" name="bookingId" value={bookingId} />
+      <input type="hidden" name="userId" value={userId} />
       <label>
         <span className="label">Additional requirement details</span>
         <textarea
@@ -259,13 +268,14 @@ function AdditionalRequirementForm({ bookingId }: { bookingId: string }) {
   );
 }
 
-function DealConfirmationForm({ bookingId, role, label, confirmed }: { bookingId: string; role: "RENTER" | "HOST"; label: string; confirmed: boolean }) {
+function DealConfirmationForm({ bookingId, role, label, confirmed, actorId }: { bookingId: string; role: "RENTER" | "HOST"; label: string; confirmed: boolean; actorId: string }) {
   return confirmed ? (
     <div className="border border-neutral-200 bg-white p-3 text-sm font-black text-steel">Deal confirmed on platform.</div>
   ) : (
     <form action={confirmDealAction} className="grid gap-2 border border-neutral-200 bg-white p-3">
       <input type="hidden" name="bookingId" value={bookingId} />
       <input type="hidden" name="role" value={role} />
+      <input type="hidden" name="actorId" value={actorId} />
       <p className="text-sm font-bold text-steel">Confirm the deal on-platform. Admin does not charge a deal commission.</p>
       <button className="button-secondary" type="submit">
         {label}
@@ -288,4 +298,8 @@ function PhotoForm({ bookingId, type, label }: { bookingId: string; type: "CHECK
       </button>
     </form>
   );
+}
+
+function one(value: string | string[] | undefined): string | undefined {
+  return Array.isArray(value) ? value[0] : value;
 }

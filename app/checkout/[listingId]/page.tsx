@@ -1,21 +1,31 @@
 import { AlertTriangle, Calculator, FileUp, ShieldCheck } from "lucide-react";
 import { notFound } from "next/navigation";
 import { createBookingAction } from "@/app/actions";
+import { DemoAccountSelector } from "@/components/demo-account-selector";
 import { formatCurrency, getDurationPrice } from "@/src/lib/fabrication";
 import { getEquipmentAddons, getListingBySlug } from "@/src/lib/repository";
 import { workTypes } from "@/src/lib/seed-data";
+import { prisma } from "@/src/lib/db";
 
 export const dynamic = "force-dynamic";
 
 type PageProps = {
   params: Promise<{ listingId: string }> | { listingId: string };
+  searchParams?: Promise<Record<string, string | string[] | undefined>> | Record<string, string | string[] | undefined>;
 };
 
-export default async function CheckoutPage({ params }: PageProps) {
+export default async function CheckoutPage({ params, searchParams }: PageProps) {
   const { listingId } = await params;
-  const [listing, addons] = await Promise.all([getListingBySlug(listingId), getEquipmentAddons()]);
+  const query = (await searchParams) ?? {};
+  const requestedAccountId = one(query.account);
+  const [listing, addons, renterAccounts] = await Promise.all([
+    getListingBySlug(listingId),
+    getEquipmentAddons(),
+    prisma.user.findMany({ where: { role: "RENTER" }, orderBy: { createdAt: "asc" } })
+  ]);
   if (!listing) notFound();
   const listingAddons = addons.filter((addon) => listing.equipmentSlugs.includes(addon.slug));
+  const user = renterAccounts.find((account) => account.id === requestedAccountId) ?? renterAccounts.find((account) => account.id === "demo-renter") ?? renterAccounts[0];
 
   return (
     <main className="section-shell grid gap-8 py-8 lg:grid-cols-[1fr_390px]">
@@ -23,9 +33,18 @@ export default async function CheckoutPage({ params }: PageProps) {
         <p className="text-sm font-black uppercase text-hazard">Booking checkout</p>
         <h1 className="mt-2 text-4xl font-black">{listing.title}</h1>
         <p className="mt-2 font-bold text-steel">{listing.address}</p>
+        {user && (
+          <DemoAccountSelector
+            accounts={renterAccounts}
+            currentAccountId={user.id}
+            hrefBase={`/checkout/${listing.slug}`}
+            label="Choose renter account for this booking"
+          />
+        )}
 
         <form action={createBookingAction} className="mt-8 space-y-6">
           <input type="hidden" name="listingSlug" value={listing.slug} />
+          {user && <input type="hidden" name="userId" value={user.id} />}
           <div className="grid gap-4 md:grid-cols-2">
             <label>
               <span className="label">Duration</span>
@@ -124,4 +143,8 @@ export default async function CheckoutPage({ params }: PageProps) {
       </aside>
     </main>
   );
+}
+
+function one(value: string | string[] | undefined): string | undefined {
+  return Array.isArray(value) ? value[0] : value;
 }

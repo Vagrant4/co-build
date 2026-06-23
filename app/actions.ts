@@ -26,6 +26,7 @@ export async function createBookingAction(formData: FormData) {
   }
 
   const listingSlug = requireString(formData, "listingSlug");
+  const renterId = optionalString(formData, "userId") || "demo-renter";
   const durationDays = parseDuration(requireString(formData, "durationDays"));
   const workType = requireString(formData, "workType");
   const addonSlugs = formData.getAll("addons").map(String);
@@ -49,7 +50,7 @@ export async function createBookingAction(formData: FormData) {
   const booking = await prisma.booking.create({
     data: {
       listing: { connect: { slug: listingSlug } },
-      user: { connect: { id: "demo-renter" } },
+      user: { connect: { id: renterId } },
       durationDays,
       workType,
       riskLevel: quote.riskLevel,
@@ -76,14 +77,14 @@ export async function createBookingAction(formData: FormData) {
         type: "VERIFICATION",
         originalName: verificationUpload.originalName,
         localPath: verificationUpload.localPath,
-        user: { connect: { id: "demo-renter" } },
+        user: { connect: { id: renterId } },
         booking: { connect: { id: booking.id } }
       }
     });
   }
 
   revalidatePath("/dashboard/user");
-  redirect("/dashboard/user?booking=submitted");
+  redirect(`/dashboard/user?account=${renterId}&booking=submitted`);
 }
 
 export async function updateBookingStatusAction(formData: FormData) {
@@ -131,7 +132,7 @@ export async function confirmPaymentAction(formData: FormData) {
 
   await prisma.approvalEvent.create({
     data: {
-      actor: { connect: { id: "demo-renter" } },
+      actor: { connect: { id: booking.userId } },
       booking: { connect: { id: bookingId } },
       target: "payment",
       decision: "APPROVED",
@@ -158,7 +159,7 @@ export async function uploadBookingPhotoAction(formData: FormData) {
       originalName: upload.originalName,
       localPath: upload.localPath,
       booking: { connect: { id: bookingId } },
-      user: { connect: { id: "demo-renter" } }
+      user: { connect: { id: booking.userId } }
     }
   });
 
@@ -296,6 +297,7 @@ export async function confirmDealAction(formData: FormData) {
   const booking = await prisma.booking.findUnique({ where: { id: bookingId } });
   if (!booking) throw new Error("Booking not found.");
 
+  const actorId = optionalString(formData, "actorId") || (role === "HOST" ? "demo-host" : "demo-renter");
   const now = new Date();
   const data =
     role === "RENTER"
@@ -317,7 +319,7 @@ export async function confirmDealAction(formData: FormData) {
 
   await prisma.approvalEvent.create({
     data: {
-      actor: { connect: { id: role === "HOST" ? "demo-host" : "demo-renter" } },
+      actor: { connect: { id: actorId } },
       booking: { connect: { id: bookingId } },
       target: "deal_confirmation",
       decision: "APPROVED",
@@ -337,20 +339,27 @@ export async function sendBookingMessageAction(formData: FormData) {
   if (containsRestrictedContactDetail(body)) {
     throw new Error(CONTACT_POLICY_MESSAGE);
   }
-  const senderId = senderRole === "HOST" ? "demo-host" : senderRole === "RENTER" ? "demo-renter" : "";
-  if (!senderId) {
+  const requestedSenderId = optionalString(formData, "senderId");
+  const fallbackSenderId = senderRole === "HOST" ? "demo-host" : senderRole === "RENTER" ? "demo-renter" : "";
+  const sender = requestedSenderId
+    ? await prisma.user.findUnique({ where: { id: requestedSenderId } })
+    : fallbackSenderId
+      ? await prisma.user.findUnique({ where: { id: fallbackSenderId } })
+      : null;
+  if (!sender || sender.role !== senderRole) {
     throw new Error("Message sender must be renter or host.");
   }
+  const senderId = sender.id;
 
   const booking = await prisma.booking.findUnique({
     where: { id: bookingId },
     include: { listing: true }
   });
   if (!booking) throw new Error("Booking not found.");
-  if (senderRole === "RENTER" && booking.userId !== "demo-renter") {
+  if (senderRole === "RENTER" && booking.userId !== senderId) {
     throw new Error("Renter can only message on their own bookings.");
   }
-  if (senderRole === "HOST" && booking.listing.hostId !== "demo-host") {
+  if (senderRole === "HOST" && booking.listing.hostId !== senderId) {
     throw new Error("Host can only message on bookings for their own listings.");
   }
 
@@ -373,17 +382,24 @@ export async function sendListingMessageAction(formData: FormData) {
   if (containsRestrictedContactDetail(body)) {
     throw new Error(CONTACT_POLICY_MESSAGE);
   }
-  const senderId = senderRole === "HOST" ? "demo-host" : senderRole === "RENTER" ? "demo-renter" : "";
-  if (!senderId) {
+  const requestedSenderId = optionalString(formData, "senderId");
+  const fallbackSenderId = senderRole === "HOST" ? "demo-host" : senderRole === "RENTER" ? "demo-renter" : "";
+  const sender = requestedSenderId
+    ? await prisma.user.findUnique({ where: { id: requestedSenderId } })
+    : fallbackSenderId
+      ? await prisma.user.findUnique({ where: { id: fallbackSenderId } })
+      : null;
+  if (!sender || sender.role !== senderRole) {
     throw new Error("Message sender must be renter or host.");
   }
+  const senderId = sender.id;
 
   const listing = await prisma.listing.findUnique({
     where: { slug: listingSlug },
     select: { id: true, slug: true, hostId: true }
   });
   if (!listing) throw new Error("Listing not found.");
-  if (senderRole === "HOST" && listing.hostId !== "demo-host") {
+  if (senderRole === "HOST" && listing.hostId !== senderId) {
     throw new Error("Host can only message on their own listings.");
   }
 
@@ -402,12 +418,13 @@ export async function sendListingMessageAction(formData: FormData) {
 export async function createAdditionalRequirementAction(formData: FormData) {
   const bookingId = requireString(formData, "bookingId");
   const detail = requireString(formData, "additionalDetail");
+  const renterId = optionalString(formData, "userId") || "demo-renter";
 
   const booking = await prisma.booking.findUnique({
     where: { id: bookingId },
     include: { user: true, listing: true }
   });
-  if (!booking || booking.userId !== "demo-renter") {
+  if (!booking || booking.userId !== renterId) {
     throw new Error("Booking not found for this renter.");
   }
 
@@ -415,17 +432,18 @@ export async function createAdditionalRequirementAction(formData: FormData) {
     data: {
       detail,
       booking: { connect: { id: bookingId } },
-      user: { connect: { id: "demo-renter" } }
+      user: { connect: { id: renterId } }
     }
   });
 
   revalidatePath("/dashboard/user");
   revalidatePath("/dashboard/host");
-  redirect("/dashboard/user?additional=submitted");
+  redirect(`/dashboard/user?account=${renterId}&additional=submitted`);
 }
 
 export async function approveAdditionalRequirementAction(formData: FormData) {
   const requestId = requireString(formData, "requestId");
+  const hostId = optionalString(formData, "hostId") || "demo-host";
   const quotedRate = Number(requireString(formData, "quotedRate"));
   if (!Number.isFinite(quotedRate) || quotedRate <= 0) {
     throw new Error("Add-on rate must be greater than zero.");
@@ -445,6 +463,7 @@ export async function approveAdditionalRequirementAction(formData: FormData) {
     }
   });
   if (!request) throw new Error("Additional requirement request not found.");
+  if (request.booking.listing.hostId !== hostId) throw new Error("Host can only manage their own additional requirements.");
 
   const nextStatus = advanceAdditionalRequirementStatus(request.status, "HOST_APPROVE");
   if (nextStatus === request.status) {
@@ -474,7 +493,7 @@ export async function approveAdditionalRequirementAction(formData: FormData) {
 
   await prisma.approvalEvent.create({
     data: {
-      actor: { connect: { id: "demo-host" } },
+      actor: { connect: { id: hostId } },
       booking: { connect: { id: request.bookingId } },
       target: "additional_requirement",
       decision: "APPROVED",
@@ -484,13 +503,15 @@ export async function approveAdditionalRequirementAction(formData: FormData) {
 
   revalidatePath("/dashboard/host");
   revalidatePath("/dashboard/user");
-  redirect("/dashboard/host?additional=approved");
+  redirect(`/dashboard/host?account=${hostId}&additional=approved`);
 }
 
 export async function rejectAdditionalRequirementAction(formData: FormData) {
   const requestId = requireString(formData, "requestId");
-  const request = await prisma.additionalRequirement.findUnique({ where: { id: requestId } });
+  const hostId = optionalString(formData, "hostId") || "demo-host";
+  const request = await prisma.additionalRequirement.findUnique({ where: { id: requestId }, include: { booking: { include: { listing: true } } } });
   if (!request) throw new Error("Additional requirement request not found.");
+  if (request.booking.listing.hostId !== hostId) throw new Error("Host can only manage their own additional requirements.");
 
   const nextStatus = advanceAdditionalRequirementStatus(request.status, "HOST_REJECT");
   if (nextStatus === request.status) {
@@ -504,7 +525,7 @@ export async function rejectAdditionalRequirementAction(formData: FormData) {
 
   await prisma.approvalEvent.create({
     data: {
-      actor: { connect: { id: "demo-host" } },
+      actor: { connect: { id: hostId } },
       booking: { connect: { id: request.bookingId } },
       target: "additional_requirement",
       decision: "REJECTED",
@@ -514,15 +535,16 @@ export async function rejectAdditionalRequirementAction(formData: FormData) {
 
   revalidatePath("/dashboard/host");
   revalidatePath("/dashboard/user");
-  redirect("/dashboard/host?additional=rejected");
+  redirect(`/dashboard/host?account=${hostId}&additional=rejected`);
 }
 
 export async function confirmAdditionalRequirementPaymentAction(formData: FormData) {
   const requestId = requireString(formData, "requestId");
   const request = await prisma.additionalRequirement.findUnique({ where: { id: requestId } });
-  if (!request || request.userId !== "demo-renter") {
+  if (!request) {
     throw new Error("Additional requirement request not found for this renter.");
   }
+  const renterId = request.userId;
 
   const nextStatus = advanceAdditionalRequirementStatus(request.status, "PAY");
   if (nextStatus === request.status) {
@@ -539,7 +561,7 @@ export async function confirmAdditionalRequirementPaymentAction(formData: FormDa
 
   await prisma.approvalEvent.create({
     data: {
-      actor: { connect: { id: "demo-renter" } },
+      actor: { connect: { id: renterId } },
       booking: { connect: { id: request.bookingId } },
       target: "additional_requirement_payment",
       decision: "APPROVED",
@@ -549,12 +571,13 @@ export async function confirmAdditionalRequirementPaymentAction(formData: FormDa
 
   revalidatePath("/dashboard/user");
   revalidatePath("/dashboard/host");
-  redirect("/dashboard/user?additional=paid");
+  redirect(`/dashboard/user?account=${renterId}&additional=paid`);
 }
 
 export async function createListingAction(formData: FormData) {
   const title = requireString(formData, "title");
   const slug = slugify(`${title}-${Date.now()}`);
+  const hostId = optionalString(formData, "hostId") || "demo-host";
   const photoUpload = await saveUpload(formData.get("photo") as File | null, "listing-photo");
   const floorPlanUpload = await saveUpload(formData.get("floorPlan") as File | null, "floor-plan");
   const equipmentSlugs = formData
@@ -609,7 +632,7 @@ export async function createListingAction(formData: FormData) {
       insuranceStatus: "Not collected in host listing form",
       fireSafety: requireString(formData, "fireSafety"),
       electricalSupply: requireString(formData, "electricalSupply"),
-      host: { connect: { id: "demo-host" } },
+      host: { connect: { id: hostId } },
       equipmentAddons: {
         create: equipmentSlugs.map((slugValue) => ({
           equipmentAddon: { connect: { slug: slugValue } }
@@ -641,7 +664,7 @@ export async function createListingAction(formData: FormData) {
 
   revalidatePath("/dashboard/host");
   revalidatePath("/dashboard/admin");
-  redirect("/dashboard/host?listing=submitted");
+  redirect(`/dashboard/host?account=${hostId}&listing=submitted`);
 }
 
 export async function updateListingStatusAction(formData: FormData) {
