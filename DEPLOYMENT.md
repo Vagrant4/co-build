@@ -1,13 +1,35 @@
-# Co-Build Live Deployment
+# Co-Build Deployment Guide
 
-This MVP is built for local demos with SQLite and for live hosting with Postgres.
+This MVP is built for local demos with SQLite and for Vercel-hosted previews with Postgres.
+
+## Production Gate
+
+Do not treat the current application as public-production ready until the Critical and High items in [docs/PRODUCTION_READINESS_CHECKLIST.md](docs/PRODUCTION_READINESS_CHECKLIST.md) are closed.
+
+The current deployment path is acceptable for:
+
+- Founder demo
+- Investor/customer walkthrough
+- Internal operations testing
+- Private staging behind access protection
+
+The current deployment path is not acceptable for:
+
+- Public user registration
+- Real verification documents
+- Real host/renter payment proof
+- Real booking disputes or damage-deposit workflows
+- Public admin CSV exports
 
 ## Recommended Live Stack
 
 - Hosting: Vercel
 - Database: hosted Postgres with connection pooling, such as Vercel Postgres, Neon, Supabase, or Railway
 - Payments: company-account collection, with renter/host payment references approved by admin
-- Uploads: local uploads work for the demo, but production should move verification, listing, check-in, and check-out files to durable object storage
+- Uploads: move verification, listing, check-in, and check-out files to durable private object storage before public launch
+- Authentication: add real login, sessions, password reset, account ownership, admin roles, and route protection
+- Email: add transactional email for account creation, booking updates, chat alerts, and generated contracts
+- Database changes: replace production `db push` with reviewed Prisma migrations before real data is collected
 
 ## Required Environment Variables
 
@@ -24,7 +46,7 @@ COMPANY_PAYMENT_ACCOUNT="000-000-000-0"
 
 Show the company payment instructions inside account dashboards or operational onboarding material. Users and hosts submit the recurring S$5/month payment reference; admin activates the subscription after checking the company account.
 
-## Build Command
+## Current Build Command
 
 Vercel uses:
 
@@ -32,8 +54,18 @@ Vercel uses:
 npm run vercel-build
 ```
 
-That command pushes the Prisma schema to the connected Postgres database, generates Prisma Client from
-`prisma/schema.postgres.prisma`, seeds demo data only when the database is empty, and then builds Next.js.
+That command pushes the Prisma schema to the connected Postgres database, generates Prisma Client from `prisma/schema.postgres.prisma`, runs demo seeding, and then builds Next.js.
+
+Important: `prisma/seed-if-empty.ts` currently always calls the showcase seeder with `reset: false`. It upserts fixed demo users, listings, equipment, sample bookings, messages, uploads, and subscriptions. This is useful for a showcase deployment but unsafe for a real production database.
+
+Before public launch, change the build sequence to:
+
+```bash
+npm run prisma:generate:prod
+npm run build
+```
+
+Then run reviewed migrations and production-safe seed scripts separately through a controlled release process.
 
 ## First Database Setup
 
@@ -57,6 +89,28 @@ For local development, switch Prisma Client back to SQLite:
 npm run prisma:generate
 ```
 
+## Private Preview Deployment
+
+1. Confirm the Vercel project is connected to this GitHub repository.
+2. Add the environment variables above to Production and Preview.
+3. Enable Vercel Deployment Protection for private demos.
+4. Deploy from the Git branch you want to review.
+5. Run the verification commands in the next section.
+
+## Public Production Deployment
+
+Only do this after the readiness checklist is closed:
+
+1. Merge the reviewed release branch.
+2. Confirm the database has a current backup.
+3. Run reviewed Prisma migrations, not `db push`.
+4. Disable demo seeding in the production build path.
+5. Confirm auth protects `/dashboard/admin`, `/dashboard/admin/export/*`, server actions, dashboards, checkout, uploads, and chat writes.
+6. Confirm object storage is private and upload access is signed or permission checked.
+7. Run smoke tests for account creation, subscription proof, listing approval, search, booking, chat, high-risk approval, payment proof, check-in, and check-out.
+8. Deploy to production.
+9. Monitor logs, error rates, and database connection usage for the first hour.
+
 ## Publish With Vercel CLI
 
 ```bash
@@ -71,10 +125,35 @@ vercel env add COMPANY_PAYMENT_ACCOUNT production
 vercel --prod
 ```
 
+## Verification
+
+Run locally before deploying:
+
+```bash
+npm.cmd test
+npm.cmd exec prisma validate
+npm.cmd run build
+```
+
+After deployment, smoke test:
+
+- `/`
+- `/search`
+- `/create-account`
+- `/dashboard/user`
+- `/dashboard/host`
+- `/dashboard/admin` only when protected
+- A listing detail route
+- A checkout route
+
+## Rollback
+
+Use [docs/ROLLBACK_RECOVERY.md](docs/ROLLBACK_RECOVERY.md) for code rollback, database recovery, upload recovery, and incident steps.
+
 ## Notes Before Public Launch
 
 - The current app uses demo role switching instead of real authentication.
-- Booking, add-on, and subscription payments are proof/reference based. Add real bank reconciliation or admin proof upload review before relying on this publicly.
-- Local filesystem uploads are not durable on serverless hosting. Use S3, R2, UploadThing, or Vercel Blob before relying on uploaded documents/photos in production.
-- Add real authentication, email notifications, contract delivery, and mobile-first PWA polish before replacing the demo flow.
-- Protect the first live deployment if it contains demo data or admin controls.
+- Booking, add-on, and subscription payments are proof/reference based.
+- Local filesystem uploads are not durable on serverless hosting.
+- Generated contracts are stored in the database, but real email delivery is not implemented.
+- Protect any deployment that contains demo data or admin controls.
