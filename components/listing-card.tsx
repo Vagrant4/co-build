@@ -10,6 +10,7 @@ export function ListingCard({ listing }: { listing: Listing }) {
     <article className="card listing-card overflow-hidden">
       <a href={`/listings/${listing.slug}`} className="listing-card__media" aria-label={`View ${listing.title}`}>
         <img src={listing.photoUrls[0]} alt="" className="h-56 w-full object-cover" />
+        <span className="listing-card__signal">Live bay</span>
         <span className="listing-card__badge">{sizeRequirementLabel(listing.sizeSqft)}</span>
         <span className="listing-card__location">
           <MapPin size={14} /> {listing.location}

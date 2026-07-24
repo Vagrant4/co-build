@@ -32,7 +32,7 @@ export default async function CreateAccountPage({ searchParams }: PageProps) {
         </div>
       </section>
 
-      <section className="section-shell -mt-8 pb-12">
+      <section className="section-shell pt-8 pb-12">
         <div className="mb-5 flex flex-wrap gap-2" role="tablist" aria-label="Account type">
           <a
             href="/create-account?role=renter"

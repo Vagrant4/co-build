@@ -26,7 +26,7 @@ export default async function SearchPage({ searchParams }: PageProps) {
           </p>
         </div>
       </section>
-      <section className="section-shell -mt-8 pb-12">
+      <section className="section-shell pt-8 pb-12">
       <div className="filter-panel mb-6">
         <SearchForm compact />
         <form action="/search" className="mt-4 grid gap-3 border-t border-neutral-200 pt-4 md:grid-cols-5">

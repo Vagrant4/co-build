@@ -1,13 +1,19 @@
 import {
+  Activity,
   ArrowRight,
   BadgeCheck,
   Bolt,
   CalendarDays,
+  ClipboardCheck,
+  Cpu,
   Factory,
   Forklift,
+  Gauge,
   HardHat,
   MapPinned,
+  MessageSquareLock,
   PackageCheck,
+  Radar,
   ShieldCheck,
   Sparkles,
   Wrench
@@ -64,6 +70,32 @@ export default async function HomePage() {
     { value: "20", label: "demo accounts", detail: "10 hosts and 10 renters ready for walkthroughs" },
     { value: "S$5", label: "monthly platform plan", detail: "No commission on deals made through Co-Build" }
   ];
+  const commandCards = [
+    {
+      icon: Cpu,
+      label: "Bay matching",
+      metric: "Sqft + power + access",
+      body: "Renter searches by exact project requirement instead of confusing bay names."
+    },
+    {
+      icon: MessageSquareLock,
+      label: "Locked chat",
+      metric: "No outside contact",
+      body: "Renter and host communicate inside Co-Build before confirming a deal."
+    },
+    {
+      icon: ClipboardCheck,
+      label: "Approval route",
+      metric: "Host + admin gates",
+      body: "High-risk work, factory mismatch, and safety exceptions are routed for review."
+    },
+    {
+      icon: Gauge,
+      label: "Deal totals",
+      metric: "Rent + deposit + add-ons",
+      body: "Duration pricing, cleaning fee, equipment add-ons, and payment proof stay visible."
+    }
+  ];
 
   return (
     <main>
@@ -99,6 +131,10 @@ export default async function HomePage() {
           <div className="hero-command-panel" aria-label="Co-Build marketplace snapshot">
             <div className="hazard-stripe h-3" />
             <div className="grid gap-3 p-4">
+              <div className="tech-status-line" aria-label="Marketplace system status">
+                <span><Radar size={14} /> Network online</span>
+                <span><Activity size={14} /> Live workflow</span>
+              </div>
               <div className="border border-white/[0.15] bg-white/[0.08] p-4">
                 <p className="text-sm font-black uppercase text-safety">Market-ready demo</p>
                 <p className="mt-2 text-2xl font-black text-white">
@@ -134,6 +170,53 @@ export default async function HomePage() {
               </div>
             </div>
           ))}
+        </div>
+      </section>
+
+      <section id="command-center" className="tech-bento-section py-16">
+        <div className="section-shell">
+          <div className="section-heading section-heading--dark">
+            <div>
+              <p className="text-sm font-black uppercase text-signal">Command center UX</p>
+              <h2 className="text-3xl font-black text-white md:text-5xl">Every deal feels tracked, controlled, and ready.</h2>
+              <p className="mt-3 max-w-3xl text-lg font-bold text-neutral-300">
+                A high-tech marketplace should make the hard parts visible: matching, communication, approvals, pricing,
+                photo records, and recurring platform subscription status.
+              </p>
+            </div>
+            <a className="button-primary" href="/create-account">
+              Create account <ArrowRight size={18} />
+            </a>
+          </div>
+
+          <div className="tech-bento-grid">
+            <article className="tech-bento-card tech-bento-card--large">
+              <div className="tech-bento-card__screen">
+                <div className="tech-bento-card__scan" />
+                <div className="tech-route">
+                  {["Search", "Chat", "Approve", "Pay", "Check-in"].map((step, index) => (
+                    <span key={step} data-step={`0${index + 1}`}>
+                      {step}
+                    </span>
+                  ))}
+                </div>
+              </div>
+              <p className="mt-5 text-sm font-black uppercase text-signal">Live deal path</p>
+              <h3 className="mt-2 text-3xl font-black text-white">From short-notice search to closed deal.</h3>
+              <p className="mt-3 max-w-2xl font-bold leading-7 text-neutral-300">
+                Renter, host, and admin actions are separated clearly so the platform feels controlled rather than casual.
+              </p>
+            </article>
+
+            {commandCards.map(({ icon: Icon, label, metric, body }) => (
+              <article key={label} className="tech-bento-card">
+                <Icon size={28} className="text-signal" aria-hidden="true" />
+                <p className="mt-4 text-sm font-black uppercase text-neutral-400">{label}</p>
+                <h3 className="mt-1 text-xl font-black text-white">{metric}</h3>
+                <p className="mt-3 text-sm font-bold leading-6 text-neutral-300">{body}</p>
+              </article>
+            ))}
+          </div>
         </div>
       </section>
 
