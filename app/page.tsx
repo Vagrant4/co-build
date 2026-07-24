@@ -1,4 +1,17 @@
-import { ArrowRight, BadgeCheck, Bolt, Factory, Forklift, HardHat, PackageCheck, ShieldCheck, Wrench } from "lucide-react";
+import {
+  ArrowRight,
+  BadgeCheck,
+  Bolt,
+  CalendarDays,
+  Factory,
+  Forklift,
+  HardHat,
+  MapPinned,
+  PackageCheck,
+  ShieldCheck,
+  Sparkles,
+  Wrench
+} from "lucide-react";
 import { ListingCard } from "@/components/listing-card";
 import { PricingTable } from "@/components/pricing-table";
 import { SearchForm } from "@/components/search-form";
@@ -8,7 +21,8 @@ import { sampleWorkshopPhotos, seedEquipmentAddons } from "@/src/lib/seed-data";
 export const dynamic = "force-dynamic";
 
 export default async function HomePage() {
-  const listings = (await getApprovedListings()).slice(0, 3);
+  const allListings = await getApprovedListings();
+  const listings = allListings.slice(0, 6);
   const spaceCards = [
     {
       icon: Wrench,
@@ -45,20 +59,27 @@ export default async function HomePage() {
       text: "Hosts declare factory type, fire safety, electrical supply, access rules, and allowed work."
     }
   ];
+  const marketStats = [
+    { value: `${allListings.length}`, label: "showcase spaces", detail: "Across Kallang, Tuas, Woodlands, Ubi, Jurong, Bedok, and Changi" },
+    { value: "20", label: "demo accounts", detail: "10 hosts and 10 renters ready for walkthroughs" },
+    { value: "S$5", label: "monthly platform plan", detail: "No commission on deals made through Co-Build" }
+  ];
 
   return (
     <main>
-      <section className="industrial-grid border-b border-neutral-300 bg-smoke">
-        <div className="section-shell grid min-h-[calc(100vh-4rem)] items-center gap-8 py-10 lg:grid-cols-[1.05fr_0.95fr]">
-          <div className="space-y-7">
-            <div className="inline-flex items-center gap-2 border border-ink bg-white px-3 py-2 text-sm font-black">
+      <section className="hero-stage">
+        <img src="/assets/hero-fabrication-bay.png" alt="" className="hero-stage__image" />
+        <div className="hero-stage__overlay" />
+        <div className="section-shell hero-stage__inner">
+          <div className="hero-stage__copy">
+            <div className="signal-kicker signal-kicker--dark">
               <HardHat size={18} /> Singapore short-term fabrication bays
             </div>
             <div>
-              <h1 className="max-w-4xl text-5xl font-black leading-[0.98] md:text-7xl">
+              <h1 className="max-w-4xl text-5xl font-black leading-[0.96] text-white md:text-7xl">
                 Rent a fabrication bay for 1 day, 30 days, or 60 days.
               </h1>
-              <p className="mt-5 max-w-2xl text-xl font-bold text-steel">
+              <p className="mt-5 max-w-2xl text-xl font-bold text-neutral-200">
                 Workspace, power, loading access, tools, and optional equipment add-ons for contractors, makers,
                 hardware teams, signage shops, furniture builders, and e-commerce operators.
               </p>
@@ -67,24 +88,30 @@ export default async function HomePage() {
               <a className="button-primary" href="/search">
                 Find a Space <ArrowRight size={18} />
               </a>
-              <a className="button-secondary" href="/dashboard/host/listings/new">
+              <a className="button-secondary button-secondary--on-dark" href="/dashboard/host/listings/new">
                 List Your Space <Factory size={18} />
               </a>
             </div>
-            <SearchForm />
+            <div className="hero-search-wrap">
+              <SearchForm />
+            </div>
           </div>
-          <div className="relative min-h-[520px] overflow-hidden border border-ink bg-ink">
-            <img src="/assets/hero-fabrication-bay.png" alt="" className="absolute inset-0 h-full w-full object-cover opacity-95" />
-            <div className="absolute left-0 top-0 h-4 w-full hazard-stripe" />
-            <div className="absolute bottom-0 left-0 right-0 grid gap-2 bg-ink/90 p-5 text-white sm:grid-cols-3">
-              {[
-                ["4", "size bands"],
-                ["Office/B1/B2", "factory type"],
-                ["1-60", "day bookings"]
-              ].map(([value, label]) => (
-                <div key={label} className="border border-white/20 p-3">
-                  <p className="text-3xl font-black text-safety">{value}</p>
-                  <p className="text-sm font-bold uppercase text-neutral-200">{label}</p>
+          <div className="hero-command-panel" aria-label="Co-Build marketplace snapshot">
+            <div className="hazard-stripe h-3" />
+            <div className="grid gap-3 p-4">
+              <div className="border border-white/[0.15] bg-white/[0.08] p-4">
+                <p className="text-sm font-black uppercase text-safety">Market-ready demo</p>
+                <p className="mt-2 text-2xl font-black text-white">
+                  Hosts, renters, chat, approvals, pricing, and deal flow are ready to show.
+                </p>
+              </div>
+              {marketStats.map((stat) => (
+                <div key={stat.label} className="hero-stat">
+                  <p className="text-3xl font-black text-safety">{stat.value}</p>
+                  <div>
+                    <p className="text-sm font-black uppercase text-white">{stat.label}</p>
+                    <p className="text-xs font-bold leading-5 text-neutral-300">{stat.detail}</p>
+                  </div>
                 </div>
               ))}
             </div>
@@ -92,11 +119,33 @@ export default async function HomePage() {
         </div>
       </section>
 
-      <section className="section-shell py-14">
-        <div className="mb-6 flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+      <section className="market-strip">
+        <div className="section-shell grid gap-3 md:grid-cols-3">
+          {[
+            { icon: MapPinned, label: "Search by real requirement", value: "Location, sqft, work type, loading, equipment" },
+            { icon: ShieldCheck, label: "Controlled communication", value: "Renter and host chat stays inside Co-Build" },
+            { icon: CalendarDays, label: "Short-notice durations", value: "1 day, 7 days, 30 days, 60 days, or custom request" }
+          ].map(({ icon: Icon, label, value }) => (
+            <div key={label} className="market-strip__item">
+              <Icon size={22} className="text-hazard" />
+              <div>
+                <p className="text-sm font-black uppercase">{label}</p>
+                <p className="text-sm font-bold text-steel">{value}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <section className="section-shell py-16">
+        <div className="section-heading">
           <div>
             <p className="text-sm font-black uppercase text-hazard">Live inventory</p>
-            <h2 className="text-3xl font-black md:text-4xl">State the size required for short-notice work</h2>
+            <h2 className="text-3xl font-black md:text-5xl">Showcase spaces that feel ready to book.</h2>
+            <p className="mt-3 max-w-3xl text-lg font-bold text-steel">
+              A fuller marketplace makes the MVP feel credible: different locations, factory types, power setups,
+              booking statuses, chat histories, and pricing examples.
+            </p>
           </div>
           <a className="button-dark" href="/search">
             Browse all spaces <ArrowRight size={18} />
@@ -109,10 +158,10 @@ export default async function HomePage() {
         </div>
       </section>
 
-      <section className="border-y border-neutral-300 bg-white py-14">
+      <section className="feature-band py-16">
         <div className="section-shell grid gap-5 md:grid-cols-4">
           {spaceCards.map(({ icon: Icon, title, body }) => (
-            <div key={title} className="border border-neutral-300 p-5">
+            <div key={title} className="feature-tile">
               <Icon className="mb-4 text-hazard" size={32} aria-hidden="true" />
               <h3 className="text-xl font-black">{title}</h3>
               <p className="mt-2 text-sm leading-6 text-steel">{body}</p>
@@ -121,10 +170,10 @@ export default async function HomePage() {
         </div>
       </section>
 
-      <section className="section-shell grid gap-10 py-14 lg:grid-cols-[0.8fr_1.2fr]">
+      <section className="section-shell grid gap-10 py-16 lg:grid-cols-[0.8fr_1.2fr]">
         <div>
           <p className="text-sm font-black uppercase text-hazard">How it works</p>
-          <h2 className="mt-2 text-3xl font-black md:text-4xl">Search, request, approve, pay, document.</h2>
+          <h2 className="mt-2 text-3xl font-black md:text-5xl">Search, request, approve, pay, document.</h2>
           <p className="mt-4 text-lg font-bold text-steel">
             The MVP keeps the real operational controls visible: approvals, safety acceptance, deposits, cleaning fees,
             and check-in/check-out photos.
@@ -137,40 +186,43 @@ export default async function HomePage() {
             "Submit verification, choose add-ons, accept safety rules, and receive host/admin approval where needed.",
             "Submit payment proof, then upload check-in and check-out photos for deposit review."
           ].map((step, index) => (
-            <div key={step} className="border border-neutral-300 bg-white p-5">
-              <p className="text-sm font-black text-hazard">0{index + 1}</p>
+            <div key={step} className="process-card">
+              <p className="process-card__number">0{index + 1}</p>
               <p className="mt-2 font-bold leading-6">{step}</p>
             </div>
           ))}
         </div>
       </section>
 
-      <section className="border-y border-neutral-300 bg-white py-14">
+      <section className="feature-band py-16">
         <div className="section-shell">
-          <div className="mb-6">
-            <p className="text-sm font-black uppercase text-hazard">Pricing</p>
-            <h2 className="text-3xl font-black md:text-4xl">Clear rates, deposits, and cleaning fees.</h2>
+          <div className="section-heading">
+            <div>
+              <p className="text-sm font-black uppercase text-hazard">Pricing</p>
+              <h2 className="text-3xl font-black md:text-5xl">Clear rates, deposits, and cleaning fees.</h2>
+            </div>
+            <span className="status-pill status-pill--strong">No deal commission</span>
           </div>
           <PricingTable />
         </div>
       </section>
 
-      <section className="section-shell grid gap-8 py-14 lg:grid-cols-2">
-        <div className="card p-6">
+      <section className="section-shell grid gap-8 py-16 lg:grid-cols-2">
+        <div className="co-build-showcase-panel">
           <p className="text-sm font-black uppercase text-hazard">Equipment add-ons</p>
-          <h2 className="mt-2 text-3xl font-black">Tools without uncontrolled heavy machine rental.</h2>
+          <h2 className="mt-2 text-3xl font-black md:text-4xl">Tools without uncontrolled heavy machine rental.</h2>
           <div className="mt-5 flex flex-wrap gap-2">
             {seedEquipmentAddons.map((addon) => (
-              <span key={addon.slug} className="border border-neutral-300 bg-white px-3 py-2 text-sm font-bold">
+              <span key={addon.slug} className="tool-chip">
                 {addon.name}
               </span>
             ))}
           </div>
           <div className="workspace-photo-grid mt-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-4" aria-label="sample workshop photos">
             {sampleWorkshopPhotos.map((photo) => (
-              <figure key={photo.src} className="overflow-hidden border border-neutral-300 bg-white">
+              <figure key={photo.src} className="photo-tile">
                 <img src={photo.src} alt={photo.label} className="aspect-[4/3] w-full object-cover" />
-                <figcaption className="border-t border-neutral-200 p-3">
+                <figcaption className="p-3">
                   <p className="text-sm font-black">{photo.label}</p>
                   <p className="mt-1 text-xs font-bold leading-5 text-steel">{photo.detail}</p>
                 </figcaption>
@@ -178,37 +230,41 @@ export default async function HomePage() {
             ))}
           </div>
         </div>
-        <div className="card p-6">
-          <p className="text-sm font-black uppercase text-hazard">Safety and compliance</p>
-          <h2 className="mt-2 text-3xl font-black">B1/B2 suitability with high-risk admin approval.</h2>
+        <div className="co-build-showcase-panel co-build-showcase-panel--dark">
+          <p className="text-sm font-black uppercase text-safety">Safety and compliance</p>
+          <h2 className="mt-2 text-3xl font-black text-white md:text-4xl">B1/B2 suitability with high-risk admin approval.</h2>
           <div className="mt-5 grid gap-3">
             {safetyCards.map(({ icon: Icon, text }) => (
-              <div key={text} className="flex gap-3 border border-neutral-200 p-3">
-                <Icon className="mt-1 text-hazard" size={20} />
-                <p className="font-bold text-steel">{text}</p>
+              <div key={text} className="safety-row">
+                <Icon className="mt-1 text-safety" size={20} />
+                <p className="font-bold text-neutral-200">{text}</p>
               </div>
             ))}
           </div>
         </div>
       </section>
 
-      <section className="bg-ink py-14 text-white">
+      <section className="owner-cta py-16 text-white">
         <div className="section-shell grid gap-8 lg:grid-cols-[1fr_0.8fr] lg:items-center">
           <div>
             <p className="text-sm font-black uppercase text-safety">For space owners</p>
-            <h2 className="mt-2 text-4xl font-black">Monetize idle workshop area without losing control.</h2>
+            <h2 className="mt-2 text-4xl font-black md:text-6xl">Monetize idle workshop area without losing control.</h2>
             <p className="mt-4 max-w-2xl text-lg font-bold text-neutral-300">
               Hosts control allowed work, restricted work, access hours, equipment, deposits, cleaning rules, and
               availability before admin approval makes a listing searchable.
             </p>
           </div>
-          <a href="/dashboard/host/listings/new" className="button-primary">
-            Start host listing <ArrowRight size={18} />
-          </a>
+          <div className="owner-cta__box">
+            <Sparkles size={24} className="text-safety" />
+            <p className="text-2xl font-black">Launch with dummy demand signals, then replace with real hosts as they join.</p>
+            <a href="/dashboard/host/listings/new" className="button-primary mt-5">
+              Start host listing <ArrowRight size={18} />
+            </a>
+          </div>
         </div>
       </section>
 
-      <section className="section-shell py-14">
+      <section className="section-shell py-16">
         <div className="grid gap-4 md:grid-cols-2">
           {[
             ["Can I book for one day?", "Yes. MVP durations are 1 day, 7 days, 30 days, and 60 days."],
@@ -216,7 +272,7 @@ export default async function HomePage() {
             ["Are deposits included?", "The checkout quote includes rental, deposit, cleaning fee, and selected equipment add-ons."],
             ["Are photos required?", "Yes. Check-in and check-out photos are required for deposit and dispute review."]
           ].map(([question, answer]) => (
-            <div key={question} className="border border-neutral-300 bg-white p-5">
+            <div key={question} className="faq-tile">
               <h3 className="font-black">{question}</h3>
               <p className="mt-2 text-steel">{answer}</p>
             </div>

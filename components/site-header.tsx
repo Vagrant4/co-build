@@ -36,7 +36,7 @@ export function SiteHeader() {
   const navItems = getNavItems(pathname);
 
   return (
-    <header className="sticky top-0 z-40 border-b border-neutral-300 bg-white/95 backdrop-blur">
+    <header className="site-header">
       <div className="section-shell flex min-h-16 flex-col gap-3 py-3 lg:flex-row lg:items-center lg:justify-between">
         <a href="/" className="group flex items-center gap-3" aria-label="Co-Build home">
           <Logo
@@ -52,7 +52,7 @@ export function SiteHeader() {
         </a>
         <div className="flex flex-col gap-2 xl:flex-row xl:items-center">
           <AccountSwitcher />
-          <nav className="flex flex-wrap gap-2">
+          <nav className="site-nav">
             {navItems.map((item) => {
               const Icon = item.icon;
               const active = pathname === item.href || (item.href !== "/" && pathname.startsWith(`${item.href}/`));
@@ -61,11 +61,7 @@ export function SiteHeader() {
                   key={item.href}
                   href={item.href}
                   aria-current={active ? "page" : undefined}
-                  className={
-                    active
-                      ? "inline-flex min-h-10 items-center gap-2 border border-ink bg-ink px-3 text-sm font-black text-white"
-                      : "inline-flex min-h-10 items-center gap-2 border border-neutral-300 bg-white px-3 text-sm font-black hover:border-hazard hover:text-hazard"
-                  }
+                  className={active ? "site-nav__item site-nav__item--active" : "site-nav__item"}
                 >
                   <Icon size={16} aria-hidden="true" />
                   {item.label}

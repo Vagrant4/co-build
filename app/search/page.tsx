@@ -15,16 +15,19 @@ export default async function SearchPage({ searchParams }: PageProps) {
   const listings = await getApprovedListings(filters);
 
   return (
-    <main className="section-shell py-8">
-      <div className="mb-6">
-        <p className="text-sm font-black uppercase text-hazard">Search results</p>
-        <h1 className="text-4xl font-black">Find a fabrication bay</h1>
-        <p className="mt-2 max-w-3xl font-bold text-steel">
-          Filter by location, required size, duration, work type, power availability, equipment, loading access, and
-          factory type.
-        </p>
-      </div>
-      <div className="mb-6 border border-neutral-300 bg-white p-4">
+    <main>
+      <section className="page-hero">
+        <div className="section-shell">
+          <p className="text-sm font-black uppercase text-safety">Search results</p>
+          <h1 className="mt-2 text-4xl font-black text-white md:text-6xl">Find a fabrication bay</h1>
+          <p className="mt-3 max-w-3xl text-lg font-bold text-neutral-300">
+            Filter by location, required size, duration, work type, power availability, equipment, loading access, and
+            factory type.
+          </p>
+        </div>
+      </section>
+      <section className="section-shell -mt-8 pb-12">
+      <div className="filter-panel mb-6">
         <SearchForm compact />
         <form action="/search" className="mt-4 grid gap-3 border-t border-neutral-200 pt-4 md:grid-cols-5">
           <label>
@@ -64,6 +67,7 @@ export default async function SearchPage({ searchParams }: PageProps) {
           <ListingCard key={listing.slug} listing={listing} />
         ))}
       </div>
+      </section>
     </main>
   );
 }

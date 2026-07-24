@@ -21,15 +21,15 @@ export function DemoAccountSelector({
   }
 
   return (
-    <section className="mb-6 border border-neutral-300 bg-white p-4" aria-label={label}>
-      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+    <section className="demo-account-panel mb-6" aria-label={label}>
+      <div className="demo-account-panel__header">
         <div>
           <p className="text-sm font-black uppercase text-hazard">Demo login</p>
           <h2 className="text-xl font-black">{label}</h2>
         </div>
-        <span className="status-pill">{accounts.length} accounts</span>
+        <span className="status-pill status-pill--strong">{accounts.length} accounts</span>
       </div>
-      <div className="flex flex-wrap gap-2">
+      <div className="demo-account-panel__grid">
         {accounts.map((account) => {
           const active = account.id === currentAccountId;
           return (
@@ -37,11 +37,7 @@ export function DemoAccountSelector({
               key={account.id}
               href={`${hrefBase}?account=${account.id}`}
               aria-current={active ? "page" : undefined}
-              className={
-                active
-                  ? "inline-flex min-h-11 flex-col justify-center border border-ink bg-ink px-3 text-sm font-black text-white"
-                  : "inline-flex min-h-11 flex-col justify-center border border-neutral-300 bg-smoke px-3 text-sm font-black text-ink hover:border-hazard hover:text-hazard"
-              }
+              className={active ? "demo-account-chip demo-account-chip--active" : "demo-account-chip"}
             >
               <span>{account.fullName}</span>
               <span className={active ? "text-xs font-bold text-neutral-300" : "text-xs font-bold text-steel"}>

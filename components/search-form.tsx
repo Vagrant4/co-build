@@ -3,7 +3,7 @@ import { seedEquipmentAddons, workTypes } from "@/src/lib/seed-data";
 
 export function SearchForm({ compact = false }: { compact?: boolean }) {
   return (
-    <form action="/search" className={compact ? "search-form" : "search-form search-form--panel"}>
+    <form action="/search" className={compact ? "search-form search-form--compact" : "search-form search-form--panel"}>
       <div className="search-form__controls">
         <label className="search-form__location">
           <span className="label">Location</span>
