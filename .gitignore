@@ -9,6 +9,7 @@ verification/
 output/
 outputs/
 .codex-remote-attachments/
+.chrome-ui*/
 .vercel/
 prisma/dev.db
 prisma/dev.db-journal
