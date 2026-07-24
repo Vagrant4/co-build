@@ -12,22 +12,22 @@ export default async function HomePage() {
   const spaceCards = [
     {
       icon: Wrench,
-      title: "Smaller than 100 sqft",
-      body: "Compact benches and short-use work areas for assembly, packing, electronics, repairs, and prototyping."
+      title: "Smaller than 1,000 sqft",
+      body: "Compact workspaces for assembly, packing, electronics, repairs, prototyping, and short project staging."
     },
     {
       icon: PackageCheck,
-      title: "100-250 sqft",
-      body: "Short project spaces for light fabrication, storage plus work area, and small contractor jobs."
+      title: "Smaller than 5,000 sqft",
+      body: "Flexible workshop areas for light fabrication, storage plus work area, and small contractor jobs."
     },
     {
       icon: Bolt,
-      title: "250-1,000 sqft",
-      body: "Larger fabrication spaces with stronger power, loading access, and project staging."
+      title: "Smaller than 10,000 sqft",
+      body: "Larger fabrication areas with stronger power, loading access, and multi-team staging."
     },
     {
       icon: Forklift,
-      title: "Bigger than 1,000 sqft",
+      title: "Bigger than 10,000 sqft",
       body: "Custom-sized project areas for oversized work, lorry access, and deeper admin review."
     }
   ];
@@ -42,7 +42,7 @@ export default async function HomePage() {
     },
     {
       icon: Factory,
-      text: "Hosts declare landlord approval, insurance, fire safety, electrical supply, and allowed work."
+      text: "Hosts declare factory type, fire safety, electrical supply, access rules, and allowed work."
     }
   ];
 
@@ -78,8 +78,8 @@ export default async function HomePage() {
             <div className="absolute left-0 top-0 h-4 w-full hazard-stripe" />
             <div className="absolute bottom-0 left-0 right-0 grid gap-2 bg-ink/90 p-5 text-white sm:grid-cols-3">
               {[
-                ["4", "space types"],
-                ["B1/B2", "factory type"],
+                ["4", "size bands"],
+                ["Office/B1/B2", "factory type"],
                 ["1-60", "day bookings"]
               ].map(([value, label]) => (
                 <div key={label} className="border border-white/20 p-3">
@@ -135,7 +135,7 @@ export default async function HomePage() {
             "Search by location, required size, work type, duration, power, equipment, loading, and factory type.",
             "Review listing details including permitted work, prohibited work, safety rules, floor plan, and cancellation.",
             "Submit verification, choose add-ons, accept safety rules, and receive host/admin approval where needed.",
-            "Complete demo Stripe checkout, then upload check-in and check-out photos for deposit review."
+            "Submit payment proof, then upload check-in and check-out photos for deposit review."
           ].map((step, index) => (
             <div key={step} className="border border-neutral-300 bg-white p-5">
               <p className="text-sm font-black text-hazard">0{index + 1}</p>

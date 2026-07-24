@@ -133,11 +133,11 @@ export default async function CheckoutPage({ params, searchParams }: PageProps) 
         <div className="mt-5 space-y-3">
           <div className="flex gap-3 border border-neutral-200 p-3">
             <ShieldCheck className="text-hazard" size={22} />
-            <p className="text-sm font-bold text-steel">Normal work goes to host approval before Stripe checkout.</p>
+            <p className="text-sm font-bold text-steel">Normal work goes to host approval before payment proof is confirmed.</p>
           </div>
           <div className="flex gap-3 border border-neutral-200 p-3">
             <AlertTriangle className="text-hazard" size={22} />
-            <p className="text-sm font-bold text-steel">High-risk work routes through admin approval before Stripe checkout.</p>
+            <p className="text-sm font-bold text-steel">High-risk work routes through admin approval before payment proof is confirmed.</p>
           </div>
         </div>
       </aside>

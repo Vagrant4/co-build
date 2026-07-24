@@ -25,7 +25,7 @@ export default async function CreateAccountPage({ searchParams }: PageProps) {
         <p className="text-sm font-black uppercase text-hazard">Account setup</p>
         <h1 className="mt-2 text-4xl font-black">Create account</h1>
         <p className="mt-3 max-w-3xl font-bold text-steel">
-          Create a renter or host account, then activate the recurring {formatCurrency(PLATFORM_SUBSCRIPTION_MONTHLY)}/month platform subscription through admin-managed Stripe checkout.
+          Create a renter or host account, then activate the recurring {formatCurrency(PLATFORM_SUBSCRIPTION_MONTHLY)}/month platform subscription with a company-account payment reference.
         </p>
       </div>
 
@@ -97,8 +97,8 @@ export default async function CreateAccountPage({ searchParams }: PageProps) {
           <h2 className="mt-2 text-2xl font-black">{isHost ? "List spaces after admin review" : "Book spaces after verification"}</h2>
           <div className="mt-4 grid gap-3 text-sm font-bold text-steel">
             <p>Verification starts as pending.</p>
-            <p>Subscription starts unpaid until Stripe checkout is submitted.</p>
-            <p>Recurring renewal is collected by admin through Stripe.</p>
+            <p>Subscription starts unpaid until payment reference is submitted.</p>
+            <p>Recurring renewal is checked by admin through the company account.</p>
           </div>
         </aside>
       </section>

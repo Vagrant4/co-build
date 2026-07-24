@@ -7,6 +7,8 @@ node_modules/
 uploads/
 verification/
 output/
+outputs/
+.codex-remote-attachments/
 .vercel/
 prisma/dev.db
 prisma/dev.db-journal

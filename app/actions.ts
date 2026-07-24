@@ -122,7 +122,7 @@ export async function confirmPaymentAction(formData: FormData) {
   const bookingId = requireString(formData, "bookingId");
   const booking = await prisma.booking.findUnique({ where: { id: bookingId } });
   if (!booking || booking.status !== "APPROVED_FOR_PAYMENT") {
-    throw new Error("Booking must be approved before Stripe checkout.");
+    throw new Error("Booking must be approved before payment proof can be confirmed.");
   }
 
   await prisma.booking.update({
@@ -136,7 +136,7 @@ export async function confirmPaymentAction(formData: FormData) {
       booking: { connect: { id: bookingId } },
       target: "payment",
       decision: "APPROVED",
-      note: "Demo Stripe checkout completed. Rental, deposit, cleaning fee, and add-ons marked paid."
+      note: "Company-account payment proof submitted. Rental, deposit, cleaning fee, and add-ons marked paid."
     }
   });
 
@@ -219,7 +219,7 @@ export async function createAccountAction(formData: FormData) {
   revalidatePath("/dashboard/admin");
   revalidatePath("/dashboard/user");
   revalidatePath("/dashboard/host");
-  redirect(user.role === "HOST" ? "/dashboard/host?account=created" : "/dashboard/user?account=created");
+  redirect(user.role === "HOST" ? `/dashboard/host?account=${user.id}&created=1` : `/dashboard/user?account=${user.id}&created=1`);
 }
 
 export async function submitPlatformSubscriptionPaymentAction(formData: FormData) {
@@ -228,19 +228,14 @@ export async function submitPlatformSubscriptionPaymentAction(formData: FormData
   if (!user || (user.role !== "RENTER" && user.role !== "HOST")) {
     throw new Error("Only renter and host accounts can submit platform subscription payments.");
   }
-  const stripeSession = await createStripeSubscriptionCheckoutSession({
-    id: user.id,
-    email: user.email,
-    role: user.role
-  });
-  const checkoutReference =
-    optionalString(formData, "stripeCheckoutReference") || stripeSession?.id || buildStripeCheckoutReference(user.email);
+  const paymentReference =
+    optionalString(formData, "paymentReference") || buildCompanyAccountPaymentReference(user.email);
 
   await prisma.user.update({
     where: { id: userId },
     data: {
       platformSubscriptionStatus: "PENDING_ADMIN",
-      platformSubscriptionReference: checkoutReference,
+      platformSubscriptionReference: paymentReference,
       platformSubscriptionPaidAt: null,
       platformSubscriptionPeriodStart: null,
       platformSubscriptionPeriodEnd: null,
@@ -251,10 +246,7 @@ export async function submitPlatformSubscriptionPaymentAction(formData: FormData
   revalidatePath("/dashboard/user");
   revalidatePath("/dashboard/host");
   revalidatePath("/dashboard/admin");
-  if (stripeSession?.url) {
-    redirect(stripeSession.url);
-  }
-  redirect(user.role === "HOST" ? "/dashboard/host?subscription=submitted" : "/dashboard/user?subscription=submitted");
+  redirect(user.role === "HOST" ? `/dashboard/host?account=${user.id}&subscription=submitted` : `/dashboard/user?account=${user.id}&subscription=submitted`);
 }
 
 export async function approvePlatformSubscriptionAction(formData: FormData) {
@@ -282,7 +274,7 @@ export async function approvePlatformSubscriptionAction(formData: FormData) {
       actor: { connect: { id: "demo-admin" } },
       target: "platform_subscription",
       decision: "APPROVED",
-      note: `Admin activated Stripe recurring ${user.role.toLowerCase()} subscription for ${user.email} at ${formatCurrency(period.monthlyAmount)}/month. Next renewal: ${period.nextBillingAt.toISOString().slice(0, 10)}.`
+      note: `Admin activated recurring ${user.role.toLowerCase()} subscription paid to the company account for ${user.email} at ${formatCurrency(period.monthlyAmount)}/month. Next renewal: ${period.nextBillingAt.toISOString().slice(0, 10)}.`
     }
   });
 
@@ -565,7 +557,7 @@ export async function confirmAdditionalRequirementPaymentAction(formData: FormDa
       booking: { connect: { id: request.bookingId } },
       target: "additional_requirement_payment",
       decision: "APPROVED",
-      note: `Renter completed demo Stripe checkout for approved additional requirement rate of ${formatCurrency(request.quotedRate)}.`
+      note: `Renter submitted company-account payment proof for approved additional requirement rate of ${formatCurrency(request.quotedRate)}.`
     }
   });
 
@@ -788,50 +780,8 @@ function buildAccountId(email: string): string {
   return `account-${slugify(email).slice(0, 40)}-${Date.now()}`;
 }
 
-function buildStripeCheckoutReference(email: string): string {
-  return `stripe_admin_checkout_${slugify(email).slice(0, 30)}_${Date.now()}`;
-}
-
-async function createStripeSubscriptionCheckoutSession(user: {
-  id: string;
-  email: string;
-  role: string;
-}): Promise<{ id: string; url?: string } | null> {
-  const secretKey = process.env.STRIPE_SECRET_KEY;
-  const priceId = process.env.STRIPE_PLATFORM_SUBSCRIPTION_PRICE_ID;
-  if (!secretKey || !priceId) return null;
-
-  const appUrl = (process.env.NEXT_PUBLIC_APP_URL || "http://127.0.0.1:3000").replace(/\/$/, "");
-  const dashboardPath = user.role === "HOST" ? "/dashboard/host" : "/dashboard/user";
-  const body = new URLSearchParams({
-    mode: "subscription",
-    success_url: `${appUrl}${dashboardPath}?subscription=stripe-success&session_id={CHECKOUT_SESSION_ID}`,
-    cancel_url: `${appUrl}${dashboardPath}?subscription=stripe-cancelled`,
-    customer_email: user.email,
-    client_reference_id: user.id,
-    "line_items[0][price]": priceId,
-    "line_items[0][quantity]": "1",
-    "metadata[userId]": user.id,
-    "metadata[role]": user.role,
-    "metadata[purpose]": "platform_subscription"
-  });
-
-  const response = await fetch("https://api.stripe.com/v1/checkout/sessions", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${secretKey}`,
-      "Content-Type": "application/x-www-form-urlencoded"
-    },
-    body,
-    cache: "no-store"
-  });
-
-  if (!response.ok) {
-    const detail = await response.text();
-    throw new Error(`Stripe checkout could not be created: ${detail.slice(0, 240)}`);
-  }
-
-  return (await response.json()) as { id: string; url?: string };
+function buildCompanyAccountPaymentReference(email: string): string {
+  return `company_account_payment_${slugify(email).slice(0, 30)}_${Date.now()}`;
 }
 
 function fallbackListingImage(spaceType: SpaceType): string {

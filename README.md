@@ -34,6 +34,6 @@ node scripts\verify-webapp.cjs
 
 ## Publish Live
 
-See [DEPLOYMENT.md](DEPLOYMENT.md) for the Vercel + Postgres + Stripe deployment path.
+See [DEPLOYMENT.md](DEPLOYMENT.md) for the Vercel + Postgres + company-account payment-reference deployment path.
 
 The local demo uses SQLite at `prisma/dev.db`. Live hosting should use `prisma/schema.postgres.prisma` with a hosted Postgres `DATABASE_URL`.

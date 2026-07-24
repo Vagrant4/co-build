@@ -19,8 +19,8 @@ export default function PricingPage() {
         </div>
         <div className="card p-5 premium-panel">
           <p className="text-sm font-black uppercase text-hazard">Payment method</p>
-          <h2 className="mt-2 text-2xl font-black">Admin Stripe checkout</h2>
-          <p className="mt-2 font-bold text-steel">Renter and host subscriptions are collected by admin through Stripe, then activated from the admin dashboard.</p>
+          <h2 className="mt-2 text-2xl font-black">Company-account payment</h2>
+          <p className="mt-2 font-bold text-steel">Renter and host subscriptions are paid to the company account, then activated from the admin dashboard after payment reference review.</p>
         </div>
         <div className="card p-5 premium-panel">
           <p className="text-sm font-black uppercase text-hazard">Deal fees</p>
@@ -32,7 +32,7 @@ export default function PricingPage() {
         <div className="mb-4 flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
           <div>
             <p className="text-sm font-black uppercase text-hazard">Payment methods</p>
-            <h2 className="text-3xl font-black">Stripe payment methods</h2>
+            <h2 className="text-3xl font-black">Convenient company-account payment methods</h2>
           </div>
           <a className="button-secondary" href="/create-account">
             Create account
@@ -40,11 +40,11 @@ export default function PricingPage() {
         </div>
         <div className="grid gap-4 lg:grid-cols-3">
           {convenientPaymentMethods.map((method) => (
-            <article key={method.name} className="card p-5 stripe-card">
+            <article key={method.name} className="card p-5 payment-card">
               <p className="text-sm font-black uppercase text-hazard">{method.bestFor}</p>
               <h3 className="mt-2 text-xl font-black">{method.name}</h3>
               <p className="mt-2 font-bold text-steel">{method.instructions}</p>
-              <p className="mt-3 text-xs font-black uppercase text-ink">Collected by admin with Stripe</p>
+              <p className="mt-3 text-xs font-black uppercase text-ink">Paid to company account</p>
             </article>
           ))}
         </div>

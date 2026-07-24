@@ -2,7 +2,7 @@ const faqs = [
   ["Who is this for?", "Small fabricators, contractors, makers, hardware startups, signage makers, furniture makers, e-commerce operators, and project teams."],
   ["What durations are supported?", "The MVP supports 1 day, 7 days, 30 days, and 60 days."],
   ["What happens to high-risk work?", "Hot work, welding, spray painting, chemical work, and factory-type mismatches require admin approval before payment."],
-  ["Does checkout charge real money?", "No. The MVP records demo Stripe checkout until live Stripe keys are connected, while still calculating rental, deposit, cleaning fee, and add-ons."],
+  ["Does checkout charge real money?", "No. The MVP records company-account payment proof while still calculating rental, deposit, cleaning fee, and add-ons."],
   ["Are check-in and check-out photos required?", "Yes. They are stored with the booking for deposit and dispute review."]
 ];
 

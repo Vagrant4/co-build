@@ -197,13 +197,13 @@ describe("additional requirement workflow", () => {
 });
 
 describe("subscription and deal confirmation model", () => {
-  it("offers admin-managed Stripe payment methods for the recurring subscription", () => {
+  it("offers company-account payment methods for the recurring subscription", () => {
     expect(convenientPaymentMethods.map((method) => method.name)).toEqual([
-      "Stripe Checkout",
-      "Stripe recurring subscription",
-      "Stripe invoice link"
+      "PayNow UEN / QR",
+      "FAST bank transfer",
+      "Monthly invoice"
     ]);
-    expect(convenientPaymentMethods.every((method) => method.adminCollectedThroughStripe)).toBe(true);
+    expect(convenientPaymentMethods.every((method) => method.paidToCompanyAccount)).toBe(true);
   });
 
   it("charges user and host subscriptions at S$5/month only", () => {

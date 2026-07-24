@@ -1,5 +1,6 @@
 import { ArrowRight, Bolt, CalendarDays, Check, ClipboardList, Ruler, ShieldAlert, Truck, X, type LucideIcon } from "lucide-react";
 import { notFound } from "next/navigation";
+import { DemoAccountSelector } from "@/components/demo-account-selector";
 import { ListingChat } from "@/components/listing-chat";
 import { StatusBadge } from "@/components/status-badge";
 import { formatCurrency, sizeRequirementLabel } from "@/src/lib/fabrication";
@@ -10,23 +11,28 @@ export const dynamic = "force-dynamic";
 
 type PageProps = {
   params: Promise<{ slug: string }> | { slug: string };
+  searchParams?: Promise<Record<string, string | string[] | undefined>> | Record<string, string | string[] | undefined>;
 };
 
-export default async function ListingDetailPage({ params }: PageProps) {
+export default async function ListingDetailPage({ params, searchParams }: PageProps) {
   const { slug } = await params;
-  const [listing, addons, listingMessages] = await Promise.all([
+  const query = (await searchParams) ?? {};
+  const requestedAccountId = one(query.account);
+  const [listing, addons, listingMessages, renterAccounts] = await Promise.all([
     getListingBySlug(slug),
     getEquipmentAddons(),
     prisma.listingMessage.findMany({
       where: { listing: { slug } },
       include: { sender: true },
       orderBy: { createdAt: "asc" }
-    })
+    }),
+    prisma.user.findMany({ where: { role: "RENTER" }, orderBy: { createdAt: "asc" } })
   ]);
   if (!listing) notFound();
 
   const listingAddons = addons.filter((addon) => listing.equipmentSlugs.includes(addon.slug));
-
+  const renter = renterAccounts.find((account) => account.id === requestedAccountId) ?? renterAccounts.find((account) => account.id === "demo-renter") ?? renterAccounts[0];
+  const accountQuery = renter ? `?account=${renter.id}` : "";
   return (
     <main>
       <section className="bg-ink text-white">
@@ -50,7 +56,7 @@ export default async function ListingDetailPage({ params }: PageProps) {
               <Spec icon={Truck} label="Loading" value={listing.loadingAccess.join(", ")} />
               <Spec icon={CalendarDays} label="Access" value={listing.accessHours} />
             </div>
-            <a href={`/checkout/${listing.slug}`} className="button-primary">
+            <a href={`/checkout/${listing.slug}${accountQuery}`} className="button-primary">
               Request booking <ArrowRight size={18} />
             </a>
           </div>
@@ -108,14 +114,18 @@ export default async function ListingDetailPage({ params }: PageProps) {
             ))}
           </div>
           <p className="mt-4 text-sm font-bold text-steel">Welding/hot work adds an extra deposit where available.</p>
-          <a className="button-dark mt-5 w-full" href={`/checkout/${listing.slug}`}>
+          <a className="button-dark mt-5 w-full" href={`/checkout/${listing.slug}${accountQuery}`}>
             Continue to checkout
           </a>
-          <div className="mt-5">
+          <div className="mt-5 grid gap-3">
+            {renter && (
+              <DemoAccountSelector accounts={renterAccounts} currentAccountId={renter.id} hrefBase={`/listings/${listing.slug}`} label="Choose renter account for this chat" />
+            )}
             <ListingChat
               listingSlug={listing.slug}
               messages={listingMessages}
               senderRole="RENTER"
+              senderId={renter?.id}
               title="Chat with host before booking"
               placeholder="Ask about access, loading, power, equipment, or timing before checkout."
             />
@@ -161,4 +171,8 @@ function TagList({ items, icon }: { items: string[]; icon: "check" | "x" | "aler
       })}
     </div>
   );
+}
+
+function one(value: string | string[] | undefined): string | undefined {
+  return Array.isArray(value) ? value[0] : value;
 }

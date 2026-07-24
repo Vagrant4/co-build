@@ -9,6 +9,7 @@ import {
   updateListingStatusAction,
   updateUserVerificationAction
 } from "@/app/actions";
+import { LaunchReadinessPanel } from "@/components/launch-readiness-panel";
 import { StatusBadge } from "@/components/status-badge";
 import { calculatePlatformSubscriptionRevenue, formatCurrency, PLATFORM_SUBSCRIPTION_MONTHLY } from "@/src/lib/fabrication";
 import { getDashboardData } from "@/src/lib/repository";
@@ -29,7 +30,7 @@ export default async function AdminDashboardPage() {
           <p className="text-sm font-black uppercase text-hazard">Demo admin</p>
           <h1 className="text-4xl font-black">Admin dashboard</h1>
           <p className="mt-2 max-w-4xl font-bold text-steel">
-            Admin collects {formatCurrency(PLATFORM_SUBSCRIPTION_MONTHLY)}/month from each active renter and host through Stripe.
+            Admin collects {formatCurrency(PLATFORM_SUBSCRIPTION_MONTHLY)}/month from each active renter and host through the company account.
             This is recurring monthly subscription revenue; deals are confirmed on-platform, and admin takes no deal commission.
           </p>
         </div>
@@ -41,32 +42,34 @@ export default async function AdminDashboardPage() {
       <section className="mb-8 grid gap-4 md:grid-cols-4">
         <Metric label="Listings" value={String(listings.length)} />
         <Metric label="Bookings" value={String(bookings.length)} />
-        <Metric label="Stripe subscription revenue" value={formatCurrency(subscriptionRevenue)} />
+        <Metric label="Subscription revenue" value={formatCurrency(subscriptionRevenue)} />
         <Metric label="Occupancy" value={`${occupancy}%`} />
       </section>
+
+      <LaunchReadinessPanel />
 
       <DashboardSection title="Platform subscriptions">
         <div className="premium-panel mb-3 border border-neutral-300 bg-white p-4 font-bold text-steel">
           <p className="font-black text-ink">No deal commission</p>
           <p>Admin charges only {formatCurrency(PLATFORM_SUBSCRIPTION_MONTHLY)}/month to each active renter and host.</p>
-          <p className="mt-2 font-black text-ink">Stripe recurring subscription revenue</p>
-          <p>Subscriptions renew every month through the admin Stripe account until cancelled.</p>
+          <p className="mt-2 font-black text-ink">Recurring company-account subscription revenue</p>
+          <p>Subscriptions renew every month after admin checks the company account payment reference.</p>
         </div>
         <div className="grid gap-4 md:grid-cols-2">
           {subscriptionUsers.map((user) => {
             const nextRenewal = user.platformSubscriptionNextBilling ?? user.platformSubscriptionPeriodEnd;
 
             return (
-              <article key={user.id} className="stripe-card border border-neutral-300 bg-white p-4">
+              <article key={user.id} className="payment-card border border-neutral-300 bg-white p-4">
                 <div className="mb-2 flex flex-wrap gap-2">
                   <StatusBadge status={user.role} />
                   <StatusBadge status={user.platformSubscriptionStatus} />
-                  <span className="status-pill">Stripe recurring plan</span>
+                  <span className="status-pill">Recurring company-account plan</span>
                 </div>
                 <h3 className="text-lg font-black">{user.fullName}</h3>
                 <p className="text-sm font-bold text-steel">{user.email}</p>
                 <p className="mt-2 text-sm font-bold text-steel">
-                  Stripe session: {user.platformSubscriptionReference || "No Stripe checkout submitted"}
+                  Payment reference: {user.platformSubscriptionReference || "No payment reference submitted"}
                 </p>
                 <p className="mt-2 text-sm font-black">
                   Next renewal: {nextRenewal ? formatDate(nextRenewal) : "starts after activation"}
@@ -74,7 +77,7 @@ export default async function AdminDashboardPage() {
                 <form action={approvePlatformSubscriptionAction} className="mt-3">
                   <input type="hidden" name="userId" value={user.id} />
                   <button className="button-primary w-full" type="submit" disabled={user.platformSubscriptionStatus !== "PENDING_ADMIN"}>
-                    Activate Stripe S$5/month subscription
+                    Activate S$5/month subscription
                   </button>
                 </form>
               </article>

@@ -1,13 +1,25 @@
 import { Factory } from "lucide-react";
 import { createListingAction } from "@/app/actions";
+import { DemoAccountSelector } from "@/components/demo-account-selector";
 import { LocationMapFields } from "@/components/location-map-fields";
 import { getEquipmentAddons } from "@/src/lib/repository";
+import { prisma } from "@/src/lib/db";
 import { workTypes } from "@/src/lib/seed-data";
 
 export const dynamic = "force-dynamic";
 
-export default async function NewListingPage() {
-  const equipment = await getEquipmentAddons();
+type PageProps = {
+  searchParams?: Promise<Record<string, string | string[] | undefined>> | Record<string, string | string[] | undefined>;
+};
+
+export default async function NewListingPage({ searchParams }: PageProps) {
+  const params = (await searchParams) ?? {};
+  const requestedAccountId = one(params.account);
+  const [equipment, hostAccounts] = await Promise.all([
+    getEquipmentAddons(),
+    prisma.user.findMany({ where: { role: "HOST" }, orderBy: { createdAt: "asc" } })
+  ]);
+  const host = hostAccounts.find((account) => account.id === requestedAccountId) ?? hostAccounts.find((account) => account.id === "demo-host") ?? hostAccounts[0];
 
   return (
     <main className="signal-page py-8">
@@ -22,7 +34,9 @@ export default async function NewListingPage() {
           electrical supply, allowed work, restricted work, availability, pricing, deposits, and cleaning rules.
         </p>
       </div>
+      {host && <DemoAccountSelector accounts={hostAccounts} currentAccountId={host.id} hrefBase="/dashboard/host/listings/new" label="Choose host account for this listing" />}
       <form action={createListingAction} className="co-build-form grid gap-5">
+        {host && <input type="hidden" name="hostId" value={host.id} />}
         <FormSection id="location" number="1" title="Location" summary="Name the space and pin the access point renters need to find.">
           <div className="grid gap-4 md:grid-cols-2">
             <Input name="title" label="Space name" defaultValue="Project Bay with Loading Access" />
@@ -190,4 +204,8 @@ function Textarea({ label, name, defaultValue }: { label: string; name: string; 
       <textarea className="field min-h-32" name={name} defaultValue={defaultValue} />
     </label>
   );
+}
+
+function one(value: string | string[] | undefined): string | undefined {
+  return Array.isArray(value) ? value[0] : value;
 }

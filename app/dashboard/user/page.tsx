@@ -41,7 +41,7 @@ export default async function UserDashboardPage({ searchParams }: PageProps) {
       <div className="mb-6">
         <p className="text-sm font-black uppercase text-hazard">Demo renter</p>
         <h1 className="text-4xl font-black">User dashboard</h1>
-        <p className="mt-2 font-bold text-steel">Track approvals, Stripe-admin payment status, and check-in/check-out photo uploads.</p>
+        <p className="mt-2 font-bold text-steel">Track approvals, company-account payment proof, and check-in/check-out photo uploads.</p>
       </div>
       <DemoAccountSelector accounts={renterAccounts} currentAccountId={user.id} hrefBase="/dashboard/user" label="Choose renter account" />
       <PlatformSubscriptionPanel
@@ -99,7 +99,7 @@ export default async function UserDashboardPage({ searchParams }: PageProps) {
                 <form action={confirmPaymentAction}>
                   <input type="hidden" name="bookingId" value={booking.id} />
                   <button className="button-primary w-full" type="submit">
-                    <CreditCard size={18} /> Pay with Stripe
+                    <CreditCard size={18} /> Confirm company-account payment
                   </button>
                 </form>
               )}
@@ -150,28 +150,28 @@ function PlatformSubscriptionPanel({
         <div className="mb-2 flex flex-wrap gap-2">
           <StatusBadge status={status} />
           <span className="status-pill">{formatCurrency(PLATFORM_SUBSCRIPTION_MONTHLY)}/month</span>
-          <span className="status-pill">Stripe recurring plan</span>
+          <span className="status-pill">Recurring company-account plan</span>
         </div>
         <h2 className="text-2xl font-black">{title}</h2>
         <p className="mt-2 font-bold text-steel">
-          User and host each pay admin {formatCurrency(PLATFORM_SUBSCRIPTION_MONTHLY)}/month for platform access through Stripe.
-          Stripe handles recurring renewal, deals are confirmed on-platform, and admin charges no commission on confirmed deals.
+          User and host each pay admin {formatCurrency(PLATFORM_SUBSCRIPTION_MONTHLY)}/month for platform access to the company account.
+          Admin activates the recurring subscription after payment proof; deals are confirmed on-platform with no commission.
         </p>
         <p className="mt-2 text-sm font-black">
           Next renewal: {nextRenewal ? formatDate(nextRenewal) : "starts after admin activates your recurring subscription"}
         </p>
-        <p className="mt-2 text-sm font-black">Stripe account email: {email}</p>
-        {reference && <p className="mt-2 text-sm font-bold text-steel">Latest Stripe session: {reference}</p>}
+        <p className="mt-2 text-sm font-black">Login email: {email}</p>
+        {reference && <p className="mt-2 text-sm font-bold text-steel">Latest payment reference: {reference}</p>}
       </div>
-      <form action={submitPlatformSubscriptionPaymentAction} className="stripe-card grid content-between gap-3 border border-neutral-200 bg-white p-4">
+      <form action={submitPlatformSubscriptionPaymentAction} className="payment-card grid content-between gap-3 border border-neutral-200 bg-white p-4">
         <input type="hidden" name="userId" value={userId} />
-        <input type="hidden" name="stripeCheckoutReference" value={`stripe_checkout_${labelPrefix.toLowerCase()}_${userId}`} />
+        <input type="hidden" name="paymentReference" value={`company_account_${labelPrefix.toLowerCase()}_${userId}`} />
         <div>
-          <p className="label">{labelPrefix} Stripe checkout</p>
-          <p className="text-sm font-bold text-steel">Open a hosted checkout for the recurring S$5/month subscription. Admin activates after Stripe confirmation.</p>
+          <p className="label">{labelPrefix} company-account payment</p>
+          <p className="text-sm font-bold text-steel">Submit the recurring S$5/month payment reference. Admin activates after checking the company account.</p>
         </div>
         <button className="button-primary" type="submit">
-          Start Stripe checkout
+          Submit payment reference
         </button>
       </form>
     </section>
@@ -224,7 +224,7 @@ function AdditionalRequirementList({ requests }: { requests: AdditionalRequireme
                 <form action={confirmAdditionalRequirementPaymentAction} className="mt-3">
                   <input type="hidden" name="requestId" value={request.id} />
                   <button className="button-primary" type="submit">
-                    <CreditCard size={18} /> Pay add-on with Stripe {formatCurrency(request.quotedRate)}
+                    <CreditCard size={18} /> Confirm add-on payment {formatCurrency(request.quotedRate)}
                   </button>
                 </form>
               )}

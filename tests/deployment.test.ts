@@ -46,7 +46,9 @@ describe("production deployment setup", () => {
     const envExample = read(".env.example");
     expect(envExample).toContain("DATABASE_URL=");
     expect(envExample).toContain("NEXT_PUBLIC_APP_URL=");
-    expect(envExample).toContain("STRIPE_SECRET_KEY=");
-    expect(envExample).toContain("STRIPE_PLATFORM_SUBSCRIPTION_PRICE_ID=");
+    expect(envExample).toContain("COMPANY_PAYMENT_NAME=");
+    expect(envExample).toContain("COMPANY_PAYMENT_UEN=");
+    expect(envExample).toContain("COMPANY_PAYMENT_BANK=");
+    expect(envExample).toContain("COMPANY_PAYMENT_ACCOUNT=");
   });
 });

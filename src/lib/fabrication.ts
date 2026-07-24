@@ -15,27 +15,27 @@ export type ConvenientPaymentMethod = {
   name: string;
   bestFor: string;
   instructions: string;
-  adminCollectedThroughStripe: boolean;
+  paidToCompanyAccount: boolean;
 };
 
 export const convenientPaymentMethods: ConvenientPaymentMethod[] = [
   {
-    name: "Stripe Checkout",
-    bestFor: "Fastest card payment",
-    instructions: "Open the Stripe-hosted checkout from your dashboard. Admin receives the subscription payment in Stripe.",
-    adminCollectedThroughStripe: true
+    name: "PayNow UEN / QR",
+    bestFor: "Fast Singapore payment",
+    instructions: "Pay the recurring S$5/month platform fee to the company account, then submit the payment reference for admin activation.",
+    paidToCompanyAccount: true
   },
   {
-    name: "Stripe recurring subscription",
-    bestFor: "Automatic S$5/month renewal",
-    instructions: "Stripe stores the recurring subscription for admin so monthly renewal can run without manual references.",
-    adminCollectedThroughStripe: true
+    name: "FAST bank transfer",
+    bestFor: "Company account trail",
+    instructions: "Transfer to the company bank account and use the bank reference as proof for the monthly subscription.",
+    paidToCompanyAccount: true
   },
   {
-    name: "Stripe invoice link",
-    bestFor: "Company finance teams",
-    instructions: "Admin can send a Stripe invoice/payment link when a company needs a finance-approved payment trail.",
-    adminCollectedThroughStripe: true
+    name: "Monthly invoice",
+    bestFor: "Finance teams",
+    instructions: "Admin can issue a monthly invoice for teams that need accounting approval before paying the company account.",
+    paidToCompanyAccount: true
   }
 ];
 
@@ -280,7 +280,7 @@ export function buildAdditionalRequirementContract(input: AdditionalRequirementC
     `Host: ${input.hostName}`,
     `Requirement: ${input.requirementDetail}`,
     `Approved add-on rate: ${formatCurrency(input.quotedRate)}`,
-    "Payment status: Approved for Stripe payment",
+    "Payment status: Approved for company-account payment",
     `Contract emailed to: ${input.renterEmail}`
   ].join("\n");
 }
