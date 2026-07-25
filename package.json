@@ -40,5 +40,9 @@
     "tsx": "latest",
     "typescript": "latest",
     "vitest": "latest"
+  },
+  "optionalDependencies": {
+    "@emnapi/core": "1.11.2",
+    "@emnapi/runtime": "1.11.2"
   }
 }
