@@ -26,7 +26,7 @@ jobs:
           status=$?
           cat npm-ci.log
           if [ "$status" -ne 0 ]; then
-            message=$(tail -n 30 npm-ci.log | tr '\n' ' ' | sed 's/%/%25/g')
+            message=$( (head -n 30 npm-ci.log; tail -n 10 npm-ci.log) | tr '\n' ' ' | sed 's/%/%25/g')
             echo "::error title=npm ci failed::$message"
             exit "$status"
           fi
