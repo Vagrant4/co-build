@@ -8,22 +8,15 @@ import {
   uploadBookingPhotoAction
 } from "@/app/actions";
 import { BookingChat } from "@/components/booking-chat";
-import { DemoAccountSelector } from "@/components/demo-account-selector";
 import { StatusBadge } from "@/components/status-badge";
 import { dealConfirmationStatus, formatCurrency, PLATFORM_SUBSCRIPTION_MONTHLY } from "@/src/lib/fabrication";
 import { prisma } from "@/src/lib/db";
+import { requirePageRole } from "@/src/lib/page-authorization";
 
 export const dynamic = "force-dynamic";
 
-type PageProps = {
-  searchParams?: Promise<Record<string, string | string[] | undefined>> | Record<string, string | string[] | undefined>;
-};
-
-export default async function UserDashboardPage({ searchParams }: PageProps) {
-  const params = (await searchParams) ?? {};
-  const requestedAccountId = one(params.account);
-  const renterAccounts = await prisma.user.findMany({ where: { role: "RENTER" }, orderBy: { createdAt: "asc" } });
-  const user = renterAccounts.find((account) => account.id === requestedAccountId) ?? renterAccounts.find((account) => account.id === "demo-renter") ?? renterAccounts[0];
+export default async function UserDashboardPage() {
+  const user = await requirePageRole("RENTER");
   const bookings = await prisma.booking.findMany({
       where: { userId: user.id },
       include: {
@@ -43,10 +36,8 @@ export default async function UserDashboardPage({ searchParams }: PageProps) {
         <h1 className="text-4xl font-black">User dashboard</h1>
         <p className="mt-2 font-bold text-steel">Track approvals, company-account payment proof, and check-in/check-out photo uploads.</p>
       </div>
-      <DemoAccountSelector accounts={renterAccounts} currentAccountId={user.id} hrefBase="/dashboard/user" label="Choose renter account" />
       <PlatformSubscriptionPanel
         title="Renter platform subscription"
-        userId={user.id}
         email={user.email}
         status={user.platformSubscriptionStatus}
         reference={user.platformSubscriptionReference}
@@ -103,21 +94,21 @@ export default async function UserDashboardPage({ searchParams }: PageProps) {
                   </button>
                 </form>
               )}
-              <DealConfirmationForm bookingId={booking.id} confirmed={Boolean(booking.renterDealConfirmedAt)} role="RENTER" actorId={user.id} label="Confirm deal as renter" />
+              <DealConfirmationForm bookingId={booking.id} confirmed={Boolean(booking.renterDealConfirmedAt)} label="Confirm deal as renter" />
               <BookingChat
                 bookingId={booking.id}
                 messages={booking.messages}
-                senderRole="RENTER"
                 title="Chat with host"
-                senderId={user.id}
+                currentUserId={user.id}
                 placeholder="Ask the host about access, loading, timing, or setup."
               />
-              <AdditionalRequirementForm bookingId={booking.id} userId={user.id} />
+              <AdditionalRequirementForm bookingId={booking.id} />
               <PhotoForm bookingId={booking.id} type="CHECK_IN" label="Upload check-in photos" />
               <PhotoForm bookingId={booking.id} type="CHECK_OUT" label="Upload check-out photos" />
             </aside>
           </section>
         ))}
+        {!bookings.length && <section className="card p-6"><h2 className="text-2xl font-black">No booking requests yet</h2><p className="mt-2 font-bold text-steel">Search approved spaces and submit your first request when you are ready.</p></section>}
       </div>
     </main>
   );
@@ -125,7 +116,6 @@ export default async function UserDashboardPage({ searchParams }: PageProps) {
 
 function PlatformSubscriptionPanel({
   title,
-  userId,
   email,
   status,
   reference,
@@ -134,7 +124,6 @@ function PlatformSubscriptionPanel({
   labelPrefix
 }: {
   title: string;
-  userId: string;
   email: string;
   status: string;
   reference: string | null;
@@ -164,8 +153,7 @@ function PlatformSubscriptionPanel({
         {reference && <p className="mt-2 text-sm font-bold text-steel">Latest payment reference: {reference}</p>}
       </div>
       <form action={submitPlatformSubscriptionPaymentAction} className="payment-card grid content-between gap-3 border border-neutral-200 bg-white p-4">
-        <input type="hidden" name="userId" value={userId} />
-        <input type="hidden" name="paymentReference" value={`company_account_${labelPrefix.toLowerCase()}_${userId}`} />
+        <input type="hidden" name="paymentReference" value={`company_account_${labelPrefix.toLowerCase()}_${Date.now()}`} />
         <div>
           <p className="label">{labelPrefix} company-account payment</p>
           <p className="text-sm font-bold text-steel">Submit the recurring S$5/month payment reference. Admin activates after checking the company account.</p>
@@ -247,11 +235,10 @@ function Metric({ label, value }: { label: string; value: string }) {
   );
 }
 
-function AdditionalRequirementForm({ bookingId, userId }: { bookingId: string; userId: string }) {
+function AdditionalRequirementForm({ bookingId }: { bookingId: string }) {
   return (
     <form action={createAdditionalRequirementAction} className="grid gap-3 border border-neutral-200 bg-white p-3">
       <input type="hidden" name="bookingId" value={bookingId} />
-      <input type="hidden" name="userId" value={userId} />
       <label>
         <span className="label">Additional requirement details</span>
         <textarea
@@ -268,14 +255,12 @@ function AdditionalRequirementForm({ bookingId, userId }: { bookingId: string; u
   );
 }
 
-function DealConfirmationForm({ bookingId, role, label, confirmed, actorId }: { bookingId: string; role: "RENTER" | "HOST"; label: string; confirmed: boolean; actorId: string }) {
+function DealConfirmationForm({ bookingId, label, confirmed }: { bookingId: string; label: string; confirmed: boolean }) {
   return confirmed ? (
     <div className="border border-neutral-200 bg-white p-3 text-sm font-black text-steel">Deal confirmed on platform.</div>
   ) : (
     <form action={confirmDealAction} className="grid gap-2 border border-neutral-200 bg-white p-3">
       <input type="hidden" name="bookingId" value={bookingId} />
-      <input type="hidden" name="role" value={role} />
-      <input type="hidden" name="actorId" value={actorId} />
       <p className="text-sm font-bold text-steel">Confirm the deal on-platform. Admin does not charge a deal commission.</p>
       <button className="button-secondary" type="submit">
         {label}
@@ -298,8 +283,4 @@ function PhotoForm({ bookingId, type, label }: { bookingId: string; type: "CHECK
       </button>
     </form>
   );
-}
-
-function one(value: string | string[] | undefined): string | undefined {
-  return Array.isArray(value) ? value[0] : value;
 }

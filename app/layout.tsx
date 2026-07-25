@@ -1,7 +1,9 @@
 import type { Metadata } from "next";
+import { ClerkProvider } from "@clerk/nextjs";
 import "./globals.css";
 import { Logo } from "@/components/logo";
 import { SiteHeader } from "@/components/site-header";
+import { assertAuthenticationConfigured, getAppMode } from "@/src/lib/app-mode";
 
 export const metadata: Metadata = {
   title: "Co-Build | Short-term fabrication space rental",
@@ -9,10 +11,18 @@ export const metadata: Metadata = {
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
-  return (
+  const mode = getAppMode();
+  assertAuthenticationConfigured();
+
+  const content = (
     <html lang="en">
       <body>
-        <SiteHeader />
+        {mode === "demo" && (
+          <div className="bg-safety px-4 py-2 text-center text-xs font-black uppercase text-ink" role="status">
+            Demo mode: showcase accounts and simulated transactions only
+          </div>
+        )}
+        <SiteHeader appMode={mode} />
         {children}
         <footer className="border-t border-neutral-300 bg-ink py-8 text-white">
           <div className="section-shell flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
@@ -32,4 +42,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       </body>
     </html>
   );
+
+  return mode === "demo" ? content : <ClerkProvider>{content}</ClerkProvider>;
 }

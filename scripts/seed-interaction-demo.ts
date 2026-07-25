@@ -49,53 +49,54 @@ async function seedPreDealChats() {
   const eastListing = await prisma.listing.findUniqueOrThrow({ where: { slug: "demo-east-confirmed-bay" } });
   const westListing = await prisma.listing.findUniqueOrThrow({ where: { slug: "demo-west-confirmed-bay" } });
 
-  await prisma.listingMessage.deleteMany({
-    where: {
-      id: {
-        in: [
+  await prisma.conversationMessage.deleteMany({
+    where: { id: { in: [
           "demo-prechat-east-1",
           "demo-prechat-east-2",
           "demo-prechat-east-3",
           "demo-prechat-west-1",
           "demo-prechat-west-2"
-        ]
-      }
-    }
+    ] } }
   });
+  await prisma.conversation.deleteMany({ where: { id: { in: ["demo-conversation-east", "demo-conversation-west"] } } });
 
-  await prisma.listingMessage.createMany({
+  await prisma.conversation.createMany({ data: [
+    { id: "demo-conversation-east", listingId: eastListing.id, renterId: "demo-renter-alpha", hostId: "demo-host-east", updatedAt: new Date("2026-06-23T08:08:00.000Z") },
+    { id: "demo-conversation-west", listingId: westListing.id, renterId: "demo-renter-beta", hostId: "demo-host-west", updatedAt: new Date("2026-06-23T08:20:00.000Z") }
+  ] });
+  await prisma.conversationMessage.createMany({
     data: [
       {
         id: "demo-prechat-east-1",
-        listingId: eastListing.id,
+        conversationId: "demo-conversation-east",
         senderId: "demo-renter-alpha",
         body: "Can we reserve the bay for 7 days for assembly and packing? We will keep all communication here in Co-Build chat.",
         createdAt: new Date("2026-06-23T08:00:00.000Z")
       },
       {
         id: "demo-prechat-east-2",
-        listingId: eastListing.id,
+        conversationId: "demo-conversation-east",
         senderId: "demo-host-east",
         body: "Yes. Ramp access is available from 8am, and power tools can be requested as add-ons before checkout.",
         createdAt: new Date("2026-06-23T08:05:00.000Z")
       },
       {
         id: "demo-prechat-east-3",
-        listingId: eastListing.id,
+        conversationId: "demo-conversation-east",
         senderId: "demo-renter-alpha",
         body: "Confirmed. We will submit the booking request with workbench and safety acceptance.",
         createdAt: new Date("2026-06-23T08:08:00.000Z")
       },
       {
         id: "demo-prechat-west-1",
-        listingId: westListing.id,
+        conversationId: "demo-conversation-west",
         senderId: "demo-renter-beta",
         body: "We need 30 days for signage assembly with material storage. Is cargo lift access available?",
         createdAt: new Date("2026-06-23T08:15:00.000Z")
       },
       {
         id: "demo-prechat-west-2",
-        listingId: westListing.id,
+        conversationId: "demo-conversation-west",
         senderId: "demo-host-west",
         body: "Cargo lift and B2 suitability are available. Please keep the project scope in the checkout notes and chat.",
         createdAt: new Date("2026-06-23T08:20:00.000Z")

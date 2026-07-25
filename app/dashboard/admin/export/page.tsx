@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { ArrowLeft, Database, Download, FileText, MessageSquare, Users } from "lucide-react";
 import { prisma } from "@/src/lib/db";
+import { requirePageRole } from "@/src/lib/page-authorization";
 
 export const dynamic = "force-dynamic";
 
@@ -36,18 +37,19 @@ const exportCards = [
 ] as const;
 
 export default async function AdminExportPage() {
-  const [users, listings, bookings, bookingMessages, listingMessages] = await Promise.all([
+  await requirePageRole("ADMIN");
+  const [users, listings, bookings, bookingMessages, conversationMessages] = await Promise.all([
     prisma.user.count(),
     prisma.listing.count(),
     prisma.booking.count(),
     prisma.bookingMessage.count(),
-    prisma.listingMessage.count()
+    prisma.conversationMessage.count()
   ]);
 
   const counts = {
     bookings,
     listings,
-    messages: bookingMessages + listingMessages,
+    messages: bookingMessages + conversationMessages,
     users
   };
 

@@ -1,5 +1,7 @@
 # Security Audit
 
+> Baseline findings from commit `3ac0774`. See [PHASE_1_IMPLEMENTATION_REPORT.md](PHASE_1_IMPLEMENTATION_REPORT.md) for controls implemented after this audit and remaining blockers.
+
 Last reviewed: 2026-07-25
 
 ## Verdict

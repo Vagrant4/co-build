@@ -13,10 +13,12 @@ import { LaunchReadinessPanel } from "@/components/launch-readiness-panel";
 import { StatusBadge } from "@/components/status-badge";
 import { calculatePlatformSubscriptionRevenue, formatCurrency, PLATFORM_SUBSCRIPTION_MONTHLY } from "@/src/lib/fabrication";
 import { getDashboardData } from "@/src/lib/repository";
+import { requirePageRole } from "@/src/lib/page-authorization";
 
 export const dynamic = "force-dynamic";
 
 export default async function AdminDashboardPage() {
+  await requirePageRole("ADMIN");
   const { users, listings, bookings, uploads, approvalEvents, equipment } = await getDashboardData();
   const subscriptionUsers = users.filter((user) => user.role === "RENTER" || user.role === "HOST");
   const activeSubscriptionCount = subscriptionUsers.filter((user) => user.platformSubscriptionStatus === "ACTIVE").length;
@@ -275,7 +277,6 @@ function BookingAdminButton({ bookingId, action, label, disabled }: { bookingId:
     <form action={updateBookingStatusAction}>
       <input type="hidden" name="bookingId" value={bookingId} />
       <input type="hidden" name="action" value={action} />
-      <input type="hidden" name="actorId" value="demo-admin" />
       <button className={action === "ADMIN_APPROVE" ? "button-primary w-full" : "button-secondary w-full"} disabled={disabled} type="submit">
         {label}
       </button>

@@ -62,7 +62,8 @@ async function cleanupScenario() {
     }
   });
   await prisma.bookingMessage.deleteMany({ where: { bookingId: { in: bookingIds } } });
-  await prisma.listingMessage.deleteMany({ where: { listingId: { in: listingIds } } });
+  await prisma.conversationMessage.deleteMany({ where: { conversation: { listingId: { in: listingIds } } } });
+  await prisma.conversation.deleteMany({ where: { listingId: { in: listingIds } } });
   await prisma.additionalRequirement.deleteMany({
     where: { OR: [{ bookingId: { in: bookingIds } }, { userId: { in: userIds } }] }
   });
@@ -290,16 +291,19 @@ async function main() {
     ]
   });
 
-  await prisma.listingMessage.createMany({
+  const conversation = await prisma.conversation.create({
+    data: { listingId: listing.id, renterId: renter.id, hostId: host.id }
+  });
+  await prisma.conversationMessage.createMany({
     data: [
       {
-        listingId: listing.id,
+        conversationId: conversation.id,
         senderId: renter.id,
         body: "I need 7 days for signage assembly. Can the bay support three-phase power and lorry unloading? I will keep all contact inside Co-Build chat.",
         createdAt: addMinutes(now, -55)
       },
       {
-        listingId: listing.id,
+        conversationId: conversation.id,
         senderId: host.id,
         body: "Yes. Three-phase power and lorry access are available. Please select workbench, drill, and material storage if needed, then submit the booking on-platform.",
         createdAt: addMinutes(now, -50)

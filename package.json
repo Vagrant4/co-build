@@ -15,20 +15,25 @@
     "db:deploy:prod": "prisma db push --schema prisma/schema.postgres.prisma --skip-generate",
     "db:seed": "tsx prisma/seed.ts",
     "db:seed:if-empty": "tsx prisma/seed-if-empty.ts",
-    "vercel-build": "npm run db:deploy:prod && npm run prisma:generate:prod && npm run db:seed:if-empty && next build"
+    "test:auth": "vitest run tests/authorization*.test.ts tests/account-registration.test.ts tests/public-listing-eligibility.test.ts tests/clean-database.test.ts",
+    "test:e2e": "playwright test",
+    "vercel-build": "npm run db:deploy:prod && npm run prisma:generate:prod && next build"
   },
   "dependencies": {
+    "@clerk/nextjs": "^7.6.1",
     "@prisma/client": "6.19.3",
     "lucide-react": "latest",
-    "next": "latest",
+    "next": "^16.2.11",
     "react": "latest",
     "react-dom": "latest"
   },
   "devDependencies": {
+    "@playwright/test": "^1.62.0",
     "@types/node": "latest",
     "@types/react": "latest",
     "@types/react-dom": "latest",
     "autoprefixer": "10.4.20",
+    "cross-env": "^10.1.0",
     "postcss": "8.4.49",
     "prisma": "6.19.3",
     "tailwindcss": "3.4.17",

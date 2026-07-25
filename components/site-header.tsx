@@ -1,6 +1,7 @@
 "use client";
 
 import { ClipboardCheck, Factory, LayoutDashboard, Search, ShieldCheck, UserPlus } from "lucide-react";
+import { UserButton, useAuth } from "@clerk/nextjs";
 import { usePathname } from "next/navigation";
 import { AccountSwitcher } from "./account-switcher";
 import { Logo } from "./logo";
@@ -31,7 +32,7 @@ function getNavItems(pathname: string) {
   ];
 }
 
-export function SiteHeader() {
+export function SiteHeader({ appMode }: { appMode: "demo" | "pilot" | "production" }) {
   const pathname = usePathname();
   const navItems = getNavItems(pathname);
 
@@ -51,7 +52,7 @@ export function SiteHeader() {
           </span>
         </a>
         <div className="flex flex-col gap-2 xl:flex-row xl:items-center">
-          <AccountSwitcher />
+          <AccountSwitcher appMode={appMode} />
           <nav className="site-nav">
             {navItems.map((item) => {
               const Icon = item.icon;
@@ -69,8 +70,16 @@ export function SiteHeader() {
               );
             })}
           </nav>
+          {appMode !== "demo" && (
+            <ManagedAccountControl />
+          )}
         </div>
       </div>
     </header>
   );
+}
+
+function ManagedAccountControl() {
+  const { isSignedIn } = useAuth();
+  return <div className="flex items-center gap-2">{isSignedIn ? <UserButton /> : <a className="button-secondary" href="/sign-in">Sign in</a>}</div>;
 }

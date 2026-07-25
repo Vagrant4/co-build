@@ -3,7 +3,7 @@
 import { BriefcaseBusiness, UserRound } from "lucide-react";
 import { usePathname } from "next/navigation";
 
-export function AccountSwitcher() {
+export function AccountSwitcher({ appMode }: { appMode: "demo" | "pilot" | "production" }) {
   const pathname = usePathname();
   const isHost = pathname.startsWith("/dashboard/host");
   const isUser = pathname.startsWith("/dashboard/user");
@@ -12,10 +12,12 @@ export function AccountSwitcher() {
     return null;
   }
 
+  if (appMode !== "demo") return null;
+
   const current = isHost ? "Host account" : "User account";
   const switchTarget = isHost
-    ? { label: "User", href: "/dashboard/user", icon: UserRound, ariaLabel: "Switch to User account" }
-    : { label: "Owner", href: "/dashboard/host", icon: BriefcaseBusiness, ariaLabel: "Switch to Host account" };
+    ? { label: "Switch demo", href: "/demo", icon: UserRound, ariaLabel: "Choose another demo account" }
+    : { label: "Switch demo", href: "/demo", icon: BriefcaseBusiness, ariaLabel: "Choose another demo account" };
   const SwitchIcon = switchTarget.icon;
 
   return (

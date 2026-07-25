@@ -35,7 +35,7 @@ export function DemoAccountSelector({
           return (
             <a
               key={account.id}
-              href={`${hrefBase}?account=${account.id}`}
+              href={`/demo/session?user=${encodeURIComponent(account.id)}&next=${encodeURIComponent(hrefBase)}`}
               aria-current={active ? "page" : undefined}
               className={active ? "demo-account-chip demo-account-chip--active" : "demo-account-chip"}
             >

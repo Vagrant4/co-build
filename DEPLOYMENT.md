@@ -27,7 +27,7 @@ The current deployment path is not acceptable for:
 - Database: hosted Postgres with connection pooling, such as Vercel Postgres, Neon, Supabase, or Railway
 - Payments: company-account collection, with renter/host payment references approved by admin
 - Uploads: move verification, listing, check-in, and check-out files to durable private object storage before public launch
-- Authentication: add real login, sessions, password reset, account ownership, admin roles, and route protection
+- Authentication: Clerk-managed sessions and application-level role/ownership checks are implemented in Phase 1; complete [Clerk pilot setup](docs/CLERK_SETUP.md) externally
 - Email: add transactional email for account creation, booking updates, chat alerts, and generated contracts
 - Database changes: replace production `db push` with reviewed Prisma migrations before real data is collected
 
@@ -37,6 +37,11 @@ Create these in the Vercel project settings before deploying:
 
 ```bash
 DATABASE_URL="postgresql://USER:PASSWORD@HOST:5432/DB_NAME?sslmode=require"
+APP_MODE="pilot"
+NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY="pk_test_..."
+CLERK_SECRET_KEY="sk_test_..."
+NEXT_PUBLIC_CLERK_SIGN_IN_URL="/sign-in"
+NEXT_PUBLIC_CLERK_SIGN_UP_URL="/sign-up"
 NEXT_PUBLIC_APP_URL="https://your-co-build-domain.com"
 COMPANY_PAYMENT_NAME="Co-Build Pte Ltd"
 COMPANY_PAYMENT_UEN="202600000A"
@@ -54,9 +59,9 @@ Vercel uses:
 npm run vercel-build
 ```
 
-That command pushes the Prisma schema to the connected Postgres database, generates Prisma Client from `prisma/schema.postgres.prisma`, runs demo seeding, and then builds Next.js.
+That command pushes the Prisma schema to the connected Postgres database, generates Prisma Client from `prisma/schema.postgres.prisma`, and builds Next.js. It does not seed demo users.
 
-Important: `prisma/seed-if-empty.ts` currently always calls the showcase seeder with `reset: false`. It upserts fixed demo users, listings, equipment, sample bookings, messages, uploads, and subscriptions. This is useful for a showcase deployment but unsafe for a real production database.
+`prisma/seed-if-empty.ts` now refuses to seed outside demo mode. Do not run the demo seed against pilot or production data.
 
 Before public launch, change the build sequence to:
 
@@ -104,7 +109,7 @@ Only do this after the readiness checklist is closed:
 1. Merge the reviewed release branch.
 2. Confirm the database has a current backup.
 3. Run reviewed Prisma migrations, not `db push`.
-4. Disable demo seeding in the production build path.
+4. Confirm the production build does not run any demo seed command.
 5. Confirm auth protects `/dashboard/admin`, `/dashboard/admin/export/*`, server actions, dashboards, checkout, uploads, and chat writes.
 6. Confirm object storage is private and upload access is signed or permission checked.
 7. Run smoke tests for account creation, subscription proof, listing approval, search, booking, chat, high-risk approval, payment proof, check-in, and check-out.
@@ -152,7 +157,7 @@ Use [docs/ROLLBACK_RECOVERY.md](docs/ROLLBACK_RECOVERY.md) for code rollback, da
 
 ## Notes Before Public Launch
 
-- The current app uses demo role switching instead of real authentication.
+- Demo role switching exists only in demo mode. Pilot and production use Clerk and fail closed when Clerk configuration is missing.
 - Booking, add-on, and subscription payments are proof/reference based.
 - Local filesystem uploads are not durable on serverless hosting.
 - Generated contracts are stored in the database, but real email delivery is not implemented.

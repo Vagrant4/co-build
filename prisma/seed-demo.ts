@@ -519,13 +519,15 @@ const showcaseBookings: BookingSeed[] = [
 
 export async function seedDemoData(prisma: PrismaClient, options: { reset?: boolean } = {}) {
   if (options.reset) {
+    await prisma.adminExportEvent.deleteMany();
     await prisma.approvalEvent.deleteMany();
     await prisma.upload.deleteMany();
     await prisma.additionalRequirement.deleteMany();
     await prisma.bookingMessage.deleteMany();
     await prisma.bookingAddon.deleteMany();
     await prisma.booking.deleteMany();
-    await prisma.listingMessage.deleteMany();
+    await prisma.conversationMessage.deleteMany();
+    await prisma.conversation.deleteMany();
     await prisma.listingEquipment.deleteMany();
     await prisma.listing.deleteMany();
     await prisma.equipmentAddon.deleteMany();
@@ -536,8 +538,8 @@ export async function seedDemoData(prisma: PrismaClient, options: { reset?: bool
     const { id, ...data } = user;
     await prisma.user.upsert({
       where: { id },
-      update: data,
-      create: { id, ...data }
+      update: { ...data, authProviderId: `demo:${id}` },
+      create: { id, ...data, authProviderId: `demo:${id}` }
     });
   }
 
@@ -575,7 +577,7 @@ export async function seedDemoData(prisma: PrismaClient, options: { reset?: bool
     }
   }
 
-  await seedListingMessages(prisma);
+  await seedConversations(prisma);
 
   for (const bookingSeed of showcaseBookings) {
     await ensureBooking(prisma, bookingSeed, addonIdBySlug);
@@ -617,8 +619,8 @@ function listingData(listing: (typeof seedListings)[number], hostId: string) {
   };
 }
 
-async function seedListingMessages(prisma: PrismaClient) {
-  const listingMessages = [
+async function seedConversations(prisma: PrismaClient) {
+  const conversationSeeds = [
     {
       listingSlug: "small-bay-eunos",
       messages: [
@@ -642,18 +644,35 @@ async function seedListingMessages(prisma: PrismaClient) {
     }
   ];
 
-  for (const scenario of listingMessages) {
-    const listing = await prisma.listing.findUnique({ where: { slug: scenario.listingSlug }, select: { id: true } });
-    if (!listing) continue;
-    const existing = await prisma.listingMessage.count({ where: { listingId: listing.id } });
-    if (existing > 0) continue;
-    await prisma.listingMessage.createMany({
-      data: scenario.messages.map((message) => ({
-        listingId: listing.id,
-        senderId: message.senderId,
-        body: message.body
-      }))
+  for (const scenario of conversationSeeds) {
+    const listing = await prisma.listing.findUnique({
+      where: { slug: scenario.listingSlug },
+      select: { id: true, hostId: true }
     });
+    const renterMessage = scenario.messages.find((message) =>
+      showcaseRenters.some((renter) => renter.id === message.senderId)
+    );
+    if (!listing?.hostId || !renterMessage) continue;
+
+    const conversation = await prisma.conversation.upsert({
+      where: { listingId_renterId: { listingId: listing.id, renterId: renterMessage.senderId } },
+      update: { hostId: listing.hostId },
+      create: {
+        listingId: listing.id,
+        renterId: renterMessage.senderId,
+        hostId: listing.hostId
+      }
+    });
+    const existing = await prisma.conversationMessage.count({ where: { conversationId: conversation.id } });
+    if (existing === 0) {
+      await prisma.conversationMessage.createMany({
+        data: scenario.messages.map((message) => ({
+          conversationId: conversation.id,
+          senderId: message.senderId,
+          body: message.body
+        }))
+      });
+    }
   }
 }
 

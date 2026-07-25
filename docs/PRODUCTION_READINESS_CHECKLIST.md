@@ -1,5 +1,7 @@
 # Production Readiness Checklist
 
+> This checklist originated at commit `3ac0774`. Phase 1 closes part of the identity and authorization section only; use [PHASE_1_IMPLEMENTATION_REPORT.md](PHASE_1_IMPLEMENTATION_REPORT.md) as the current implementation record. Co-Build is still not production-ready.
+
 Last reviewed: 2026-07-25
 
 ## Status Key

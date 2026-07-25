@@ -1,5 +1,7 @@
 # Co-Build Pre-Launch Review
 
+> Baseline audit from commit `3ac0774`. Phase 1 identity, authorization, private conversation, and export controls are implemented on `codex/production-foundation-phase-1`; see [PHASE_1_IMPLEMENTATION_REPORT.md](PHASE_1_IMPLEMENTATION_REPORT.md) for current status.
+
 Last reviewed: 2026-07-25
 
 ## Verdict

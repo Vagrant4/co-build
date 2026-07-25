@@ -1,12 +1,15 @@
 import { csvResponse, toCsv } from "@/src/lib/csv-export";
 import { prisma } from "@/src/lib/db";
+import { requireAdmin } from "@/src/lib/authorization";
 
 export const dynamic = "force-dynamic";
 
 export async function GET() {
-  const listings = await prisma.listing.findMany({
-    orderBy: { createdAt: "desc" },
-    select: {
+  const admin = await requireAdmin();
+  const listings = await prisma.$transaction(async (tx) => {
+    const rows = await tx.listing.findMany({
+      orderBy: { createdAt: "desc" },
+      select: {
       accessHours: true,
       address: true,
       cleaningFee: true,
@@ -28,8 +31,11 @@ export async function GET() {
       spaceType: true,
       status: true,
       title: true,
-      zoning: true
-    }
+        zoning: true
+      }
+    });
+    await tx.adminExportEvent.create({ data: { actorId: admin.id, exportType: "listings", rowCount: rows.length } });
+    return rows;
   });
 
   const csv = toCsv(listings, [

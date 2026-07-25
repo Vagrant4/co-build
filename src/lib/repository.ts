@@ -24,12 +24,31 @@ export async function getListings(filters?: ListingFilters): Promise<Listing[]> 
 }
 
 export async function getApprovedListings(filters?: ListingFilters): Promise<Listing[]> {
-  return getListings(filters);
+  const records = await prisma.listing.findMany({
+    where: {
+      status: "APPROVED",
+      host: {
+        is: {
+          role: "HOST",
+          suspended: false,
+          verificationStatus: "APPROVED"
+        }
+      }
+    },
+    include: { equipmentAddons: { include: { equipmentAddon: true } } },
+    orderBy: { sizeSqft: "asc" }
+  });
+  const listings = records.map(toListing);
+  return filters ? filterListings(listings, filters) : listings;
 }
 
-export async function getListingBySlug(slug: string): Promise<Listing | null> {
-  const record = await prisma.listing.findUnique({
-    where: { slug },
+export async function getPublicListingBySlug(slug: string): Promise<Listing | null> {
+  const record = await prisma.listing.findFirst({
+    where: {
+      slug,
+      status: "APPROVED",
+      host: { is: { role: "HOST", suspended: false, verificationStatus: "APPROVED" } }
+    },
     include: { equipmentAddons: { include: { equipmentAddon: true } } }
   });
   return record ? toListing(record) : null;

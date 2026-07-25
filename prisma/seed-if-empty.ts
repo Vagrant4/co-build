@@ -1,9 +1,14 @@
 import { PrismaClient } from "@prisma/client";
 import { seedDemoData } from "./seed-demo";
+import { getAppMode } from "../src/lib/app-mode";
 
 const prisma = new PrismaClient();
 
 async function main() {
+  if (getAppMode() !== "demo") {
+    console.log("Skipped showcase seed outside demo mode.");
+    return;
+  }
   const [users, listings, equipment] = await Promise.all([
     prisma.user.count(),
     prisma.listing.count(),

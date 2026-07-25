@@ -38,13 +38,16 @@ describe("production deployment setup", () => {
     );
     expect(packageJson.scripts["db:seed:if-empty"]).toBe("tsx prisma/seed-if-empty.ts");
     expect(packageJson.scripts["vercel-build"]).toBe(
-      "npm run db:deploy:prod && npm run prisma:generate:prod && npm run db:seed:if-empty && next build"
+      "npm run db:deploy:prod && npm run prisma:generate:prod && next build"
     );
 
     expect(read("vercel.json")).toContain('"buildCommand": "npm run vercel-build"');
 
     const envExample = read(".env.example");
     expect(envExample).toContain("DATABASE_URL=");
+    expect(envExample).toContain("APP_MODE=");
+    expect(envExample).toContain("NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=");
+    expect(envExample).toContain("CLERK_SECRET_KEY=");
     expect(envExample).toContain("NEXT_PUBLIC_APP_URL=");
     expect(envExample).toContain("COMPANY_PAYMENT_NAME=");
     expect(envExample).toContain("COMPANY_PAYMENT_UEN=");

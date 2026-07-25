@@ -4,23 +4,24 @@ Full-stack MVP for short-term fabrication workspace rental in Singapore.
 
 ## Current Status
 
-This repository is ready for controlled demos and structured pre-launch review. It is not ready for public production traffic yet.
+Phase 1 now provides managed identity, centralized authorization, private conversations, protected admin exports, and fail-closed pilot/production modes. The repository is suitable for controlled demos and continued invite-only pilot preparation. It is not ready for public production traffic.
 
 Primary public-launch blockers:
 
-- Real authentication and authorization are not implemented.
-- Admin dashboards and CSV exports are currently demo-accessible.
 - Uploads are stored on the local filesystem, which is not durable on Vercel serverless hosting.
-- Production deployment currently uses `prisma db push` and demo seeding, not reviewed migrations and controlled production seed data.
+- Booking dates and availability conflict protection are not implemented.
+- Payment confirmation is still simulated and not reconciled against the company account.
+- The existing hosted database still needs a reviewed Prisma Migrate baseline before public launch.
 
-Start the readiness review here: [docs/PRELAUNCH_REVIEW.md](docs/PRELAUNCH_REVIEW.md).
+Start with the [Phase 1 implementation report](docs/PHASE_1_IMPLEMENTATION_REPORT.md). The earlier [pre-launch review](docs/PRELAUNCH_REVIEW.md) remains the baseline audit that led to this phase.
 
 ## Run Locally
 
 ```bash
-npm.cmd install --ignore-scripts
+npm.cmd install
 npm.cmd run prisma:generate
-npm.cmd exec prisma db execute -- --schema prisma\schema.prisma --file prisma\migrations\20260614150000_init\migration.sql
+npx.cmd prisma db push
+$env:APP_MODE="demo"
 npm.cmd run db:seed
 npm.cmd run dev -- --hostname 127.0.0.1 --port 3000
 ```
@@ -39,6 +40,8 @@ The current local SQLite database is `prisma/dev.db` and is ignored by git. Uplo
 ## Documentation
 
 - [Pre-launch review index](docs/PRELAUNCH_REVIEW.md)
+- [Phase 1 implementation report](docs/PHASE_1_IMPLEMENTATION_REPORT.md)
+- [Clerk pilot setup](docs/CLERK_SETUP.md)
 - [Architecture overview](docs/ARCHITECTURE.md)
 - [Database schema review](docs/DATABASE_SCHEMA_REVIEW.md)
 - [Security audit](docs/SECURITY_AUDIT.md)

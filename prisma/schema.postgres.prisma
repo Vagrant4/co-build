@@ -93,6 +93,7 @@ enum PlatformSubscriptionStatus {
 
 model User {
   id                              String                     @id
+  authProviderId                  String?                    @unique
   role                            UserRole
   fullName                        String
   mobile                          String
@@ -111,11 +112,14 @@ model User {
   suspended                       Boolean                    @default(false)
   bookings                        Booking[]
   sentMessages                    BookingMessage[]           @relation("MessageSender")
-  sentListingMessages             ListingMessage[]           @relation("ListingMessageSender")
+  renterConversations             Conversation[]             @relation("ConversationRenter")
+  hostConversations               Conversation[]             @relation("ConversationHost")
+  conversationMessages            ConversationMessage[]      @relation("ConversationMessageSender")
   hostListings                    Listing[]                  @relation("HostListings")
   additionalRequirements          AdditionalRequirement[]
   uploads                         Upload[]
   approvalEvents                  ApprovalEvent[]            @relation("ApprovalActor")
+  exportEvents                    AdminExportEvent[]         @relation("ExportActor")
   createdAt                       DateTime                   @default(now())
   updatedAt                       DateTime                   @updatedAt
 }
@@ -155,7 +159,7 @@ model Listing {
   host               User?              @relation("HostListings", fields: [hostId], references: [id])
   equipmentAddons    ListingEquipment[]
   bookings           Booking[]
-  listingMessages    ListingMessage[]
+  conversations      Conversation[]
   uploads            Upload[]
   approvalEvents     ApprovalEvent[]
   createdAt          DateTime           @default(now())
@@ -237,16 +241,33 @@ model BookingMessage {
   @@index([bookingId, createdAt])
 }
 
-model ListingMessage {
-  id        String   @id @default(cuid())
+model Conversation {
+  id        String                @id @default(cuid())
   listingId String
-  senderId  String
-  body      String
-  listing   Listing  @relation(fields: [listingId], references: [id], onDelete: Cascade)
-  sender    User     @relation("ListingMessageSender", fields: [senderId], references: [id])
-  createdAt DateTime @default(now())
+  renterId  String
+  hostId    String
+  listing   Listing               @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  renter    User                  @relation("ConversationRenter", fields: [renterId], references: [id])
+  host      User                  @relation("ConversationHost", fields: [hostId], references: [id])
+  messages  ConversationMessage[]
+  createdAt DateTime              @default(now())
+  updatedAt DateTime              @updatedAt
 
-  @@index([listingId, createdAt])
+  @@unique([listingId, renterId])
+  @@index([renterId, updatedAt])
+  @@index([hostId, updatedAt])
+}
+
+model ConversationMessage {
+  id             String       @id @default(cuid())
+  conversationId String
+  senderId       String
+  body           String
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  sender         User         @relation("ConversationMessageSender", fields: [senderId], references: [id])
+  createdAt      DateTime     @default(now())
+
+  @@index([conversationId, createdAt])
 }
 
 model BookingAddon {
@@ -285,4 +306,15 @@ model ApprovalEvent {
   listing   Listing?         @relation(fields: [listingId], references: [id])
   booking   Booking?         @relation(fields: [bookingId], references: [id])
   createdAt DateTime         @default(now())
+}
+
+model AdminExportEvent {
+  id         String   @id @default(cuid())
+  actorId    String
+  exportType String
+  rowCount   Int
+  actor      User     @relation("ExportActor", fields: [actorId], references: [id])
+  createdAt  DateTime @default(now())
+
+  @@index([actorId, createdAt])
 }
