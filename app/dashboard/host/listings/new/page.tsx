@@ -1,6 +1,7 @@
 import { Factory } from "lucide-react";
 import { createListingAction } from "@/app/actions";
 import { LocationMapFields } from "@/components/location-map-fields";
+import { PrivateUploadField } from "@/components/private-upload-field";
 import { getEquipmentAddons } from "@/src/lib/repository";
 import { requirePageRole } from "@/src/lib/page-authorization";
 import { workTypes } from "@/src/lib/seed-data";
@@ -109,14 +110,8 @@ export default async function NewListingPage() {
 
         <FormSection id="photos" number="6" title="Photos" summary="Upload photos and a floor plan so renters understand the bay before requesting it.">
           <div className="grid gap-4 md:grid-cols-2">
-            <label>
-              <span className="label">Photos</span>
-              <input name="photo" type="file" accept="image/*" />
-            </label>
-            <label>
-              <span className="label">Floor plan</span>
-              <input name="floorPlan" type="file" accept="image/*,.pdf" />
-            </label>
+            <PrivateUploadField label="Workspace photo" name="photo" type="LISTING_PHOTO" accept="image/jpeg,image/png,image/webp" />
+            <PrivateUploadField label="Floor plan" name="floorPlan" type="FLOOR_PLAN" accept="image/jpeg,image/png,application/pdf" />
           </div>
           <div className="signal-submit mt-5 p-3">
             <button className="button-primary w-full bg-transparent shadow-none hover:shadow-none" type="submit">

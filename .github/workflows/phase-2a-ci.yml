@@ -1,0 +1,87 @@
+name: Phase 2A release gate
+
+on:
+  push:
+    branches:
+      - codex/private-storage-data-safety-phase-2a
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      run_blob_smoke:
+        description: Run private Blob smoke test (requires repository secret)
+        required: false
+        type: boolean
+        default: false
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: co_build_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d co_build_ci"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      APP_MODE: demo
+      DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/co_build_ci
+      DIRECT_URL: postgresql://postgres:postgres@127.0.0.1:5432/co_build_ci
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: npm
+      - name: Install dependencies
+        shell: bash
+        run: |
+          set +e
+          npm ci > npm-ci.log 2>&1
+          status=$?
+          cat npm-ci.log
+          if [ "$status" -ne 0 ]; then
+            message=$( (head -n 30 npm-ci.log; tail -n 10 npm-ci.log) | tr '\n' ' ' | sed 's/%/%25/g')
+            echo "::error title=npm ci failed::$message"
+            exit "$status"
+          fi
+      - run: npx prisma validate --schema prisma/schema.prisma
+      - run: npx prisma validate --schema prisma/postgres/schema.prisma
+      - run: npm run prisma:generate:prod
+      - run: npm run db:deploy:prod
+      - name: Verify Postgres baseline
+        run: npx tsx scripts/verify-postgres-baseline.ts
+      - run: npm run prisma:generate
+      - run: npm test
+      - run: npm run test:auth
+      - run: npm run prisma:generate:prod
+      - name: Build pilot artifact
+        env:
+          APP_MODE: pilot
+          NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: pk_test_ci_placeholder
+          CLERK_SECRET_KEY: sk_test_ci_placeholder
+        run: npm run vercel-build
+      - run: npx playwright install --with-deps chromium
+      - run: npm run db:seed
+      - run: npm run test:e2e
+
+  private-blob-smoke:
+    if: github.event_name == 'workflow_dispatch' && inputs.run_blob_smoke
+    runs-on: ubuntu-latest
+    env:
+      BLOB_READ_WRITE_TOKEN: ${{ secrets.BLOB_READ_WRITE_TOKEN }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npx tsx scripts/blob-smoke.ts

@@ -69,6 +69,30 @@ enum UploadType {
   CHECK_OUT
   LISTING_PHOTO
   FLOOR_PLAN
+  PAYMENT_EVIDENCE
+  DISPUTE_EVIDENCE
+  CONTRACT
+}
+
+enum StorageProvider {
+  LEGACY_LOCAL
+  VERCEL_BLOB
+}
+
+enum UploadStatus {
+  PENDING
+  AVAILABLE
+  REJECTED
+  DELETED
+  LEGACY_DEMO
+}
+
+enum ScanStatus {
+  NOT_REQUIRED
+  PENDING
+  SAFE
+  UNSAFE
+  FAILED
 }
 
 enum ApprovalDecision {
@@ -117,7 +141,8 @@ model User {
   conversationMessages            ConversationMessage[]      @relation("ConversationMessageSender")
   hostListings                    Listing[]                  @relation("HostListings")
   additionalRequirements          AdditionalRequirement[]
-  uploads                         Upload[]
+  uploadsCreated                  Upload[]                   @relation("UploadCreator")
+  uploadsOwned                    Upload[]                   @relation("UploadOwner")
   approvalEvents                  ApprovalEvent[]            @relation("ApprovalActor")
   exportEvents                    AdminExportEvent[]         @relation("ExportActor")
   createdAt                       DateTime                   @default(now())
@@ -205,7 +230,7 @@ model Booking {
   user                   User                    @relation(fields: [userId], references: [id])
   addons                 BookingAddon[]
   uploads                Upload[]
-  messages        BookingMessage[]
+  messages               BookingMessage[]
   approvalEvents         ApprovalEvent[]
   additionalRequirements AdditionalRequirement[]
   createdAt              DateTime                @default(now())
@@ -281,17 +306,33 @@ model BookingAddon {
 }
 
 model Upload {
-  id           String     @id @default(cuid())
-  type         UploadType
-  originalName String
-  localPath    String
-  userId       String?
-  bookingId    String?
-  listingId    String?
-  user         User?      @relation(fields: [userId], references: [id])
-  booking      Booking?   @relation(fields: [bookingId], references: [id])
-  listing      Listing?   @relation(fields: [listingId], references: [id])
-  createdAt    DateTime   @default(now())
+  id               String          @id @default(cuid())
+  type             UploadType
+  originalName     String
+  storageProvider  StorageProvider @default(VERCEL_BLOB)
+  objectKey        String?         @unique
+  legacyLocalPath  String?
+  contentType      String?
+  sizeBytes        Int?
+  checksumSha256   String?
+  uploadStatus     UploadStatus    @default(PENDING)
+  scanStatus       ScanStatus      @default(PENDING)
+  uploadedByUserId String?
+  ownerUserId      String?
+  bookingId        String?
+  listingId        String?
+  uploadedByUser   User?           @relation("UploadCreator", fields: [uploadedByUserId], references: [id])
+  ownerUser        User?           @relation("UploadOwner", fields: [ownerUserId], references: [id])
+  booking          Booking?        @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  listing          Listing?        @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  createdAt        DateTime        @default(now())
+  verifiedAt       DateTime?
+  deletedAt        DateTime?
+
+  @@index([ownerUserId, createdAt])
+  @@index([bookingId, type])
+  @@index([listingId, type])
+  @@index([uploadStatus, createdAt])
 }
 
 model ApprovalEvent {

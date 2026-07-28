@@ -31,7 +31,6 @@ import { CONTACT_POLICY_MESSAGE, containsRestrictedContactDetail } from "@/src/l
 import { prisma } from "@/src/lib/db";
 import { toListing } from "@/src/lib/repository";
 import { commonSafetyRules } from "@/src/lib/seed-data";
-import { saveUpload } from "@/src/lib/uploads";
 
 export async function createBookingAction(formData: FormData) {
   const renter = await requireRole("RENTER");
@@ -53,7 +52,7 @@ export async function createBookingAction(formData: FormData) {
 
   const addons = await prisma.equipmentAddon.findMany({ where: { slug: { in: addonSlugs } } });
   const quote = calculateBookingQuote({ listing: toListing(listing), durationDays, workType, addons });
-  const verificationUpload = await saveUpload(formData.get("verification") as File | null, "verification");
+  const verificationUploadId = optionalString(formData, "verificationUploadId");
 
   await prisma.$transaction(async (tx) => {
     const booking = await tx.booking.create({
@@ -73,8 +72,12 @@ export async function createBookingAction(formData: FormData) {
         addons: { create: addons.map((addon) => ({ equipmentAddonId: addon.id, priceAtBooking: addon.pricePerBooking })) }
       }
     });
-    if (verificationUpload) {
-      await tx.upload.create({ data: { type: "VERIFICATION", ...verificationUpload, userId: renter.id, bookingId: booking.id } });
+    if (verificationUploadId) {
+      const result = await tx.upload.updateMany({
+        where: { id: verificationUploadId, type: "VERIFICATION", ownerUserId: renter.id, uploadedByUserId: renter.id, bookingId: null, uploadStatus: "AVAILABLE" },
+        data: { bookingId: booking.id }
+      });
+      if (result.count !== 1) throw new Error("Verification upload is unavailable or does not belong to this account.");
     }
     await tx.approvalEvent.create({
       data: { actorId: renter.id, bookingId: booking.id, target: "booking_request", decision: "APPROVED", note: "Authenticated renter submitted booking request and accepted safety rules." }
@@ -133,12 +136,15 @@ export async function uploadBookingPhotoAction(formData: FormData) {
   const booking = await prisma.booking.findUnique({ where: { id: bookingId } });
   if (!booking) notFound();
   if (booking.userId !== renter.id) forbidden();
-  const upload = await saveUpload(formData.get("photo") as File | null, uploadKind.toLowerCase());
-  if (!upload) throw new Error("Select a photo before uploading.");
+  const uploadId = requireString(formData, "photoUploadId");
   const nextStatus = uploadKind === "CHECK_IN" && booking.status === "PAID_CONFIRMED" ? "CHECKED_IN" : uploadKind === "CHECK_OUT" && booking.status === "CHECKED_IN" ? "CHECKED_OUT" : booking.status;
 
   await prisma.$transaction(async (tx) => {
-    await tx.upload.create({ data: { type: uploadKind, ...upload, bookingId, userId: renter.id } });
+    const result = await tx.upload.updateMany({
+      where: { id: uploadId, type: uploadKind, bookingId, ownerUserId: renter.id, uploadedByUserId: renter.id, uploadStatus: "AVAILABLE" },
+      data: { verifiedAt: new Date() }
+    });
+    if (result.count !== 1) throw new Error("Booking photo is unavailable or does not belong to this booking.");
     if (nextStatus !== booking.status) await tx.booking.update({ where: { id: bookingId }, data: { status: nextStatus } });
     await tx.approvalEvent.create({ data: { actorId: renter.id, bookingId, target: uploadKind.toLowerCase(), decision: "APPROVED", note: `Authenticated renter uploaded ${uploadKind.toLowerCase().replace("_", " ")} evidence.` } });
   });
@@ -335,8 +341,8 @@ export async function createListingAction(formData: FormData) {
   const host = await requireRole("HOST");
   const title = requireString(formData, "title");
   const slug = slugify(`${title}-${Date.now()}`);
-  const photoUpload = await saveUpload(formData.get("photo") as File | null, "listing-photo");
-  const floorPlanUpload = await saveUpload(formData.get("floorPlan") as File | null, "floor-plan");
+  const photoUploadId = optionalString(formData, "photoUploadId");
+  const floorPlanUploadId = optionalString(formData, "floorPlanUploadId");
   const equipmentSlugs = formData.getAll("equipment").map(String).filter((slugValue) => slugValue !== "other");
   const factoryTypes = formData.getAll("factoryType").map(String).filter((value) => ["OFFICE", "B1", "B2", "OTHER"].includes(value));
   const sizeSqft = Number(requireString(formData, "sizeSqft"));
@@ -356,15 +362,21 @@ export async function createListingAction(formData: FormData) {
         loadingAccessJson: JSON.stringify(splitList(requireString(formData, "loadingAccess"))), amenitiesJson: JSON.stringify(amenities),
         permittedWorkJson: JSON.stringify(splitList(requireString(formData, "permittedWork"))), prohibitedWorkJson: JSON.stringify(splitList(requireString(formData, "restrictedWork"))),
         safetyRulesJson: JSON.stringify(commonSafetyRules), cancellationPolicy: "Host reviews cancellation requests case by case for this pending listing.",
-        photoUrlsJson: JSON.stringify([fallbackListingImage(spaceType)]), floorPlanUrl: floorPlanUpload?.localPath ?? fallbackFloorPlan(spaceType),
+        photoUrlsJson: JSON.stringify([fallbackListingImage(spaceType)]), floorPlanUrl: fallbackFloorPlan(spaceType),
         priceDay: numberField(formData, "priceDay"), priceSevenDays: numberField(formData, "priceSevenDays"), priceThirtyDays: numberField(formData, "priceThirtyDays"), priceSixtyDays: numberField(formData, "priceSixtyDays"),
         depositStandard: numberField(formData, "depositStandard"), depositHighRisk: Number(formData.get("depositHighRisk") || 0), cleaningFee: numberField(formData, "cleaningFee"),
         landlordApproval: "Not collected", insuranceStatus: "Not collected", fireSafety: requireString(formData, "fireSafety"), electricalSupply: requireString(formData, "electricalSupply"), hostId: host.id,
         equipmentAddons: { create: equipmentSlugs.map((value) => ({ equipmentAddon: { connect: { slug: value } } })) }
       }
     });
-    if (photoUpload) await tx.upload.create({ data: { type: "LISTING_PHOTO", ...photoUpload, listingId: listing.id, userId: host.id } });
-    if (floorPlanUpload) await tx.upload.create({ data: { type: "FLOOR_PLAN", ...floorPlanUpload, listingId: listing.id, userId: host.id } });
+    for (const [uploadId, type] of [[photoUploadId, "LISTING_PHOTO"], [floorPlanUploadId, "FLOOR_PLAN"]] as const) {
+      if (!uploadId) continue;
+      const result = await tx.upload.updateMany({
+        where: { id: uploadId, type, listingId: null, ownerUserId: host.id, uploadedByUserId: host.id, uploadStatus: "AVAILABLE" },
+        data: { listingId: listing.id }
+      });
+      if (result.count !== 1) throw new Error(`${type.toLowerCase().replace("_", " ")} is unavailable or does not belong to this host.`);
+    }
     await tx.approvalEvent.create({ data: { actorId: host.id, listingId: listing.id, target: "listing_submission", decision: "APPROVED", note: "Authenticated host submitted listing for admin review." } });
   });
   revalidateDashboards();

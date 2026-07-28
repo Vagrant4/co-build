@@ -270,22 +270,22 @@ async function main() {
       {
         type: "LISTING_PHOTO",
         originalName: "browser-demo-workspace-photo.png",
-        localPath: "/assets/sample-workshop-photo-large-bay.png",
+        storageProvider: "LEGACY_LOCAL", legacyLocalPath: "/assets/sample-workshop-photo-large-bay.png", uploadStatus: "LEGACY_DEMO", scanStatus: "NOT_REQUIRED",
         listingId: listing.id,
         createdAt: addMinutes(now, -66)
       },
       {
         type: "FLOOR_PLAN",
         originalName: "browser-demo-floor-plan.png",
-        localPath: "/assets/floor-plan-large-bay.png",
+        storageProvider: "LEGACY_LOCAL", legacyLocalPath: "/assets/floor-plan-large-bay.png", uploadStatus: "LEGACY_DEMO", scanStatus: "NOT_REQUIRED",
         listingId: listing.id,
         createdAt: addMinutes(now, -65)
       },
       {
         type: "VERIFICATION",
         originalName: "browser-demo-renter-verification.pdf",
-        localPath: "uploads/browser-demo-renter-verification.pdf",
-        userId: renter.id,
+        storageProvider: "LEGACY_LOCAL", legacyLocalPath: "uploads/browser-demo-renter-verification.pdf", uploadStatus: "LEGACY_DEMO", scanStatus: "NOT_REQUIRED",
+        uploadedByUserId: renter.id, ownerUserId: renter.id,
         createdAt: addMinutes(now, -64)
       }
     ]
@@ -396,16 +396,16 @@ async function main() {
       {
         type: "CHECK_IN",
         originalName: "browser-demo-check-in-photo.png",
-        localPath: "uploads/browser-demo-check-in-photo.png",
-        userId: renter.id,
+        storageProvider: "LEGACY_LOCAL", legacyLocalPath: "uploads/browser-demo-check-in-photo.png", uploadStatus: "LEGACY_DEMO", scanStatus: "NOT_REQUIRED",
+        uploadedByUserId: renter.id, ownerUserId: renter.id,
         bookingId: booking.id,
         createdAt: addMinutes(now, -15)
       },
       {
         type: "CHECK_OUT",
         originalName: "browser-demo-check-out-photo.png",
-        localPath: "uploads/browser-demo-check-out-photo.png",
-        userId: renter.id,
+        storageProvider: "LEGACY_LOCAL", legacyLocalPath: "uploads/browser-demo-check-out-photo.png", uploadStatus: "LEGACY_DEMO", scanStatus: "NOT_REQUIRED",
+        uploadedByUserId: renter.id, ownerUserId: renter.id,
         bookingId: booking.id,
         createdAt: addMinutes(now, -10)
       }

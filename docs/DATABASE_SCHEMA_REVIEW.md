@@ -1,17 +1,17 @@
 # Database Schema Review
 
-Last reviewed: 2026-07-25
+Last reviewed: 2026-07-28
 
 ## Verdict
 
-The schema is suitable for an MVP demo and early internal workflow testing. It is not yet strong enough for public production because several business rules live only in application code, production migrations are not established, uploads are local paths, and demo seed data can be upserted during deployment.
+The schema is suitable for an MVP demo and continued invite-only pilot preparation. Phase 2A adds reviewed production migrations and private-upload metadata, but the system is not ready for public production because booking dates, payment reconciliation, notification delivery, retention policy, and several query/index decisions remain incomplete.
 
 ## Schemas
 
 | File | Provider | Purpose |
 | --- | --- | --- |
 | `prisma/schema.prisma` | SQLite | Local development and demo |
-| `prisma/schema.postgres.prisma` | Postgres | Vercel/live deployment |
+| `prisma/postgres/schema.prisma` | Postgres | Pilot deployment with committed migrations |
 
 The two schemas are manually duplicated. This increases drift risk. A schema change must be applied to both files.
 
@@ -29,7 +29,7 @@ The two schemas are manually duplicated. This increases drift risk. A schema cha
 | `ApprovalEvent` | Admin/host/user approval and status-change event log |
 | `AdditionalRequirement` | Renter add-on request, host quote, contract text, payment status |
 | `BookingMessage` | Chat after booking exists |
-| `ListingMessage` | Pre-deal chat on listing detail |
+| `Conversation`, `ConversationMessage` | Participant-scoped pre-deal chat on listing detail |
 
 ## Positive Findings
 
@@ -41,31 +41,29 @@ The two schemas are manually duplicated. This increases drift risk. A schema cha
 - Listing slugs are unique.
 - Delete cascades exist for many child records tied to bookings/listings.
 
-## Critical Issues
+## Phase 2A Controls
 
-### 1. Production migrations are not established
+### 1. Production migrations are established
 
-The production deployment command uses:
+The controlled production migration command uses:
 
 ```bash
-prisma db push --schema prisma/schema.postgres.prisma --skip-generate
+prisma migrate deploy --schema prisma/postgres/schema.prisma
 ```
 
-`db push` is useful for prototyping but bypasses reviewed migration history. Production needs `prisma migrate deploy` with Postgres migrations committed and reviewed.
+Ordinary Next.js compilation does not mutate the database. Existing databases previously created by `db push` still require a backup, schema comparison, and controlled baseline resolution.
 
-### 2. Showcase seed data runs in the production build path
+### 2. Showcase seed data is excluded from the production build path
 
-`vercel-build` runs `npm run db:seed:if-empty`. The `seed-if-empty` script counts rows but still calls `seedDemoData(prisma, { reset: false })` every time. That upserts demo users, listings, equipment, bookings, messages, uploads, and subscriptions.
+`vercel-build` only generates the production Prisma client and compiles Next.js. Demo seeding remains an explicit demo-mode command.
 
-This is unsafe once real data exists.
+### 3. Upload records use private object metadata
 
-### 3. Upload records store local paths
+`Upload` stores provider, immutable object key, content type, size, checksum, uploader, owner, lifecycle, scan status, and resource relations. Old local rows are retained only as `LEGACY_DEMO` metadata and cannot be served by pilot/production routes.
 
-`Upload.localPath` stores filesystem paths from `src/lib/uploads.ts`. On Vercel, local filesystem writes are not durable product storage. It also does not provide access control, signed URLs, retention policy, or malware scanning.
+### 4. Durable managed identity is represented
 
-### 4. Authorization is not represented in the schema
-
-The schema has roles, but no session, account membership, password identity, OAuth identity, or permission table. Production authorization cannot be audited from the database.
+`User.authProviderId` maps Clerk identity to the Prisma user. Sessions remain managed by Clerk; the application stores no passwords.
 
 ## High Issues
 
@@ -96,7 +94,8 @@ Add indexes for common filters and dashboard queries:
 - `Booking.listingId`
 - `Booking.status`
 - `Booking.riskLevel`
-- `Upload.userId`
+- `Upload.ownerUserId`
+- `Upload.uploadedByUserId`
 - `Upload.bookingId`
 - `Upload.listingId`
 - `ApprovalEvent.createdAt`

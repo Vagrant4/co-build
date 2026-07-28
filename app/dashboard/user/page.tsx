@@ -7,6 +7,7 @@ import {
   submitPlatformSubscriptionPaymentAction,
   uploadBookingPhotoAction
 } from "@/app/actions";
+import { PrivateUploadField } from "@/components/private-upload-field";
 import { BookingChat } from "@/components/booking-chat";
 import { StatusBadge } from "@/components/status-badge";
 import { dealConfirmationStatus, formatCurrency, PLATFORM_SUBSCRIPTION_MONTHLY } from "@/src/lib/fabrication";
@@ -274,10 +275,7 @@ function PhotoForm({ bookingId, type, label }: { bookingId: string; type: "CHECK
     <form action={uploadBookingPhotoAction} className="grid gap-3 border border-neutral-200 bg-white p-3">
       <input type="hidden" name="bookingId" value={bookingId} />
       <input type="hidden" name="uploadKind" value={type} />
-      <label>
-        <span className="label">{label}</span>
-        <input name="photo" type="file" accept="image/*" />
-      </label>
+      <PrivateUploadField label={label} name="photo" type={type} bookingId={bookingId} accept="image/jpeg,image/png,image/webp" required />
       <button className="button-secondary" type="submit">
         <Camera size={18} /> Upload
       </button>

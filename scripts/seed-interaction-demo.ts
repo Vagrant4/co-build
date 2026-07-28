@@ -278,28 +278,28 @@ async function seedOperationalUploads() {
         id: "demo-alpha-verification",
         type: "VERIFICATION",
         originalName: "uen-verification-demo.pdf",
-        localPath: "uploads/demo/uen-verification-demo.pdf",
-        userId: "demo-renter-alpha"
+        storageProvider: "LEGACY_LOCAL", legacyLocalPath: "uploads/demo/uen-verification-demo.pdf", uploadStatus: "LEGACY_DEMO", scanStatus: "NOT_REQUIRED",
+        uploadedByUserId: "demo-renter-alpha", ownerUserId: "demo-renter-alpha"
       },
       {
         id: "demo-alpha-check-in",
         type: "CHECK_IN",
         originalName: "check-in-bay-condition.jpg",
-        localPath: "uploads/demo/check-in-bay-condition.jpg",
+        storageProvider: "LEGACY_LOCAL", legacyLocalPath: "uploads/demo/check-in-bay-condition.jpg", uploadStatus: "LEGACY_DEMO", scanStatus: "NOT_REQUIRED",
         bookingId: "demo-deal-alpha-east"
       },
       {
         id: "demo-alpha-check-out",
         type: "CHECK_OUT",
         originalName: "check-out-cleaned-bay.jpg",
-        localPath: "uploads/demo/check-out-cleaned-bay.jpg",
+        storageProvider: "LEGACY_LOCAL", legacyLocalPath: "uploads/demo/check-out-cleaned-bay.jpg", uploadStatus: "LEGACY_DEMO", scanStatus: "NOT_REQUIRED",
         bookingId: "demo-deal-alpha-east"
       },
       {
         id: "demo-east-listing-photo",
         type: "LISTING_PHOTO",
         originalName: "demo-east-workspace-photo.png",
-        localPath: "public/assets/sample-workshop-photo-small-bay.png",
+        storageProvider: "LEGACY_LOCAL", legacyLocalPath: "public/assets/sample-workshop-photo-small-bay.png", uploadStatus: "LEGACY_DEMO", scanStatus: "NOT_REQUIRED",
         listingId: (await prisma.listing.findUniqueOrThrow({ where: { slug: "demo-east-confirmed-bay" } })).id
       }
     ]

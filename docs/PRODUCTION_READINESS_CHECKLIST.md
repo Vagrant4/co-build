@@ -1,6 +1,6 @@
 # Production Readiness Checklist
 
-> This checklist originated at commit `3ac0774`. Phase 1 closes part of the identity and authorization section only; use [PHASE_1_IMPLEMENTATION_REPORT.md](PHASE_1_IMPLEMENTATION_REPORT.md) as the current implementation record. Co-Build is still not production-ready.
+> This checklist originated at commit `3ac0774`. Phase 1 closed the identity boundary and Phase 2A implemented the private-storage and migration boundary. Use [PHASE_2A_IMPLEMENTATION_REPORT.md](PHASE_2A_IMPLEMENTATION_REPORT.md) as the current implementation record. Co-Build is still not production-ready.
 
 Last reviewed: 2026-07-25
 
@@ -17,11 +17,11 @@ Last reviewed: 2026-07-25
 
 | Status | Item | Evidence | Required action |
 | --- | --- | --- | --- |
-| Blocked | Real authentication | Demo account switching and form-submitted IDs are used | Add login/session provider and remove public demo switching |
-| Blocked | Admin authorization | Admin page/actions/exports have no real admin guard | Protect `/dashboard/admin`, export routes, and admin server actions |
-| Blocked | Private durable uploads | `saveUpload()` writes to local `uploads/` | Move to private object storage with signed access |
+| Done | Real authentication boundary | Clerk sessions and server-derived users in pilot/production | Complete owner Clerk configuration before pilot |
+| Done | Admin authorization | Admin pages, exports, and mutations require authenticated admin | Retain regression tests |
+| Needed | Private durable uploads | Private Blob flow is implemented; external store/scanner decision is unverified | Connect Private Blob and complete storage acceptance tests before enabling uploads |
 | Blocked | Payment integrity | Payment confirmation is simulated | Add proof submission, admin reconciliation, and ledger records |
-| Blocked | Production data safety | Vercel build uses `db push` and showcase seed upserts | Use migrations and disable demo seed in production |
+| Needed | Production data safety | Reviewed migration tree and non-mutating build are implemented | Apply to separate Neon branch, configure backups, and complete restore drill |
 
 ## High
 
@@ -33,7 +33,7 @@ Last reviewed: 2026-07-25
 | Needed | Admin export privacy | CSV exports include user/chat/booking data | Auth guard, audit log, minimization, pagination |
 | Needed | Email delivery | Contract "email" is stored text only | Add transactional email provider and delivery state |
 | Needed | Rate limiting | No limits for chat/account/upload/export | Add route/action rate limits |
-| Needed | Production migrations | No Postgres migration history | Use Prisma migrations and review SQL |
+| Done | Production migrations | Separate PostgreSQL migration tree and `migrate deploy` | Apply through controlled release process |
 | Needed | Legal and privacy documents | Safety rules exist, but public terms/privacy/retention are not complete | Add terms, privacy, data retention, dispute policy |
 
 ## Medium
@@ -42,7 +42,7 @@ Last reviewed: 2026-07-25
 | --- | --- | --- | --- |
 | Planned | Search performance | Filters run after loading listing records | Push filtering into Prisma queries |
 | Planned | Dashboard pagination | Admin dashboard uses broad `findMany()` calls | Add pagination, tabs, and filters |
-| Planned | Upload validation | No server MIME/type/scan metadata | Validate file types, sizes, checksums, scan status |
+| Done | Upload validation | Server validates bytes, MIME, extension, dimensions, size, checksum, and scan status | Add malware scanner or record pilot risk acceptance |
 | Planned | Contact policy hardening | Regex-only contact blocking | Add moderation review, violation records, and reporting |
 | Planned | Notification model | No email/chat notification persistence | Add notification table and retry jobs |
 | Planned | Audit integrity | Approval events can be written by unprotected actions | Use authenticated actor, append-only events, export logs |

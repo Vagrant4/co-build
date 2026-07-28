@@ -857,7 +857,10 @@ async function ensureUpload(
       bookingId,
       type,
       originalName,
-      localPath: `uploads/showcase/${bookingId}/${originalName}`
+      storageProvider: "LEGACY_LOCAL",
+      legacyLocalPath: `uploads/showcase/${bookingId}/${originalName}`,
+      uploadStatus: "LEGACY_DEMO",
+      scanStatus: "NOT_REQUIRED"
     }
   });
 }

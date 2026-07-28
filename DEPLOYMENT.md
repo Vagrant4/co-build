@@ -1,164 +1,85 @@
 # Co-Build Deployment Guide
 
-This MVP is built for local demos with SQLite and for Vercel-hosted previews with Postgres.
+This guide prepares an invite-only pilot. It does not authorize public production launch.
 
-## Production Gate
+## Required Services
 
-Do not treat the current application as public-production ready until the Critical and High items in [docs/PRODUCTION_READINESS_CHECKLIST.md](docs/PRODUCTION_READINESS_CHECKLIST.md) are closed.
+- Vercel project connected to `Vagrant4/co-build`
+- Clerk application for managed authentication
+- Neon PostgreSQL with separate preview and production branches
+- Vercel Blob store created with **Private** access
+- Vercel Runtime Logs plus a persistent error-alerting service and external uptime monitor
 
-The current deployment path is acceptable for:
+## Environment Names
 
-- Founder demo
-- Investor/customer walkthrough
-- Internal operations testing
-- Private staging behind access protection
+Configure values in Vercel, never in source control:
 
-The current deployment path is not acceptable for:
-
-- Public user registration
-- Real verification documents
-- Real host/renter payment proof
-- Real booking disputes or damage-deposit workflows
-- Public admin CSV exports
-
-## Recommended Live Stack
-
-- Hosting: Vercel
-- Database: hosted Postgres with connection pooling, such as Vercel Postgres, Neon, Supabase, or Railway
-- Payments: company-account collection, with renter/host payment references approved by admin
-- Uploads: move verification, listing, check-in, and check-out files to durable private object storage before public launch
-- Authentication: Clerk-managed sessions and application-level role/ownership checks are implemented in Phase 1; complete [Clerk pilot setup](docs/CLERK_SETUP.md) externally
-- Email: add transactional email for account creation, booking updates, chat alerts, and generated contracts
-- Database changes: replace production `db push` with reviewed Prisma migrations before real data is collected
-
-## Required Environment Variables
-
-Create these in the Vercel project settings before deploying:
-
-```bash
-DATABASE_URL="postgresql://USER:PASSWORD@HOST:5432/DB_NAME?sslmode=require"
-APP_MODE="pilot"
-NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY="pk_test_..."
-CLERK_SECRET_KEY="sk_test_..."
-NEXT_PUBLIC_CLERK_SIGN_IN_URL="/sign-in"
-NEXT_PUBLIC_CLERK_SIGN_UP_URL="/sign-up"
-NEXT_PUBLIC_APP_URL="https://your-co-build-domain.com"
-COMPANY_PAYMENT_NAME="Co-Build Pte Ltd"
-COMPANY_PAYMENT_UEN="202600000A"
-COMPANY_PAYMENT_BANK="Your Bank Name"
-COMPANY_PAYMENT_ACCOUNT="000-000-000-0"
+```text
+APP_MODE
+DATABASE_URL
+DIRECT_URL
+NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY
+CLERK_SECRET_KEY
+NEXT_PUBLIC_CLERK_SIGN_IN_URL
+NEXT_PUBLIC_CLERK_SIGN_UP_URL
+NEXT_PUBLIC_APP_URL
+BLOB_READ_WRITE_TOKEN
+REAL_UPLOADS_ENABLED
+MAX_UPLOAD_BYTES
+ALLOW_UNSCANNED_UPLOADS
+COMPANY_PAYMENT_NAME
+COMPANY_PAYMENT_UEN
+COMPANY_PAYMENT_BANK
+COMPANY_PAYMENT_ACCOUNT
+NEXT_PUBLIC_SENTRY_DSN
 ```
 
-Show the company payment instructions inside account dashboards or operational onboarding material. Users and hosts submit the recurring S$5/month payment reference; admin activates the subscription after checking the company account.
+Use Neon's pooled endpoint for `DATABASE_URL`. Keep the direct endpoint in `DIRECT_URL` for controlled Prisma migration operations only.
 
-## Current Build Command
+## First PostgreSQL Baseline
 
-Vercel uses:
+The committed migration tree is `prisma/postgres/migrations`. A new empty database is initialized with:
 
-```bash
-npm run vercel-build
+```powershell
+npm.cmd run prisma:generate:prod
+npm.cmd run db:deploy:prod
 ```
 
-That command pushes the Prisma schema to the connected Postgres database, generates Prisma Client from `prisma/schema.postgres.prisma`, and builds Next.js. It does not seed demo users.
+If the target database was previously created with `prisma db push`, do not run the baseline blindly. Back it up, compare its schema to `prisma/postgres/schema.prisma`, and only then mark the reviewed baseline as applied in a maintenance window:
 
-`prisma/seed-if-empty.ts` now refuses to seed outside demo mode. Do not run the demo seed against pilot or production data.
-
-Before public launch, change the build sequence to:
-
-```bash
-npm run prisma:generate:prod
-npm run build
+```powershell
+npm.cmd exec prisma migrate resolve -- --schema prisma/postgres/schema.prisma --applied 20260728090000_baseline
 ```
 
-Then run reviewed migrations and production-safe seed scripts separately through a controlled release process.
+That command is not automatic because an incorrect baseline decision can conceal schema drift. Complete a restore drill before pilot data is accepted.
 
-## First Database Setup
+## Private Blob
 
-After adding `DATABASE_URL`, Vercel will push the MVP schema during `npm run vercel-build`.
-You can also run it manually when needed:
+Follow [PRIVATE_STORAGE_SETUP.md](docs/PRIVATE_STORAGE_SETUP.md). Keep `REAL_UPLOADS_ENABLED=false` until the store, authorization tests, deletion check, and scan-risk decision are complete.
 
-```bash
-npm run db:push:prod
-```
+## Release Order
 
-To seed demo data into an empty live database after generating the production Prisma client:
+1. Confirm a current Neon backup and recorded rollback point.
+2. Run `npm.cmd run db:deploy:prod` from a controlled environment using `DIRECT_URL`.
+3. Run `npm.cmd run ops:report -- --json` and retain the sanitized report.
+4. Deploy the application with `npm.cmd run vercel-build`.
+5. Check `/api/health`, Vercel Runtime Logs, and the persistent error monitor.
+6. Test signed-out denial, account sign-in, one private upload, authorized download, unauthorized denial, and deletion.
+7. Keep the deployment invite-only.
 
-```bash
-npm run prisma:generate:prod
-npm run db:seed:if-empty
-```
-
-For local development, switch Prisma Client back to SQLite:
-
-```bash
-npm run prisma:generate
-```
-
-## Private Preview Deployment
-
-1. Confirm the Vercel project is connected to this GitHub repository.
-2. Add the environment variables above to Production and Preview.
-3. Enable Vercel Deployment Protection for private demos.
-4. Deploy from the Git branch you want to review.
-5. Run the verification commands in the next section.
-
-## Public Production Deployment
-
-Only do this after the readiness checklist is closed:
-
-1. Merge the reviewed release branch.
-2. Confirm the database has a current backup.
-3. Run reviewed Prisma migrations, not `db push`.
-4. Confirm the production build does not run any demo seed command.
-5. Confirm auth protects `/dashboard/admin`, `/dashboard/admin/export/*`, server actions, dashboards, checkout, uploads, and chat writes.
-6. Confirm object storage is private and upload access is signed or permission checked.
-7. Run smoke tests for account creation, subscription proof, listing approval, search, booking, chat, high-risk approval, payment proof, check-in, and check-out.
-8. Deploy to production.
-9. Monitor logs, error rates, and database connection usage for the first hour.
-
-## Publish With Vercel CLI
-
-```bash
-vercel login
-vercel link
-vercel env add DATABASE_URL production
-vercel env add NEXT_PUBLIC_APP_URL production
-vercel env add COMPANY_PAYMENT_NAME production
-vercel env add COMPANY_PAYMENT_UEN production
-vercel env add COMPANY_PAYMENT_BANK production
-vercel env add COMPANY_PAYMENT_ACCOUNT production
-vercel --prod
-```
-
-## Verification
-
-Run locally before deploying:
-
-```bash
-npm.cmd test
-npm.cmd exec prisma validate
-npm.cmd run build
-```
-
-After deployment, smoke test:
-
-- `/`
-- `/search`
-- `/create-account`
-- `/dashboard/user`
-- `/dashboard/host`
-- `/dashboard/admin` only when protected
-- A listing detail route
-- A checkout route
+The build command only generates the production Prisma client and compiles Next.js. It never runs `db push`, migrations, or demo seeds.
 
 ## Rollback
 
-Use [docs/ROLLBACK_RECOVERY.md](docs/ROLLBACK_RECOVERY.md) for code rollback, database recovery, upload recovery, and incident steps.
+Roll back application code independently from database state. Do not reverse a migration by editing migration history. Use [ROLLBACK_RECOVERY.md](docs/ROLLBACK_RECOVERY.md), restore to a separate Neon branch, validate it, then promote through the provider's controlled process.
 
-## Notes Before Public Launch
+## Remaining Public-Launch Blockers
 
-- Demo role switching exists only in demo mode. Pilot and production use Clerk and fail closed when Clerk configuration is missing.
-- Booking, add-on, and subscription payments are proof/reference based.
-- Local filesystem uploads are not durable on serverless hosting.
-- Generated contracts are stored in the database, but real email delivery is not implemented.
-- Protect any deployment that contains demo data or admin controls.
+- Booking dates and overlap protection
+- Company-account payment reconciliation and ledger
+- Transactional email delivery and retries
+- Rate limiting
+- Privacy-appropriate malware scanning or documented owner risk acceptance
+- Legal/privacy/retention policies
+- Completed backup restore drill
+- Persistent monitoring and incident ownership

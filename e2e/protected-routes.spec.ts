@@ -14,6 +14,14 @@ test("protected dashboards return 401 without a session", async ({ request }) =>
   }
 });
 
+test("private upload APIs reject signed-out requests", async ({ request }) => {
+  const reserve = await request.post("/api/uploads/reserve", {
+    data: { type: "VERIFICATION", originalName: "identity.pdf", contentType: "application/pdf", sizeBytes: 100 }
+  });
+  expect(reserve.status()).toBe(401);
+  expect((await request.get("/api/uploads/nonexistent")).status()).toBe(401);
+});
+
 test("renter cannot open admin exports or a host dashboard", async ({ page }) => {
   await page.goto("/demo/session?user=demo-renter&next=/dashboard/user");
   await expect(page).toHaveURL(/\/dashboard\/user/);

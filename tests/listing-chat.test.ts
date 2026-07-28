@@ -6,7 +6,7 @@ const read = (path: string) => readFileSync(join(process.cwd(), path), "utf8");
 
 describe("private pre-booking conversations", () => {
   it("uses participant-scoped conversation models in both schemas", () => {
-    for (const path of ["prisma/schema.prisma", "prisma/schema.postgres.prisma"]) {
+    for (const path of ["prisma/schema.prisma", "prisma/postgres/schema.prisma"]) {
       const schema = read(path);
       expect(schema).toContain("model Conversation");
       expect(schema).toContain("model ConversationMessage");

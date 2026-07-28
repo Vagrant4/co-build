@@ -10,11 +10,11 @@ function read(path: string) {
 
 describe("booking chat", () => {
   it("adds booking message persistence to both Prisma schemas", () => {
-    for (const schemaPath of ["prisma/schema.prisma", "prisma/schema.postgres.prisma"]) {
+    for (const schemaPath of ["prisma/schema.prisma", "prisma/postgres/schema.prisma"]) {
       const schema = read(schemaPath);
 
       expect(schema).toContain("model BookingMessage");
-      expect(schema).toContain("messages        BookingMessage[]");
+      expect(schema).toMatch(/messages\s+BookingMessage\[\]/);
       expect(schema).toContain("senderId  String");
       expect(schema).toContain("body      String");
     }

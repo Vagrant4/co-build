@@ -1,6 +1,7 @@
-import { AlertTriangle, Calculator, FileUp, ShieldCheck } from "lucide-react";
+import { AlertTriangle, Calculator, ShieldCheck } from "lucide-react";
 import { notFound } from "next/navigation";
 import { createBookingAction } from "@/app/actions";
+import { PrivateUploadField } from "@/components/private-upload-field";
 import { formatCurrency, getDurationPrice } from "@/src/lib/fabrication";
 import { getEquipmentAddons, getPublicListingBySlug } from "@/src/lib/repository";
 import { workTypes } from "@/src/lib/seed-data";
@@ -70,13 +71,7 @@ export default async function CheckoutPage({ params }: PageProps) {
             </div>
           </div>
 
-          <label className="block">
-            <span className="label">Verification document</span>
-            <span className="flex items-center gap-3 border border-neutral-300 bg-white p-4">
-              <FileUp className="text-hazard" size={22} />
-              <input name="verification" type="file" accept="image/*,.pdf" />
-            </span>
-          </label>
+          <PrivateUploadField label="Verification document (optional)" name="verification" type="VERIFICATION" accept="image/jpeg,image/png,application/pdf" />
 
           <label className="flex items-start gap-3 border border-ink bg-smoke p-4">
             <input className="mt-1" type="checkbox" name="safetyAccepted" required />
