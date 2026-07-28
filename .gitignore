@@ -4,7 +4,7 @@
 node_modules/
 .npm-cache/
 .appdata/
-uploads/
+/uploads/
 verification/
 output/
 outputs/
