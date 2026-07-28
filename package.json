@@ -32,6 +32,8 @@
   },
   "devDependencies": {
     "@playwright/test": "^1.62.0",
+    "@emnapi/core": "1.11.2",
+    "@emnapi/runtime": "1.11.2",
     "@types/node": "latest",
     "@types/react": "latest",
     "@types/react-dom": "latest",
@@ -43,10 +45,6 @@
     "tsx": "latest",
     "typescript": "latest",
     "vitest": "latest"
-  },
-  "optionalDependencies": {
-    "@emnapi/core": "1.11.2",
-    "@emnapi/runtime": "1.11.2"
   },
   "overrides": {
     "postcss": "8.5.23",
