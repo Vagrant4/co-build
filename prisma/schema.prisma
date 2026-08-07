@@ -50,6 +50,7 @@ enum BookingStatus {
   PENDING_HOST
   PENDING_ADMIN_HIGH_RISK
   APPROVED_FOR_PAYMENT
+  PAYMENT_SUBMITTED
   PAID_CONFIRMED
   CHECKED_IN
   CHECKED_OUT
@@ -104,9 +105,46 @@ enum ApprovalDecision {
 enum AdditionalRequirementStatus {
   PENDING_HOST
   APPROVED_FOR_PAYMENT
+  PAYMENT_SUBMITTED
   PAID_CONFIRMED
   HOST_REJECTED
   CANCELLED
+}
+
+enum PaymentStatus {
+  SUBMITTED
+  VERIFIED
+  REJECTED
+  REFUNDED
+}
+
+enum PaymentKind {
+  BOOKING_TOTAL
+  SUBSCRIPTION
+  ADDITIONAL_REQUIREMENT
+  DEPOSIT_RELEASE
+  REFUND
+}
+
+enum DepositStatus {
+  HELD
+  RELEASED
+  PARTIALLY_RETAINED
+  RETAINED
+  DISPUTED
+}
+
+enum PrivacyRequestType {
+  ACCESS
+  CORRECTION
+  DELETION
+}
+
+enum PrivacyRequestStatus {
+  SUBMITTED
+  IN_REVIEW
+  COMPLETED
+  REJECTED
 }
 
 enum PlatformSubscriptionStatus {
@@ -145,6 +183,10 @@ model User {
   uploadsOwned                    Upload[]                   @relation("UploadOwner")
   approvalEvents                  ApprovalEvent[]            @relation("ApprovalActor")
   exportEvents                    AdminExportEvent[]         @relation("ExportActor")
+  agreementAcceptances            AgreementAcceptance[]
+  submittedPayments               PaymentRecord[]            @relation("PaymentPayer")
+  reviewedPayments                PaymentRecord[]            @relation("PaymentReviewer")
+  privacyRequests                 PrivacyRequest[]
   createdAt                       DateTime                   @default(now())
   updatedAt                       DateTime                   @updatedAt
 }
@@ -215,6 +257,9 @@ model Booking {
   listingId              String
   userId                 String
   durationDays           Int
+  startAt                DateTime?
+  endAt                  DateTime?
+  bookingTimeZone        String                  @default("Asia/Singapore")
   workType               String
   riskLevel              RiskLevel
   status                 BookingStatus           @default(PENDING_HOST)
@@ -223,6 +268,9 @@ model Booking {
   cleaningFee            Int
   addonTotal             Int
   grandTotal             Int
+  depositStatus          DepositStatus           @default(HELD)
+  depositReturned        Int                     @default(0)
+  depositRetained        Int                     @default(0)
   safetyAcceptedAt       DateTime?
   renterDealConfirmedAt  DateTime?
   hostDealConfirmedAt    DateTime?
@@ -233,25 +281,30 @@ model Booking {
   messages               BookingMessage[]
   approvalEvents         ApprovalEvent[]
   additionalRequirements AdditionalRequirement[]
+  paymentRecords         PaymentRecord[]
+  agreementAcceptances   AgreementAcceptance[]
   createdAt              DateTime                @default(now())
   updatedAt              DateTime                @updatedAt
+
+  @@index([listingId, startAt, endAt])
 }
 
 model AdditionalRequirement {
-  id           String                      @id @default(cuid())
-  bookingId    String
-  userId       String
-  detail       String
-  status       AdditionalRequirementStatus @default(PENDING_HOST)
-  quotedRate   Int                         @default(0)
-  contractText String?
-  emailedTo    String?
-  emailedAt    DateTime?
-  paidAt       DateTime?
-  booking      Booking                     @relation(fields: [bookingId], references: [id], onDelete: Cascade)
-  user         User                        @relation(fields: [userId], references: [id])
-  createdAt    DateTime                    @default(now())
-  updatedAt    DateTime                    @updatedAt
+  id             String                      @id @default(cuid())
+  bookingId      String
+  userId         String
+  detail         String
+  status         AdditionalRequirementStatus @default(PENDING_HOST)
+  quotedRate     Int                         @default(0)
+  contractText   String?
+  emailedTo      String?
+  emailedAt      DateTime?
+  paidAt         DateTime?
+  booking        Booking                     @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  user           User                        @relation(fields: [userId], references: [id])
+  paymentRecords PaymentRecord[]
+  createdAt      DateTime                    @default(now())
+  updatedAt      DateTime                    @updatedAt
 }
 
 model BookingMessage {
@@ -325,6 +378,7 @@ model Upload {
   ownerUser        User?           @relation("UploadOwner", fields: [ownerUserId], references: [id])
   booking          Booking?        @relation(fields: [bookingId], references: [id], onDelete: Cascade)
   listing          Listing?        @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  paymentRecord    PaymentRecord?
   createdAt        DateTime        @default(now())
   verifiedAt       DateTime?
   deletedAt        DateTime?
@@ -358,4 +412,72 @@ model AdminExportEvent {
   createdAt  DateTime @default(now())
 
   @@index([actorId, createdAt])
+}
+
+model PaymentRecord {
+  id                      String                 @id @default(cuid())
+  payerId                 String
+  reviewerId              String?
+  bookingId               String?
+  additionalRequirementId String?
+  proofUploadId           String?                @unique
+  kind                    PaymentKind
+  status                  PaymentStatus          @default(SUBMITTED)
+  amount                  Int
+  currency                String                 @default("SGD")
+  reference               String
+  idempotencyKey          String                 @unique
+  reviewNote              String?
+  submittedAt             DateTime               @default(now())
+  reviewedAt              DateTime?
+  payer                   User                   @relation("PaymentPayer", fields: [payerId], references: [id])
+  reviewer                User?                  @relation("PaymentReviewer", fields: [reviewerId], references: [id])
+  booking                 Booking?               @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  additionalRequirement   AdditionalRequirement? @relation(fields: [additionalRequirementId], references: [id], onDelete: Cascade)
+  proofUpload             Upload?                @relation(fields: [proofUploadId], references: [id])
+
+  @@index([bookingId, status, submittedAt])
+  @@index([payerId, kind, status])
+}
+
+model AgreementAcceptance {
+  id              String   @id @default(cuid())
+  bookingId       String
+  userId          String
+  role            UserRole
+  documentVersion String
+  documentHash    String
+  acceptedAt      DateTime @default(now())
+  booking         Booking  @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([bookingId, userId, documentVersion, documentHash])
+  @@index([bookingId, documentHash])
+}
+
+model PrivacyRequest {
+  id          String               @id @default(cuid())
+  userId      String
+  type        PrivacyRequestType
+  status      PrivacyRequestStatus @default(SUBMITTED)
+  detail      String
+  resolution  String?
+  createdAt   DateTime             @default(now())
+  completedAt DateTime?
+  user        User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([status, createdAt])
+  @@index([userId, createdAt])
+}
+
+model RateLimitBucket {
+  id              String   @id @default(cuid())
+  keyHash         String
+  action          String
+  windowStartedAt DateTime
+  count           Int      @default(1)
+  expiresAt       DateTime
+
+  @@unique([keyHash, action, windowStartedAt])
+  @@index([expiresAt])
 }

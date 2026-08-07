@@ -6,6 +6,7 @@ import { formatCurrency, getDurationPrice } from "@/src/lib/fabrication";
 import { getEquipmentAddons, getPublicListingBySlug } from "@/src/lib/repository";
 import { workTypes } from "@/src/lib/seed-data";
 import { requirePageRole } from "@/src/lib/page-authorization";
+import { singaporeToday } from "@/src/lib/booking-window";
 
 export const dynamic = "force-dynamic";
 
@@ -33,6 +34,10 @@ export default async function CheckoutPage({ params }: PageProps) {
           <input type="hidden" name="listingSlug" value={listing.slug} />
           <div className="grid gap-4 md:grid-cols-2">
             <label>
+              <span className="label">Start date</span>
+              <input className="field" name="startDate" type="date" min={singaporeToday()} required />
+            </label>
+            <label>
               <span className="label">Duration</span>
               <select className="field" name="durationDays" defaultValue="1">
                 <option value="1">1 day - {formatCurrency(listing.prices.day)}</option>
@@ -41,7 +46,7 @@ export default async function CheckoutPage({ params }: PageProps) {
                 <option value="60">60 days - {formatCurrency(listing.prices.sixtyDays)}</option>
               </select>
             </label>
-            <label>
+            <label className="md:col-span-2">
               <span className="label">Work type</span>
               <select className="field" name="workType" defaultValue="Assembly">
                 {workTypes.map((type) => (

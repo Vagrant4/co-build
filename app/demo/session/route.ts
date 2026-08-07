@@ -15,7 +15,7 @@ export async function GET(request: Request) {
   if (!user) return Response.json({ error: "Demo account not found." }, { status: 404 });
 
   const roleDestination = user.role === "HOST" ? "/dashboard/host" : user.role === "ADMIN" ? "/dashboard/admin" : "/dashboard/user";
-  const response = NextResponse.redirect(new URL(destination === "/" ? roleDestination : destination, url));
+  const response = new NextResponse(null, { status: 307, headers: { Location: destination === "/" ? roleDestination : destination } });
   response.cookies.set(DEMO_SESSION_COOKIE, user.id, {
     httpOnly: true,
     sameSite: "lax",

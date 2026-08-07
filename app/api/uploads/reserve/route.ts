@@ -5,6 +5,7 @@ import { logEvent, requestIdFrom } from "@/src/lib/observability";
 import { canReserveForBooking, canReserveForListing, canReserveWithoutResource } from "@/src/lib/upload-authorization";
 import { createUploadReservation } from "@/src/lib/upload-service";
 import { assertRealUploadsConfigured } from "@/src/lib/uploads";
+import { enforceRateLimit, RateLimitError } from "@/src/lib/rate-limit";
 
 export async function POST(request: Request) {
   const requestId = requestIdFrom(request);
@@ -18,6 +19,7 @@ export async function POST(request: Request) {
       logEvent("warn", "upload_reservation_denied", { requestId, reason: "suspended" });
       return jsonError("Account is suspended.", 403, requestId);
     }
+    await enforceRateLimit({ action: "upload:reserve", identity: actor.id, limit: 20, windowSeconds: 60 * 60 });
     assertRealUploadsConfigured();
     const input = await request.json() as Record<string, unknown>;
     if (typeof input.type !== "string" || !Object.values(UploadType).includes(input.type as UploadType)) return jsonError("Invalid upload type.", 400, requestId);
@@ -53,7 +55,7 @@ export async function POST(request: Request) {
     });
     return Response.json({ uploadId: reservation.id, objectKey: reservation.objectKey }, { status: 201, headers: { "x-request-id": requestId } });
   } catch (error) {
-    return jsonError(error instanceof Error ? error.message : "Upload reservation failed.", 400, requestId);
+    return jsonError(error instanceof Error ? error.message : "Upload reservation failed.", error instanceof RateLimitError ? 429 : 400, requestId);
   }
 }
 

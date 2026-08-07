@@ -31,7 +31,8 @@ export async function getApprovedListings(filters?: ListingFilters): Promise<Lis
         is: {
           role: "HOST",
           suspended: false,
-          verificationStatus: "APPROVED"
+          verificationStatus: "APPROVED",
+          platformSubscriptionStatus: "ACTIVE"
         }
       }
     },
@@ -47,7 +48,7 @@ export async function getPublicListingBySlug(slug: string): Promise<Listing | nu
     where: {
       slug,
       status: "APPROVED",
-      host: { is: { role: "HOST", suspended: false, verificationStatus: "APPROVED" } }
+      host: { is: { role: "HOST", suspended: false, verificationStatus: "APPROVED", platformSubscriptionStatus: "ACTIVE" } }
     },
     include: { equipmentAddons: { include: { equipmentAddon: true } } }
   });
@@ -55,7 +56,7 @@ export async function getPublicListingBySlug(slug: string): Promise<Listing | nu
 }
 
 export async function getDashboardData() {
-  const [users, listings, bookings, uploads, approvalEvents, equipment] = await Promise.all([
+  const [users, listings, bookings, uploads, approvalEvents, equipment, payments, privacyRequests] = await Promise.all([
     prisma.user.findMany({ orderBy: { createdAt: "desc" } }),
     prisma.listing.findMany({
       include: { bookings: true },
@@ -66,7 +67,8 @@ export async function getDashboardData() {
         listing: true,
         user: true,
         addons: { include: { equipmentAddon: true } },
-        uploads: true
+        uploads: true,
+        paymentRecords: { include: { proofUpload: true }, orderBy: { submittedAt: "desc" } }
       },
       orderBy: { createdAt: "desc" }
     }),
@@ -79,10 +81,16 @@ export async function getDashboardData() {
     prisma.equipmentAddon.findMany({
       where: { slug: { notIn: [...humanServiceAddonSlugs] } },
       orderBy: { name: "asc" }
-    })
+    }),
+    prisma.paymentRecord.findMany({
+      include: { payer: true, booking: { include: { listing: true } }, additionalRequirement: true, proofUpload: true },
+      orderBy: { submittedAt: "desc" },
+      take: 100
+    }),
+    prisma.privacyRequest.findMany({ include: { user: true }, orderBy: { createdAt: "desc" }, take: 100 })
   ]);
 
-  return { users, listings, bookings, uploads, approvalEvents, equipment };
+  return { users, listings, bookings, uploads, approvalEvents, equipment, payments, privacyRequests };
 }
 
 export function toListing(record: ListingRecord): Listing {

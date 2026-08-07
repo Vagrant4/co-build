@@ -5,6 +5,7 @@ import { logEvent, requestIdFrom } from "@/src/lib/observability";
 import { canReserveForBooking, canReserveForListing, canReserveWithoutResource } from "@/src/lib/upload-authorization";
 import { finalizeClientUpload } from "@/src/lib/upload-service";
 import { assertRealUploadsConfigured, getUploadPolicy } from "@/src/lib/uploads";
+import { enforceRateLimit, RateLimitError } from "@/src/lib/rate-limit";
 
 export async function POST(request: Request) {
   const requestId = requestIdFrom(request);
@@ -17,6 +18,7 @@ export async function POST(request: Request) {
       onBeforeGenerateToken: async (pathname, clientPayload) => {
         const actor = await getOptionalUser();
         if (!actor || actor.suspended) throw new Error("Authentication required.");
+        await enforceRateLimit({ action: "upload:authorize", identity: actor.id, limit: 20, windowSeconds: 60 * 60 });
         const payload = parsePayload(clientPayload);
         const upload = await prisma.upload.findUnique({
           where: { id: payload.uploadId },
@@ -51,7 +53,7 @@ export async function POST(request: Request) {
     return Response.json(response, { headers: { "x-request-id": requestId } });
   } catch (error) {
     logEvent("warn", "upload_authorization_failed", { requestId, errorName: error instanceof Error ? error.name : "Unknown" });
-    return Response.json({ error: "Upload could not be authorized.", requestId }, { status: 400, headers: { "x-request-id": requestId } });
+    return Response.json({ error: "Upload could not be authorized.", requestId }, { status: error instanceof RateLimitError ? 429 : 400, headers: { "x-request-id": requestId } });
   }
 }
 

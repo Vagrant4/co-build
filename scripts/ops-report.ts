@@ -14,7 +14,7 @@ async function main() {
     prisma.user.count({ where: { platformSubscriptionStatus: "ACTIVE", suspended: false } }),
     prisma.booking.groupBy({ by: ["status"], _count: { _all: true } }),
     prisma.booking.count({ where: { createdAt: { gte: since } } }),
-    prisma.booking.count({ where: { status: { in: ["PENDING_HOST", "PENDING_ADMIN_HIGH_RISK", "APPROVED_FOR_PAYMENT", "PAID_CONFIRMED", "CHECKED_IN"] } } }),
+    prisma.booking.count({ where: { status: { in: ["PENDING_HOST", "PENDING_ADMIN_HIGH_RISK", "APPROVED_FOR_PAYMENT", "PAYMENT_SUBMITTED", "PAID_CONFIRMED", "CHECKED_IN"] } } }),
     prisma.upload.groupBy({ by: ["type"], _count: { _all: true } }),
     prisma.upload.groupBy({ by: ["uploadStatus"], _count: { _all: true } }),
     prisma.upload.aggregate({ _sum: { sizeBytes: true } }),

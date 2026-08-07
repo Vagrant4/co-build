@@ -7,18 +7,18 @@ export type LaunchReadinessItem = {
 export const launchReadinessItems: LaunchReadinessItem[] = [
   {
     title: "Search, listing, booking, chat, approval flow",
-    detail: "Core marketplace flow is present for renter, host, and admin demo roles.",
+    detail: "Core marketplace flow is present for authenticated renter, host, and administrator roles.",
     status: "BUILT"
   },
   {
     title: "Company-account subscription proof",
-    detail: "Users can submit S$5/month payment references; admin activates subscriptions after checking payment.",
+    detail: "References create ledger entries and remain submitted until an administrator verifies the company account.",
     status: "BUILT"
   },
   {
     title: "Real authentication",
-    detail: "Replace demo role switching with login, password reset, and account-level permissions.",
-    status: "NEXT"
+    detail: "Managed Clerk sessions and server-derived authorization are implemented; owner configuration is release-gated.",
+    status: "BUILT"
   },
   {
     title: "Email and notification delivery",
@@ -27,7 +27,7 @@ export const launchReadinessItems: LaunchReadinessItem[] = [
   },
   {
     title: "Production uploads",
-    detail: "Move verification, listing, check-in, and check-out files from local storage to durable cloud storage.",
+    detail: "Private durable Blob support is implemented. Connect the store and explicitly approve pilot scanning risk before enabling it.",
     status: "NEXT"
   },
   {
@@ -37,7 +37,7 @@ export const launchReadinessItems: LaunchReadinessItem[] = [
   },
   {
     title: "Legal templates and dispute rules",
-    detail: "Finalize terms, damage liability, cancellation, deposit review, and host/renter safety declarations.",
+    detail: "Versioned templates, dual-party acceptance, privacy requests, and deposit records exist; Singapore legal approval remains external.",
     status: "NEXT"
   },
   {

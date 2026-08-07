@@ -1,19 +1,15 @@
 import {
-  Activity,
   ArrowRight,
   BadgeCheck,
   Bolt,
   CalendarDays,
   ClipboardCheck,
-  Cpu,
   Factory,
   Forklift,
-  Gauge,
   HardHat,
   MapPinned,
   MessageSquareLock,
   PackageCheck,
-  Radar,
   ShieldCheck,
   Sparkles,
   Wrench
@@ -66,41 +62,41 @@ export default async function HomePage() {
     }
   ];
   const marketStats = [
-    { value: `${allListings.length}`, label: "showcase spaces", detail: "Across Kallang, Tuas, Woodlands, Ubi, Jurong, Bedok, and Changi" },
-    { value: "20", label: "demo accounts", detail: "10 hosts and 10 renters ready for walkthroughs" },
-    { value: "S$5", label: "monthly platform plan", detail: "No commission on deals made through Co-Build" }
+    { value: `${allListings.length}`, label: "spaces to compare", detail: "Across key Singapore industrial areas" },
+    { value: "1-60", label: "day bookings", detail: "With custom-duration requests available" },
+    { value: "S$0", label: "deal commission", detail: "A simple S$5 monthly platform subscription" }
   ];
-  const commandCards = [
+  const workflowCards = [
     {
-      icon: Cpu,
-      label: "Bay matching",
-      metric: "Sqft + power + access",
-      body: "Renter searches by exact project requirement instead of confusing bay names."
+      icon: MapPinned,
+      label: "01 / Match",
+      title: "Search by the actual job",
+      body: "Compare location, required floor area, work type, power, loading, and equipment."
     },
     {
       icon: MessageSquareLock,
-      label: "Locked chat",
-      metric: "No outside contact",
-      body: "Renter and host communicate inside Co-Build before confirming a deal."
+      label: "02 / Discuss",
+      title: "Keep details in one chat",
+      body: "Renter and host clarify scope, access, rates, and add-ons before confirming the deal."
     },
     {
       icon: ClipboardCheck,
-      label: "Approval route",
-      metric: "Host + admin gates",
-      body: "High-risk work, factory mismatch, and safety exceptions are routed for review."
+      label: "03 / Approve",
+      title: "Route risk to the right person",
+      body: "Hosts review requests while high-risk work and factory mismatches go to admin."
     },
     {
-      icon: Gauge,
-      label: "Deal totals",
-      metric: "Rent + deposit + add-ons",
-      body: "Duration pricing, cleaning fee, equipment add-ons, and payment proof stay visible."
+      icon: ShieldCheck,
+      label: "04 / Document",
+      title: "Close with a clear record",
+      body: "Pricing, safety acceptance, payment proof, contract, and handover photos stay together."
     }
   ];
 
   return (
     <main>
       <section className="hero-stage">
-        <img src="/assets/hero-fabrication-bay.png" alt="" className="hero-stage__image" />
+        <img src="/assets/hero-fabrication-bay.png" alt="Empty industrial project workspace" className="hero-stage__image" />
         <div className="hero-stage__overlay" />
         <div className="section-shell hero-stage__inner">
           <div className="hero-stage__copy">
@@ -124,34 +120,33 @@ export default async function HomePage() {
                 List Your Space <Factory size={18} />
               </a>
             </div>
-            <div className="hero-search-wrap">
-              <SearchForm />
-            </div>
           </div>
-          <div className="hero-command-panel" aria-label="Co-Build marketplace snapshot">
-            <div className="hazard-stripe h-3" />
-            <div className="grid gap-3 p-4">
-              <div className="tech-status-line" aria-label="Marketplace system status">
-                <span><Radar size={14} /> Network online</span>
-                <span><Activity size={14} /> Live workflow</span>
+          <aside className="hero-proof-panel" aria-label="Co-Build marketplace summary">
+            <div className="hero-proof-panel__header">
+              <ShieldCheck size={22} aria-hidden="true" />
+              <div>
+                <p className="text-xs font-black uppercase text-hazard">Controlled from enquiry to handover</p>
+                <p className="mt-1 text-lg font-bold text-white">Short-term space without informal deal gaps.</p>
               </div>
-              <div className="border border-white/[0.15] bg-white/[0.08] p-4">
-                <p className="text-sm font-black uppercase text-safety">Market-ready demo</p>
-                <p className="mt-2 text-2xl font-black text-white">
-                  Hosts, renters, chat, approvals, pricing, and deal flow are ready to show.
-                </p>
-              </div>
+            </div>
+            <div className="hero-proof-panel__stats">
               {marketStats.map((stat) => (
                 <div key={stat.label} className="hero-stat">
                   <p className="text-3xl font-black text-safety">{stat.value}</p>
                   <div>
                     <p className="text-sm font-black uppercase text-white">{stat.label}</p>
-                    <p className="text-xs font-bold leading-5 text-neutral-300">{stat.detail}</p>
+                    <p className="text-xs leading-5 text-neutral-300">{stat.detail}</p>
                   </div>
                 </div>
               ))}
             </div>
-          </div>
+          </aside>
+        </div>
+      </section>
+
+      <section className="home-search-band" aria-label="Find a fabrication workspace">
+        <div className="section-shell">
+          <SearchForm />
         </div>
       </section>
 
@@ -173,47 +168,27 @@ export default async function HomePage() {
         </div>
       </section>
 
-      <section id="command-center" className="tech-bento-section py-16">
+      <section id="workflow" className="workflow-section py-16">
         <div className="section-shell">
-          <div className="section-heading section-heading--dark">
+          <div className="section-heading">
             <div>
-              <p className="text-sm font-black uppercase text-signal">Command center UX</p>
-              <h2 className="text-3xl font-black text-white md:text-5xl">Every deal feels tracked, controlled, and ready.</h2>
-              <p className="mt-3 max-w-3xl text-lg font-bold text-neutral-300">
-                A high-tech marketplace should make the hard parts visible: matching, communication, approvals, pricing,
-                photo records, and recurring platform subscription status.
+              <p className="text-sm font-black uppercase text-hazard">One connected workflow</p>
+              <h2 className="text-3xl font-black md:text-5xl">From first question to documented handover.</h2>
+              <p className="mt-3 max-w-3xl text-lg text-steel">
+                Co-Build keeps the practical parts of a short-notice rental visible to renter, host, and admin.
               </p>
             </div>
-            <a className="button-primary" href="/create-account">
-              Create account <ArrowRight size={18} />
+            <a className="button-dark" href="/create-account">
+              Start an account <ArrowRight size={18} />
             </a>
           </div>
-
-          <div className="tech-bento-grid">
-            <article className="tech-bento-card tech-bento-card--large">
-              <div className="tech-bento-card__screen">
-                <div className="tech-bento-card__scan" />
-                <div className="tech-route">
-                  {["Search", "Chat", "Approve", "Pay", "Check-in"].map((step, index) => (
-                    <span key={step} data-step={`0${index + 1}`}>
-                      {step}
-                    </span>
-                  ))}
-                </div>
-              </div>
-              <p className="mt-5 text-sm font-black uppercase text-signal">Live deal path</p>
-              <h3 className="mt-2 text-3xl font-black text-white">From short-notice search to closed deal.</h3>
-              <p className="mt-3 max-w-2xl font-bold leading-7 text-neutral-300">
-                Renter, host, and admin actions are separated clearly so the platform feels controlled rather than casual.
-              </p>
-            </article>
-
-            {commandCards.map(({ icon: Icon, label, metric, body }) => (
-              <article key={label} className="tech-bento-card">
-                <Icon size={28} className="text-signal" aria-hidden="true" />
-                <p className="mt-4 text-sm font-black uppercase text-neutral-400">{label}</p>
-                <h3 className="mt-1 text-xl font-black text-white">{metric}</h3>
-                <p className="mt-3 text-sm font-bold leading-6 text-neutral-300">{body}</p>
+          <div className="workflow-grid">
+            {workflowCards.map(({ icon: Icon, label, title, body }) => (
+              <article key={label} className="workflow-card">
+                <div className="workflow-card__icon"><Icon size={22} aria-hidden="true" /></div>
+                <p className="mt-5 text-xs font-black uppercase text-hazard">{label}</p>
+                <h3 className="mt-2 text-xl font-black">{title}</h3>
+                <p className="mt-3 text-sm leading-6 text-steel">{body}</p>
               </article>
             ))}
           </div>
@@ -225,9 +200,8 @@ export default async function HomePage() {
           <div>
             <p className="text-sm font-black uppercase text-hazard">Live inventory</p>
             <h2 className="text-3xl font-black md:text-5xl">Showcase spaces that feel ready to book.</h2>
-            <p className="mt-3 max-w-3xl text-lg font-bold text-steel">
-              A fuller marketplace makes the MVP feel credible: different locations, factory types, power setups,
-              booking statuses, chat histories, and pricing examples.
+            <p className="mt-3 max-w-3xl text-lg text-steel">
+              Compare real floor area, location, factory type, power, loading access, permitted work, and pricing.
             </p>
           </div>
           <a className="button-dark" href="/search">
@@ -257,7 +231,7 @@ export default async function HomePage() {
         <div>
           <p className="text-sm font-black uppercase text-hazard">How it works</p>
           <h2 className="mt-2 text-3xl font-black md:text-5xl">Search, request, approve, pay, document.</h2>
-          <p className="mt-4 text-lg font-bold text-steel">
+          <p className="mt-4 text-lg text-steel">
             The MVP keeps the real operational controls visible: approvals, safety acceptance, deposits, cleaning fees,
             and check-in/check-out photos.
           </p>
@@ -332,14 +306,14 @@ export default async function HomePage() {
           <div>
             <p className="text-sm font-black uppercase text-safety">For space owners</p>
             <h2 className="mt-2 text-4xl font-black md:text-6xl">Monetize idle workshop area without losing control.</h2>
-            <p className="mt-4 max-w-2xl text-lg font-bold text-neutral-300">
+            <p className="mt-4 max-w-2xl text-lg text-neutral-300">
               Hosts control allowed work, restricted work, access hours, equipment, deposits, cleaning rules, and
               availability before admin approval makes a listing searchable.
             </p>
           </div>
           <div className="owner-cta__box">
             <Sparkles size={24} className="text-safety" />
-            <p className="text-2xl font-black">Launch with dummy demand signals, then replace with real hosts as they join.</p>
+            <p className="text-2xl font-black">Publish clear availability and review every request before confirming.</p>
             <a href="/dashboard/host/listings/new" className="button-primary mt-5">
               Start host listing <ArrowRight size={18} />
             </a>

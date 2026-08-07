@@ -397,7 +397,6 @@ async function upsertAdditionalRequirement({
           bookingId: booking.id,
           listingTitle: booking.listing.title,
           renterName: booking.user.fullName,
-          renterEmail: booking.user.email,
           hostName: booking.listing.host?.fullName ?? "Host",
           requirementDetail: detail,
           quotedRate,
@@ -411,8 +410,8 @@ async function upsertAdditionalRequirement({
       status,
       quotedRate: status === "PENDING_HOST" ? 0 : quotedRate,
       contractText,
-      emailedTo: status === "PENDING_HOST" ? null : booking.user.email,
-      emailedAt: status === "PENDING_HOST" ? null : new Date("2026-06-23T09:58:00.000Z"),
+      emailedTo: null,
+      emailedAt: null,
       paidAt: paidAt ?? null
     },
     create: {
@@ -423,8 +422,8 @@ async function upsertAdditionalRequirement({
       status,
       quotedRate: status === "PENDING_HOST" ? 0 : quotedRate,
       contractText,
-      emailedTo: status === "PENDING_HOST" ? null : booking.user.email,
-      emailedAt: status === "PENDING_HOST" ? null : new Date("2026-06-23T09:58:00.000Z"),
+      emailedTo: null,
+      emailedAt: null,
       paidAt: paidAt ?? null
     }
   });

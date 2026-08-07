@@ -21,7 +21,7 @@ describe("private upload validation", () => {
   });
 
   it("fails closed when private storage is not explicitly enabled", () => {
-    expect(() => assertRealUploadsConfigured({ APP_MODE: "pilot", REAL_UPLOADS_ENABLED: "false", BLOB_READ_WRITE_TOKEN: "" } as NodeJS.ProcessEnv)).toThrow(/disabled/i);
+    expect(() => assertRealUploadsConfigured({ APP_MODE: "pilot", REAL_UPLOADS_ENABLED: "false", BLOB_READ_WRITE_TOKEN: "" } as unknown as NodeJS.ProcessEnv)).toThrow(/disabled/i);
   });
 
   it("builds private, non-sniffable attachment download headers", () => {

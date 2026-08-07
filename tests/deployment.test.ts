@@ -35,7 +35,7 @@ describe("production deployment setup", () => {
     );
     expect(packageJson.scripts["db:seed:if-empty"]).toBe("tsx prisma/seed-if-empty.ts");
     expect(packageJson.scripts["vercel-build"]).toBe(
-      "npm run prisma:generate:prod && next build"
+      "npm run prisma:generate:prod && npm run pilot:preflight && next build"
     );
 
     expect(read("vercel.json")).toContain('"buildCommand": "npm run vercel-build"');

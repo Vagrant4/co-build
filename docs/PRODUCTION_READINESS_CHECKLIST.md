@@ -1,8 +1,8 @@
 # Production Readiness Checklist
 
-> This checklist originated at commit `3ac0774`. Phase 1 closed the identity boundary and Phase 2A implemented the private-storage and migration boundary. Use [PHASE_2A_IMPLEMENTATION_REPORT.md](PHASE_2A_IMPLEMENTATION_REPORT.md) as the current implementation record. Co-Build is still not production-ready.
+> This checklist originated at commit `3ac0774`. Phase 1 closed the identity boundary, Phase 2A implemented private storage and migrations, and the pilot readiness automation pass added dated inventory, agreement acceptance, payment reconciliation, privacy controls, and release gates. Co-Build is still not production-ready.
 
-Last reviewed: 2026-07-25
+Last reviewed: 2026-08-08
 
 ## Status Key
 
@@ -20,21 +20,21 @@ Last reviewed: 2026-07-25
 | Done | Real authentication boundary | Clerk sessions and server-derived users in pilot/production | Complete owner Clerk configuration before pilot |
 | Done | Admin authorization | Admin pages, exports, and mutations require authenticated admin | Retain regression tests |
 | Needed | Private durable uploads | Private Blob flow is implemented; external store/scanner decision is unverified | Connect Private Blob and complete storage acceptance tests before enabling uploads |
-| Blocked | Payment integrity | Payment confirmation is simulated | Add proof submission, admin reconciliation, and ledger records |
+| Done | Payment integrity foundation | Booking, subscription, and add-on references create ledger records; booking payments require admin reconciliation | Complete bank-operation rehearsal before pilot |
 | Needed | Production data safety | Reviewed migration tree and non-mutating build are implemented | Apply to separate Neon branch, configure backups, and complete restore drill |
 
 ## High
 
 | Status | Item | Evidence | Required action |
 | --- | --- | --- | --- |
-| Needed | Listing visibility rules | Public listing detail is not status-restricted | Only expose approved listings publicly |
-| Needed | Booking eligibility | Booking action does not check verification/subscription/suspension | Enforce account and listing eligibility in server action |
-| Needed | Host ownership and role checks | Several actions trust `hostId`, `actorId`, or role fields | Bind all mutations to authenticated user |
-| Needed | Admin export privacy | CSV exports include user/chat/booking data | Auth guard, audit log, minimization, pagination |
-| Needed | Email delivery | Contract "email" is stored text only | Add transactional email provider and delivery state |
-| Needed | Rate limiting | No limits for chat/account/upload/export | Add route/action rate limits |
+| Done | Listing visibility rules | Public detail, checkout, search, and conversation starts require approved listings and eligible hosts | Retain public eligibility regression tests |
+| Done | Booking eligibility | Server actions require approved, active, unsuspended renter and host accounts | Retain authorization regression tests |
+| Done | Host ownership and role checks | Sensitive actions derive actors from managed sessions and verify resource ownership | Retain authorization regression tests |
+| Done | Admin export privacy | Exports are admin-only, rate-limited, audited, formula-neutralized, and chat exports contain metadata rather than message bodies | Add pagination before wider scale |
+| Needed | Email delivery | False email claims were removed; no provider is connected | Add transactional email provider and verified delivery state |
+| Done | Core rate limiting | Booking, chat, payment, agreement, privacy, and upload submissions use persistent account-scoped limits | Add edge/WAF controls before public scale |
 | Done | Production migrations | Separate PostgreSQL migration tree and `migrate deploy` | Apply through controlled release process |
-| Needed | Legal and privacy documents | Safety rules exist, but public terms/privacy/retention are not complete | Add terms, privacy, data retention, dispute policy |
+| Needed | Legal approval | Versioned dual-party acceptance and privacy request controls are implemented | Singapore lawyer must approve the exact version and owner must set the release gate |
 
 ## Medium
 
@@ -45,9 +45,9 @@ Last reviewed: 2026-07-25
 | Done | Upload validation | Server validates bytes, MIME, extension, dimensions, size, checksum, and scan status | Add malware scanner or record pilot risk acceptance |
 | Planned | Contact policy hardening | Regex-only contact blocking | Add moderation review, violation records, and reporting |
 | Planned | Notification model | No email/chat notification persistence | Add notification table and retry jobs |
-| Planned | Audit integrity | Approval events can be written by unprotected actions | Use authenticated actor, append-only events, export logs |
+| Done | Audit integrity | Sensitive mutations and authenticated audit events share Prisma transactions | Add tamper-evident archival before regulated use |
 | Planned | Demo data separation | Showcase records are mixed with deploy workflow | Separate demo, staging, and production seeds |
-| Planned | Monitoring | No error/uptime/performance monitoring config | Add Vercel logs, Sentry or equivalent, uptime checks |
+| Needed | Monitoring | Structured redacted logs, health route, and release-gated monitoring URLs exist | Connect the real error project and uptime alert recipients |
 
 ## Low
 
@@ -56,7 +56,7 @@ Last reviewed: 2026-07-25
 | Planned | Schema cleanup | `experienceLevel`, `landlordApproval`, `insuranceStatus` remain | Remove or rename with migration |
 | Planned | Factory type naming | Schema uses `Zoning`; UI says type/factory type | Rename when safe |
 | Planned | Listing photo handling | Uploaded listing photo is stored but fallback URL is used | Render uploaded listing photos after object storage migration |
-| Planned | Dashboard copy | Demo labels remain visible | Use environment-aware demo banners |
+| Done | Dashboard copy | Demo labels and role switching are conditional on demo mode | Retain pilot-mode UI checks |
 | Planned | Empty states | Some dashboards rely on seeded data | Improve empty and first-use states |
 | Planned | Brand polish | UI has improved but needs final design QA | Run visual review across mobile/desktop |
 
@@ -68,7 +68,7 @@ Last reviewed: 2026-07-25
 | Done | Pricing calculation | Domain tests cover duration pricing, add-ons, deposit, cleaning fee, totals |
 | Done | Risk routing | Domain tests cover B1/B2/admin-required work |
 | Done | Chat surfaces | Listing chat and booking chat exist with contact-detail blocking |
-| Done | Additional requirements | Renter request, host quote, generated contract text, and payment confirmation flow exist |
+| Done | Additional requirements | Renter request, host quote, pilot add-on record, and payment confirmation flow exist |
 | Done | Recurring subscription concept | S$5/month company-account payment reference and admin activation exist |
 | Done | Demo showcase data | 10 hosts, 10 renters, listings, bookings, chats, and subscriptions are seeded |
 

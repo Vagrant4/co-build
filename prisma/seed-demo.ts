@@ -818,7 +818,6 @@ async function ensureAdditionalRequirement(prisma: PrismaClient, bookingId: stri
           bookingId,
           listingTitle: listing?.title ?? bookingSeed.listingSlug,
           renterName: renter?.fullName ?? bookingSeed.userId,
-          renterEmail: renter?.email ?? "renter@example.com",
           hostName: host?.fullName ?? "Host",
           requirementDetail: requirement.detail,
           quotedRate: requirement.quotedRate,
@@ -833,8 +832,8 @@ async function ensureAdditionalRequirement(prisma: PrismaClient, bookingId: stri
       status: requirement.status,
       quotedRate: requirement.quotedRate,
       contractText,
-      emailedTo: contractText ? renter?.email ?? null : null,
-      emailedAt: contractText ? new Date("2026-07-05T02:00:00.000Z") : null,
+      emailedTo: null,
+      emailedAt: null,
       paidAt: requirement.status === "PAID_CONFIRMED" ? new Date("2026-07-06T02:00:00.000Z") : null
     }
   });

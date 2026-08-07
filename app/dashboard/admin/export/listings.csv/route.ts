@@ -1,11 +1,13 @@
 import { csvResponse, toCsv } from "@/src/lib/csv-export";
 import { prisma } from "@/src/lib/db";
 import { requireAdmin } from "@/src/lib/authorization";
+import { enforceRateLimit } from "@/src/lib/rate-limit";
 
 export const dynamic = "force-dynamic";
 
 export async function GET() {
   const admin = await requireAdmin();
+  await enforceRateLimit({ action: "export:listings", identity: admin.id, limit: 5, windowSeconds: 60 * 60 });
   const listings = await prisma.$transaction(async (tx) => {
     const rows = await tx.listing.findMany({
       orderBy: { createdAt: "desc" },

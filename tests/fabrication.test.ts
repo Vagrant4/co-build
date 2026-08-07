@@ -154,7 +154,7 @@ describe("search filtering", () => {
 describe("booking workflow", () => {
   it("moves normal bookings through host approval, payment, check-in, and check-out", () => {
     expect(advanceBookingStatus("PENDING_HOST", "HOST_APPROVE", "STANDARD")).toBe("APPROVED_FOR_PAYMENT");
-    expect(advanceBookingStatus("APPROVED_FOR_PAYMENT", "PAY", "STANDARD")).toBe("PAID_CONFIRMED");
+    expect(advanceBookingStatus("APPROVED_FOR_PAYMENT", "PAY", "STANDARD")).toBe("PAYMENT_SUBMITTED");
     expect(advanceBookingStatus("PAID_CONFIRMED", "CHECK_IN", "STANDARD")).toBe("CHECKED_IN");
     expect(advanceBookingStatus("CHECKED_IN", "CHECK_OUT", "STANDARD")).toBe("CHECKED_OUT");
   });
@@ -172,27 +172,27 @@ describe("booking workflow", () => {
 describe("additional requirement workflow", () => {
   it("routes requested add-on requirements through host approval and payment", () => {
     expect(advanceAdditionalRequirementStatus("PENDING_HOST", "HOST_APPROVE")).toBe("APPROVED_FOR_PAYMENT");
-    expect(advanceAdditionalRequirementStatus("APPROVED_FOR_PAYMENT", "PAY")).toBe("PAID_CONFIRMED");
+    expect(advanceAdditionalRequirementStatus("APPROVED_FOR_PAYMENT", "PAY")).toBe("PAYMENT_SUBMITTED");
     expect(advanceAdditionalRequirementStatus("PENDING_HOST", "HOST_REJECT")).toBe("HOST_REJECTED");
   });
 
-  it("generates a contract containing rate, requirement detail, and renter login email", () => {
+  it("generates a dashboard record containing rate and requirement detail without contact information", () => {
     const contract = buildAdditionalRequirementContract({
       bookingId: "booking-100",
       listingTitle: "Small Bay with lorry access",
       renterName: "Aisha Tan",
-      renterEmail: "renter@example.com",
       hostName: "Marcus Lim",
       requirementDetail: "Need extra compressor support after 6pm.",
       quotedRate: 275,
       issuedAt: "2026-06-15"
     });
 
-    expect(contract).toContain("Additional Requirement Contract");
+    expect(contract).toContain("Additional Requirement Pilot Record");
     expect(contract).toContain("Small Bay with lorry access");
     expect(contract).toContain("Need extra compressor support after 6pm.");
     expect(contract).toContain("S$275");
-    expect(contract).toContain("Contract emailed to: renter@example.com");
+    expect(contract).toContain("Available in renter and host dashboards");
+    expect(contract).not.toContain("@");
   });
 });
 

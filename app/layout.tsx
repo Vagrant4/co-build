@@ -7,7 +7,7 @@ import { assertAuthenticationConfigured, getAppMode } from "@/src/lib/app-mode";
 
 export const metadata: Metadata = {
   title: "Co-Build | Short-term fabrication space rental",
-  description: "Rent fabrication bays, maker benches, equipment add-ons, power, loading access, and safety-reviewed workspaces in Singapore."
+  description: "Rent short-term fabrication workspace by location, floor area, power, loading access, equipment, and permitted work in Singapore."
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
@@ -18,7 +18,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="en">
       <body>
         {mode === "demo" && (
-          <div className="bg-safety px-4 py-2 text-center text-xs font-black uppercase text-ink" role="status">
+          <div className="demo-banner" role="status">
             Demo mode: showcase accounts and simulated transactions only
           </div>
         )}
@@ -34,6 +34,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               <a href="/pricing">Pricing</a>
               <a href="/create-account">Create account</a>
               <a href="/safety">Safety</a>
+              <a href="/legal">Legal Centre</a>
               <a href="/faq">FAQ</a>
               <a href="/contact">Contact</a>
             </div>

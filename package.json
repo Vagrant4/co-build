@@ -18,7 +18,10 @@
     "test:e2e": "playwright test",
     "ops:report": "tsx scripts/ops-report.ts",
     "uploads:cleanup": "tsx scripts/cleanup-orphan-uploads.ts",
-    "vercel-build": "npm run prisma:generate:prod && next build"
+    "rate-limits:cleanup": "tsx scripts/cleanup-rate-limits.ts",
+    "privacy:retention-report": "tsx scripts/retention-report.ts",
+    "pilot:preflight": "tsx scripts/pilot-preflight.ts",
+    "vercel-build": "npm run prisma:generate:prod && npm run pilot:preflight && next build"
   },
   "dependencies": {
     "@clerk/nextjs": "^7.6.1",
@@ -27,13 +30,14 @@
     "image-size": "^2.0.2",
     "lucide-react": "latest",
     "next": "^16.2.12",
+    "pdf-lib": "^1.17.1",
     "react": "latest",
     "react-dom": "latest"
   },
   "devDependencies": {
-    "@playwright/test": "^1.62.0",
     "@emnapi/core": "1.11.2",
     "@emnapi/runtime": "1.11.2",
+    "@playwright/test": "^1.62.0",
     "@types/node": "latest",
     "@types/react": "latest",
     "@types/react-dom": "latest",

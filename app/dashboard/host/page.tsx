@@ -1,4 +1,4 @@
-import { BadgeDollarSign, CheckCircle2, Factory, XCircle } from "lucide-react";
+import { BadgeDollarSign, CheckCircle2, Download, Factory, XCircle } from "lucide-react";
 import {
   approveAdditionalRequirementAction,
   confirmDealAction,
@@ -9,6 +9,7 @@ import {
 import { BookingChat } from "@/components/booking-chat";
 import { ListingChat } from "@/components/listing-chat";
 import { StatusBadge } from "@/components/status-badge";
+import { PrivacyRequestPanel } from "@/components/privacy-request-panel";
 import { dealConfirmationStatus, formatCurrency, PLATFORM_SUBSCRIPTION_MONTHLY } from "@/src/lib/fabrication";
 import { prisma } from "@/src/lib/db";
 import { requirePageRole } from "@/src/lib/page-authorization";
@@ -17,7 +18,7 @@ export const dynamic = "force-dynamic";
 
 export default async function HostDashboardPage() {
   const host = await requirePageRole("HOST");
-  const [listings, bookings, additionalRequests] = await Promise.all([
+  const [listings, bookings, additionalRequests, privacyRequests] = await Promise.all([
     prisma.listing.findMany({
       where: { hostId: host.id },
       include: {
@@ -44,7 +45,8 @@ export default async function HostDashboardPage() {
       where: { booking: { listing: { hostId: host.id } } },
       include: { user: true, booking: { include: { listing: true } } },
       orderBy: { createdAt: "desc" }
-    })
+    }),
+    prisma.privacyRequest.findMany({ where: { userId: host.id }, orderBy: { createdAt: "desc" }, take: 10 })
   ]);
   const listingActionLabel = listings.length > 1 ? "Additional listing" : "New listing";
 
@@ -115,6 +117,10 @@ export default async function HostDashboardPage() {
                 </div>
               </div>
               <div className="grid gap-2">
+                <a className="button-secondary w-full" href={`/dashboard/bookings/${booking.id}/agreement`}>
+                  View booking agreement
+                </a>
+                <a className="button-secondary w-full" href={`/api/bookings/${booking.id}/documents/booking-summary`}><Download size={18} aria-hidden="true" /> Download PDF</a>
                 <BookingAction bookingId={booking.id} action="HOST_APPROVE" label="Approve" icon="approve" disabled={booking.status !== "PENDING_HOST"} />
                 <BookingAction bookingId={booking.id} action="HOST_REJECT" label="Reject" icon="reject" disabled={booking.status !== "PENDING_HOST"} />
                 <DealConfirmationForm bookingId={booking.id} confirmed={Boolean(booking.hostDealConfirmedAt)} />
@@ -156,6 +162,7 @@ export default async function HostDashboardPage() {
           ))}
         </div>
       </section>
+      <PrivacyRequestPanel requests={privacyRequests} />
     </main>
   );
 }
@@ -225,7 +232,6 @@ type HostAdditionalRequirementView = {
   detail: string;
   status: string;
   quotedRate: number;
-  emailedTo: string | null;
   booking: {
     durationDays: number;
     listing: { title: string };
@@ -248,7 +254,7 @@ function AdditionalRequirementApproval({ request }: { request: HostAdditionalReq
           {request.user.fullName} - {request.booking.durationDays} days
         </p>
         <p className="mt-3 font-bold">{request.detail}</p>
-        {request.emailedTo && <p className="mt-3 text-sm font-black text-hazard">Contract sent to renter login email.</p>}
+        {request.quotedRate > 0 && <p className="mt-3 text-sm font-black text-hazard">Approved add-on record is available in both dashboards.</p>}
       </div>
       <div className="grid gap-2">
         {request.status === "PENDING_HOST" ? (

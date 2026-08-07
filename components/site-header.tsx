@@ -1,6 +1,6 @@
 "use client";
 
-import { ClipboardCheck, Factory, LayoutDashboard, Search, ShieldCheck, UserPlus } from "lucide-react";
+import { ClipboardCheck, Factory, LayoutDashboard, Menu, Search, ShieldCheck, UserPlus } from "lucide-react";
 import { UserButton, useAuth } from "@clerk/nextjs";
 import { usePathname } from "next/navigation";
 import { AccountSwitcher } from "./account-switcher";
@@ -38,44 +38,63 @@ export function SiteHeader({ appMode }: { appMode: "demo" | "pilot" | "productio
 
   return (
     <header className="site-header">
-      <div className="section-shell flex min-h-16 flex-col gap-3 py-3 lg:flex-row lg:items-center lg:justify-between">
-        <a href="/" className="group flex items-center gap-3" aria-label="Co-Build home">
-          <Logo
-            variant="full"
-            className="transition-colors duration-150 group-hover:text-hazard"
-            wordmarkClassName="hidden sm:inline-flex"
-          />
+      <div className="section-shell site-header__inner">
+        <a href="/" className="site-header__brand group" aria-label="Co-Build home">
+          <Logo variant="compact" className="transition-colors duration-150 group-hover:text-hazard" />
           <span className="hidden border-l border-neutral-300 pl-3 text-xs font-bold leading-tight text-steel xl:block">
             Workspace, power,
             <br />
             loading, tools
           </span>
         </a>
-        <div className="flex flex-col gap-2 xl:flex-row xl:items-center">
+
+        <div className="site-header__desktop-actions">
           <AccountSwitcher appMode={appMode} />
-          <nav className="site-nav">
-            {navItems.map((item) => {
-              const Icon = item.icon;
-              const active = pathname === item.href || (item.href !== "/" && pathname.startsWith(`${item.href}/`));
-              return (
-                <a
-                  key={item.href}
-                  href={item.href}
-                  aria-current={active ? "page" : undefined}
-                  className={active ? "site-nav__item site-nav__item--active" : "site-nav__item"}
-                >
-                  <Icon size={16} aria-hidden="true" />
-                  {item.label}
-                </a>
-              );
-            })}
-          </nav>
-          {appMode !== "demo" && (
-            <ManagedAccountControl />
-          )}
+          <Navigation pathname={pathname} navItems={navItems} />
+          {appMode !== "demo" && <ManagedAccountControl />}
         </div>
+
+        <details className="site-header__mobile-menu">
+          <summary aria-label="Open navigation menu">
+            <Menu size={20} aria-hidden="true" />
+            <span>Menu</span>
+          </summary>
+          <div className="site-header__mobile-panel">
+            <AccountSwitcher appMode={appMode} />
+            <Navigation pathname={pathname} navItems={navItems} />
+            {appMode !== "demo" && <ManagedAccountControl />}
+          </div>
+        </details>
       </div>
     </header>
+  );
+}
+
+function Navigation({
+  pathname,
+  navItems
+}: {
+  pathname: string;
+  navItems: ReturnType<typeof getNavItems>;
+}) {
+  return (
+    <nav className="site-nav" aria-label="Primary navigation">
+      {navItems.map((item) => {
+        const Icon = item.icon;
+        const active = pathname === item.href || (item.href !== "/" && pathname.startsWith(`${item.href}/`));
+        return (
+          <a
+            key={item.href}
+            href={item.href}
+            aria-current={active ? "page" : undefined}
+            className={active ? "site-nav__item site-nav__item--active" : "site-nav__item"}
+          >
+            <Icon size={16} aria-hidden="true" />
+            {item.label}
+          </a>
+        );
+      })}
+    </nav>
   );
 }
 

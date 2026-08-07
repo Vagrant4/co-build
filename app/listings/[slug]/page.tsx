@@ -20,7 +20,7 @@ export default async function ListingDetailPage({ params }: PageProps) {
     getEquipmentAddons(),
     getOptionalUser(),
     prisma.listing.findFirst({
-      where: { slug, status: "APPROVED", host: { is: { role: "HOST", suspended: false, verificationStatus: "APPROVED" } } },
+      where: { slug, status: "APPROVED", host: { is: { role: "HOST", suspended: false, verificationStatus: "APPROVED", platformSubscriptionStatus: "ACTIVE" } } },
       select: { id: true }
     })
   ]);

@@ -6,7 +6,7 @@ export type FactoryType = "OFFICE" | "B1" | "B2";
 export type PowerType = "SINGLE_PHASE" | "THREE_PHASE";
 export type ListingStatus = "DRAFT" | "PENDING_ADMIN" | "APPROVED" | "REJECTED" | "SUSPENDED";
 export type RiskLevel = "STANDARD" | "ADMIN_APPROVAL";
-export type AdditionalRequirementStatus = "PENDING_HOST" | "APPROVED_FOR_PAYMENT" | "PAID_CONFIRMED" | "HOST_REJECTED" | "CANCELLED";
+export type AdditionalRequirementStatus = "PENDING_HOST" | "APPROVED_FOR_PAYMENT" | "PAYMENT_SUBMITTED" | "PAID_CONFIRMED" | "HOST_REJECTED" | "CANCELLED";
 export type AdditionalRequirementAction = "HOST_APPROVE" | "HOST_REJECT" | "PAY" | "CANCEL";
 export type DealConfirmationStatus = "WAITING_BOTH" | "WAITING_RENTER" | "WAITING_HOST" | "CONFIRMED";
 export const PLATFORM_SUBSCRIPTION_MONTHLY = 5;
@@ -51,6 +51,7 @@ export type BookingStatus =
   | "PENDING_HOST"
   | "PENDING_ADMIN_HIGH_RISK"
   | "APPROVED_FOR_PAYMENT"
+  | "PAYMENT_SUBMITTED"
   | "PAID_CONFIRMED"
   | "CHECKED_IN"
   | "CHECKED_OUT"
@@ -116,7 +117,6 @@ export type AdditionalRequirementContractInput = {
   bookingId: string;
   listingTitle: string;
   renterName: string;
-  renterEmail: string;
   hostName: string;
   requirementDetail: string;
   quotedRate: number;
@@ -251,7 +251,7 @@ export function advanceBookingStatus(status: BookingStatus, action: BookingActio
     return riskLevel === "ADMIN_APPROVAL" ? "PENDING_ADMIN_HIGH_RISK" : "APPROVED_FOR_PAYMENT";
   }
   if (status === "PENDING_ADMIN_HIGH_RISK" && action === "ADMIN_APPROVE") return "APPROVED_FOR_PAYMENT";
-  if (status === "APPROVED_FOR_PAYMENT" && action === "PAY") return "PAID_CONFIRMED";
+  if (status === "APPROVED_FOR_PAYMENT" && action === "PAY") return "PAYMENT_SUBMITTED";
   if (status === "PAID_CONFIRMED" && action === "CHECK_IN") return "CHECKED_IN";
   if (status === "CHECKED_IN" && action === "CHECK_OUT") return "CHECKED_OUT";
   return status;
@@ -264,7 +264,7 @@ export function advanceAdditionalRequirementStatus(
   if (action === "CANCEL") return "CANCELLED";
   if (status === "PENDING_HOST" && action === "HOST_REJECT") return "HOST_REJECTED";
   if (status === "PENDING_HOST" && action === "HOST_APPROVE") return "APPROVED_FOR_PAYMENT";
-  if (status === "APPROVED_FOR_PAYMENT" && action === "PAY") return "PAID_CONFIRMED";
+  if (status === "APPROVED_FOR_PAYMENT" && action === "PAY") return "PAYMENT_SUBMITTED";
   return status;
 }
 
@@ -272,7 +272,8 @@ export function buildAdditionalRequirementContract(input: AdditionalRequirementC
   const issuedAt = input.issuedAt ?? new Date().toISOString().slice(0, 10);
 
   return [
-    "Additional Requirement Contract",
+    "Additional Requirement Pilot Record",
+    "DRAFT - NOT A SIGNED AGREEMENT",
     `Issued: ${issuedAt}`,
     `Booking: ${input.bookingId}`,
     `Listing: ${input.listingTitle}`,
@@ -281,7 +282,7 @@ export function buildAdditionalRequirementContract(input: AdditionalRequirementC
     `Requirement: ${input.requirementDetail}`,
     `Approved add-on rate: ${formatCurrency(input.quotedRate)}`,
     "Payment status: Approved for company-account payment",
-    `Contract emailed to: ${input.renterEmail}`
+    "Delivery: Available in renter and host dashboards"
   ].join("\n");
 }
 

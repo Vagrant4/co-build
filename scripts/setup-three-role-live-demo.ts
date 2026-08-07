@@ -369,7 +369,6 @@ async function main() {
     bookingId: booking.id,
     listingTitle: listing.title,
     renterName: renter.fullName,
-    renterEmail: renter.email,
     hostName: host.fullName,
     requirementDetail: "Additional evening access on two days and one extra material storage rack.",
     quotedRate: 220,
@@ -384,8 +383,8 @@ async function main() {
       status: "PAID_CONFIRMED",
       quotedRate: 220,
       contractText: addOnContract,
-      emailedTo: renter.email,
-      emailedAt: addMinutes(now, -20),
+      emailedTo: null,
+      emailedAt: null,
       paidAt: addMinutes(now, -18),
       createdAt: addMinutes(now, -35)
     }
