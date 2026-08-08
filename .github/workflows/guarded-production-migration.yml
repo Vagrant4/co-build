@@ -1,0 +1,140 @@
+name: Guarded production migration
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_ref:
+        description: Branch or commit containing the reviewed migrations
+        required: true
+        default: codex/pilot-readiness-automation
+      expected_sha:
+        description: Exact commit SHA approved for migration
+        required: true
+
+concurrency:
+  group: co-build-production-migration
+  cancel-in-progress: false
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  migrate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      DATABASE_URL: ${{ secrets.DATABASE_DIRECT_URL }}
+      DIRECT_URL: ${{ secrets.DATABASE_DIRECT_URL }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ inputs.release_ref }}
+
+      - name: Verify exact approved release commit
+        shell: bash
+        run: |
+          set -euo pipefail
+          actual_sha="$(git rev-parse HEAD)"
+          test "$actual_sha" = "${{ inputs.expected_sha }}" || {
+            echo "::error::Release ref does not match the approved commit SHA"
+            exit 1
+          }
+
+      - name: Require a recent successful backup and restore drill
+        shell: bash
+        run: |
+          set -euo pipefail
+          backup_time="$(gh run list --repo "$GITHUB_REPOSITORY" --workflow nightly-database-backup.yml --status success --limit 1 --json updatedAt --jq '.[0].updatedAt')"
+          drill_time="$(gh run list --repo "$GITHUB_REPOSITORY" --workflow database-restore-drill.yml --status success --limit 1 --json updatedAt --jq '.[0].updatedAt')"
+          python3 - "$backup_time" "$drill_time" <<'PY'
+          from datetime import datetime, timezone, timedelta
+          import sys
+          cutoff = datetime.now(timezone.utc) - timedelta(hours=24)
+          for label, raw in zip(("backup", "restore drill"), sys.argv[1:]):
+              if not raw:
+                  raise SystemExit(f"No successful {label} run exists")
+              timestamp = datetime.fromisoformat(raw.replace("Z", "+00:00"))
+              if timestamp < cutoff:
+                  raise SystemExit(f"Latest successful {label} is older than 24 hours")
+          PY
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: npm
+
+      - run: npm ci
+      - run: npx prisma validate --schema prisma/postgres/schema.prisma
+      - run: npm run prisma:generate:prod
+
+      - name: Resolve legacy baseline only after exact schema comparison
+        shell: bash
+        run: |
+          set -euo pipefail
+          has_history="$(docker run --rm postgres:17-alpine \
+            psql "$DIRECT_URL" --tuples-only --no-align --set ON_ERROR_STOP=1 \
+            --command "SELECT to_regclass('public.\"_prisma_migrations\"') IS NOT NULL;")"
+          if [ "$has_history" = "t" ]; then
+            echo "Prisma migration history already exists; baseline resolution is not required."
+            exit 0
+          fi
+
+          baseline_name="co_build_baseline_compare"
+          baseline_url="$(python3 - "$baseline_name" <<'PY'
+          import os, sys
+          from urllib.parse import urlsplit, urlunsplit
+          source = urlsplit(os.environ['DIRECT_URL'])
+          print(urlunsplit((source.scheme, source.netloc, '/' + sys.argv[1], source.query, source.fragment)))
+          PY
+          )"
+          echo "::add-mask::$baseline_url"
+          cleanup() {
+            docker run --rm postgres:17-alpine \
+              psql "$DIRECT_URL" --set ON_ERROR_STOP=1 \
+              --command "DROP DATABASE IF EXISTS $baseline_name WITH (FORCE)" >/dev/null
+          }
+          trap cleanup EXIT
+
+          cleanup
+          docker run --rm postgres:17-alpine \
+            psql "$DIRECT_URL" --set ON_ERROR_STOP=1 \
+            --command "CREATE DATABASE $baseline_name" >/dev/null
+          docker run --rm \
+            -v "$PWD:/workspace:ro" \
+            postgres:17-alpine \
+            psql "$baseline_url" --set ON_ERROR_STOP=1 \
+            --file /workspace/prisma/postgres/migrations/20260728090000_baseline/migration.sql >/dev/null
+
+          npx prisma migrate diff \
+            --from-url "$DIRECT_URL" \
+            --to-url "$baseline_url" \
+            --script > baseline-diff.sql
+          if grep -Ev '^[[:space:]]*(--.*)?$' baseline-diff.sql | grep -q .; then
+            statement_count="$(grep -Ec ';[[:space:]]*$' baseline-diff.sql || true)"
+            echo "::error::Production schema differs from the reviewed historical baseline ($statement_count statements). Baseline was not resolved."
+            exit 1
+          fi
+
+          npx prisma migrate resolve \
+            --schema prisma/postgres/schema.prisma \
+            --applied 20260728090000_baseline
+
+      - name: Apply reviewed migrations
+        run: npm run db:deploy:prod
+
+      - name: Verify migrated production baseline
+        run: npx tsx scripts/verify-postgres-baseline.ts
+
+      - name: Record non-sensitive migration evidence
+        shell: bash
+        run: |
+          {
+            echo "### Production migration"
+            echo "- Status: passed"
+            echo "- Release SHA: ${{ inputs.expected_sha }}"
+            echo "- Recent backup required: yes"
+            echo "- Recent restore drill required: yes"
+            echo "- Completed (UTC): $(date -u +'%Y-%m-%dT%H:%M:%SZ')"
+          } >> "$GITHUB_STEP_SUMMARY"

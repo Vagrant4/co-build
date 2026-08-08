@@ -37,10 +37,14 @@ jobs:
           set -euo pipefail
           mkdir -p backup
           docker run --rm \
-            -e DATABASE_DIRECT_URL \
+            --user "$(id -u):$(id -g)" \
             -v "$PWD/backup:/backup" \
             postgres:17-alpine \
-            sh -ec 'pg_dump --format=custom --no-owner --no-acl --file=/backup/co-build.dump "$DATABASE_DIRECT_URL" && pg_restore --list /backup/co-build.dump >/dev/null'
+            pg_dump --format=custom --no-owner --no-acl --file=/backup/co-build.dump "$DATABASE_DIRECT_URL"
+          docker run --rm \
+            -v "$PWD/backup:/backup:ro" \
+            postgres:17-alpine \
+            pg_restore --list /backup/co-build.dump >/dev/null
 
       - name: Encrypt backup and remove plaintext
         id: encrypt
