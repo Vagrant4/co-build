@@ -1,0 +1,122 @@
+name: Database restore drill
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: co-build-database-restore-drill
+  cancel-in-progress: false
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  restore-drill:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      GH_TOKEN: ${{ github.token }}
+      DATABASE_DIRECT_URL: ${{ secrets.DATABASE_DIRECT_URL }}
+      BACKUP_ENCRYPTION_PASSPHRASE: ${{ secrets.BACKUP_ENCRYPTION_PASSPHRASE }}
+      RESTORE_DATABASE_NAME: co_build_restore_drill
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Fail closed when recovery secrets are missing
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$DATABASE_DIRECT_URL" || { echo "::error::DATABASE_DIRECT_URL is not configured"; exit 1; }
+          test -n "$BACKUP_ENCRYPTION_PASSPHRASE" || { echo "::error::BACKUP_ENCRYPTION_PASSPHRASE is not configured"; exit 1; }
+
+      - name: Download latest successful encrypted backup
+        shell: bash
+        run: |
+          set -euo pipefail
+          run_id="$(gh run list --repo "$GITHUB_REPOSITORY" --workflow nightly-database-backup.yml --status success --limit 1 --json databaseId --jq '.[0].databaseId')"
+          test -n "$run_id" || { echo "::error::No successful nightly backup run exists"; exit 1; }
+          mkdir -p recovery
+          gh run download "$run_id" --repo "$GITHUB_REPOSITORY" --dir recovery
+          echo "source_backup_run=$run_id" >> "$GITHUB_ENV"
+
+      - name: Verify and decrypt backup
+        shell: bash
+        run: |
+          set -euo pipefail
+          encrypted="$(find recovery -type f -name '*.dump.enc' -print -quit)"
+          checksum="${encrypted}.sha256"
+          test -f "$encrypted" && test -f "$checksum"
+          (cd "$(dirname "$encrypted")" && sha256sum --check "$(basename "$checksum")")
+          openssl enc -d -aes-256-cbc -pbkdf2 -iter 250000 \
+            -in "$encrypted" \
+            -out recovery/restore.dump \
+            -pass env:BACKUP_ENCRYPTION_PASSPHRASE
+
+      - name: Prepare disposable restore database
+        shell: bash
+        run: |
+          set -euo pipefail
+          restore_url="$(python3 - <<'PY'
+          import os
+          from urllib.parse import urlsplit, urlunsplit
+          source = urlsplit(os.environ['DATABASE_DIRECT_URL'])
+          print(urlunsplit((source.scheme, source.netloc, '/' + os.environ['RESTORE_DATABASE_NAME'], source.query, source.fragment)))
+          PY
+          )"
+          echo "::add-mask::$restore_url"
+          echo "RESTORE_DATABASE_URL=$restore_url" >> "$GITHUB_ENV"
+          docker run --rm postgres:17-alpine \
+            psql "$DATABASE_DIRECT_URL" --set ON_ERROR_STOP=1 \
+            --command "DROP DATABASE IF EXISTS $RESTORE_DATABASE_NAME WITH (FORCE)"
+          docker run --rm postgres:17-alpine \
+            psql "$DATABASE_DIRECT_URL" --set ON_ERROR_STOP=1 \
+            --command "CREATE DATABASE $RESTORE_DATABASE_NAME"
+
+      - name: Restore and verify expected schema
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker run --rm \
+            -v "$PWD/recovery:/recovery:ro" \
+            postgres:17-alpine \
+            pg_restore --no-owner --no-acl --exit-on-error \
+            --dbname "$RESTORE_DATABASE_URL" /recovery/restore.dump
+          expected_count="$(docker run --rm postgres:17-alpine \
+            psql "$RESTORE_DATABASE_URL" --tuples-only --no-align --set ON_ERROR_STOP=1 \
+            --command "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='public' AND table_name IN ('User','Listing','Booking');")"
+          test "$expected_count" = "3" || { echo "::error::Restored database is missing required application tables"; exit 1; }
+          table_count="$(docker run --rm postgres:17-alpine \
+            psql "$RESTORE_DATABASE_URL" --tuples-only --no-align --set ON_ERROR_STOP=1 \
+            --command "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='public';")"
+          test "$table_count" -gt 0
+          echo "restored_table_count=$table_count" >> "$GITHUB_ENV"
+
+      - name: Remove plaintext recovery files
+        if: always()
+        shell: bash
+        run: |
+          find recovery -type f -name 'restore.dump' -exec shred -u {} + 2>/dev/null || true
+
+      - name: Remove disposable restore database
+        if: always()
+        shell: bash
+        run: |
+          if [ -n "${DATABASE_DIRECT_URL:-}" ]; then
+            docker run --rm postgres:17-alpine \
+              psql "$DATABASE_DIRECT_URL" --set ON_ERROR_STOP=1 \
+              --command "DROP DATABASE IF EXISTS $RESTORE_DATABASE_NAME WITH (FORCE)"
+          fi
+
+      - name: Record non-sensitive restore evidence
+        if: success()
+        shell: bash
+        run: |
+          {
+            echo "### Database restore drill"
+            echo "- Status: passed"
+            echo "- Backup run: $source_backup_run"
+            echo "- Restored public tables: $restored_table_count"
+            echo "- Disposable target removed: yes"
+            echo "- Completed (UTC): $(date -u +'%Y-%m-%dT%H:%M:%SZ')"
+          } >> "$GITHUB_STEP_SUMMARY"
