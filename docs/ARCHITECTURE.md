@@ -13,13 +13,13 @@ Browser
   |
   | Next.js App Router pages and forms
   v
-Server Actions in app/actions.ts
+Server Actions and protected route handlers
   |
-  | Prisma Client
-  v
-SQLite locally / Postgres on Vercel preview-production
+  +-- Prisma Client -> SQLite demo / managed PostgreSQL pilot
   |
-  +-- Local filesystem uploads under uploads/
+  +-- short-lived restricted token -> Vercel Private Blob
+                                      |
+                                      +-- authorized upload-ID download route
 ```
 
 ## Main Technology Choices
@@ -30,10 +30,10 @@ SQLite locally / Postgres on Vercel preview-production
 | Styling | Tailwind CSS and local components |
 | Database ORM | Prisma 6.19.3 |
 | Local database | SQLite at `prisma/dev.db` |
-| Hosted database | Postgres via `prisma/schema.postgres.prisma` |
+| Hosted database | Postgres via `prisma/postgres/schema.prisma` and committed migrations |
 | Hosting | Vercel |
-| Uploads | Local filesystem under `uploads/` |
-| Auth | Demo account switching, no real login/session |
+| Uploads | Direct client uploads to Vercel Private Blob; disabled by default |
+| Auth | Demo switching only in demo; Clerk-managed sessions in pilot/production |
 | Payments | Simulated company-account payment references |
 | Email | Not implemented; contract text is stored/displayed only |
 
@@ -60,7 +60,10 @@ SQLite locally / Postgres on Vercel preview-production
 | `app/actions.ts` | Main mutation layer for accounts, bookings, listings, subscriptions, chat, uploads, approvals |
 | `src/lib/fabrication.ts` | Pricing, risk classification, status transitions, search filtering, contract text, subscription periods |
 | `src/lib/repository.ts` | Listing/dashboard data fetching and Prisma-to-domain mapping |
-| `src/lib/uploads.ts` | Local file save helper |
+| `src/lib/uploads.ts` | Upload policies, limits, declarations, and immutable key generation |
+| `src/lib/upload-service.ts` | Staged Blob verification and database lifecycle |
+| `src/lib/upload-authorization.ts` | Upload ownership and participant policy |
+| `src/lib/storage/*` | Private object storage adapter |
 | `src/lib/contact-policy.ts` | Regex-based direct-contact blocking for chat |
 | `src/lib/seed-data.ts` | Static listing/equipment/work-type data |
 | `prisma/seed-demo.ts` | Showcase users, hosts, listings, bookings, messages, uploads |
@@ -90,7 +93,7 @@ Renter searches
 
 There are two chat surfaces:
 
-- `ListingMessage`: pre-deal chat on each listing.
+- `Conversation` and `ConversationMessage`: participant-scoped pre-deal chat on each listing.
 - `BookingMessage`: booking-specific chat after a booking exists.
 
 Both apply `containsRestrictedContactDetail()` to block common mobile numbers, email addresses, and direct-contact language. This is a demo safety control, not a complete moderation or compliance system.

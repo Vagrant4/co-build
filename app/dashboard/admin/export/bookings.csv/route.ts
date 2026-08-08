@@ -1,33 +1,26 @@
 import { csvResponse, toCsv } from "@/src/lib/csv-export";
 import { prisma } from "@/src/lib/db";
+import { requireAdmin } from "@/src/lib/authorization";
+import { enforceRateLimit } from "@/src/lib/rate-limit";
 
 export const dynamic = "force-dynamic";
 
 export async function GET() {
-  const bookings = await prisma.booking.findMany({
-    include: {
-      listing: {
-        select: {
-          slug: true,
-          title: true
-        }
-      },
-      user: {
-        select: {
-          companyName: true,
-          email: true,
-          fullName: true
-        }
-      }
-    },
-    orderBy: { createdAt: "desc" }
+  const admin = await requireAdmin();
+  await enforceRateLimit({ action: "export:bookings", identity: admin.id, limit: 5, windowSeconds: 60 * 60 });
+  const bookings = await prisma.$transaction(async (tx) => {
+    const rows = await tx.booking.findMany({
+      include: { listing: { select: { slug: true, title: true } } },
+      orderBy: { createdAt: "desc" }
+    });
+    await tx.adminExportEvent.create({ data: { actorId: admin.id, exportType: "bookings", rowCount: rows.length } });
+    return rows;
   });
 
   const rows = bookings.map((booking) => ({
     addonTotal: booking.addonTotal,
     bookingId: booking.id,
     cleaningFee: booking.cleaningFee,
-    companyName: booking.user.companyName,
     createdAt: booking.createdAt,
     deposit: booking.deposit,
     durationDays: booking.durationDays,
@@ -37,8 +30,7 @@ export async function GET() {
     listingTitle: booking.listing.title,
     rentalTotal: booking.rentalTotal,
     renterDealConfirmedAt: booking.renterDealConfirmedAt,
-    renterEmail: booking.user.email,
-    renterName: booking.user.fullName,
+    renterId: booking.userId,
     riskLevel: booking.riskLevel,
     safetyAcceptedAt: booking.safetyAcceptedAt,
     status: booking.status,
@@ -50,9 +42,7 @@ export async function GET() {
     { key: "status", header: "Status" },
     { key: "listingTitle", header: "Listing" },
     { key: "listingSlug", header: "Listing slug" },
-    { key: "renterName", header: "Renter" },
-    { key: "renterEmail", header: "Renter email" },
-    { key: "companyName", header: "Company" },
+    { key: "renterId", header: "Renter ID" },
     { key: "durationDays", header: "Duration days" },
     { key: "workType", header: "Work type" },
     { key: "riskLevel", header: "Risk" },

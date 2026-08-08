@@ -1,31 +1,28 @@
-import { AlertTriangle, Calculator, FileUp, ShieldCheck } from "lucide-react";
+import { AlertTriangle, Calculator, ShieldCheck } from "lucide-react";
 import { notFound } from "next/navigation";
 import { createBookingAction } from "@/app/actions";
-import { DemoAccountSelector } from "@/components/demo-account-selector";
+import { PrivateUploadField } from "@/components/private-upload-field";
 import { formatCurrency, getDurationPrice } from "@/src/lib/fabrication";
-import { getEquipmentAddons, getListingBySlug } from "@/src/lib/repository";
+import { getEquipmentAddons, getPublicListingBySlug } from "@/src/lib/repository";
 import { workTypes } from "@/src/lib/seed-data";
-import { prisma } from "@/src/lib/db";
+import { requirePageRole } from "@/src/lib/page-authorization";
+import { singaporeToday } from "@/src/lib/booking-window";
 
 export const dynamic = "force-dynamic";
 
 type PageProps = {
   params: Promise<{ listingId: string }> | { listingId: string };
-  searchParams?: Promise<Record<string, string | string[] | undefined>> | Record<string, string | string[] | undefined>;
 };
 
-export default async function CheckoutPage({ params, searchParams }: PageProps) {
+export default async function CheckoutPage({ params }: PageProps) {
+  await requirePageRole("RENTER");
   const { listingId } = await params;
-  const query = (await searchParams) ?? {};
-  const requestedAccountId = one(query.account);
-  const [listing, addons, renterAccounts] = await Promise.all([
-    getListingBySlug(listingId),
-    getEquipmentAddons(),
-    prisma.user.findMany({ where: { role: "RENTER" }, orderBy: { createdAt: "asc" } })
+  const [listing, addons] = await Promise.all([
+    getPublicListingBySlug(listingId),
+    getEquipmentAddons()
   ]);
   if (!listing) notFound();
   const listingAddons = addons.filter((addon) => listing.equipmentSlugs.includes(addon.slug));
-  const user = renterAccounts.find((account) => account.id === requestedAccountId) ?? renterAccounts.find((account) => account.id === "demo-renter") ?? renterAccounts[0];
 
   return (
     <main className="section-shell grid gap-8 py-8 lg:grid-cols-[1fr_390px]">
@@ -33,19 +30,13 @@ export default async function CheckoutPage({ params, searchParams }: PageProps) 
         <p className="text-sm font-black uppercase text-hazard">Booking checkout</p>
         <h1 className="mt-2 text-4xl font-black">{listing.title}</h1>
         <p className="mt-2 font-bold text-steel">{listing.address}</p>
-        {user && (
-          <DemoAccountSelector
-            accounts={renterAccounts}
-            currentAccountId={user.id}
-            hrefBase={`/checkout/${listing.slug}`}
-            label="Choose renter account for this booking"
-          />
-        )}
-
         <form action={createBookingAction} className="mt-8 space-y-6">
           <input type="hidden" name="listingSlug" value={listing.slug} />
-          {user && <input type="hidden" name="userId" value={user.id} />}
           <div className="grid gap-4 md:grid-cols-2">
+            <label>
+              <span className="label">Start date</span>
+              <input className="field" name="startDate" type="date" min={singaporeToday()} required />
+            </label>
             <label>
               <span className="label">Duration</span>
               <select className="field" name="durationDays" defaultValue="1">
@@ -55,7 +46,7 @@ export default async function CheckoutPage({ params, searchParams }: PageProps) 
                 <option value="60">60 days - {formatCurrency(listing.prices.sixtyDays)}</option>
               </select>
             </label>
-            <label>
+            <label className="md:col-span-2">
               <span className="label">Work type</span>
               <select className="field" name="workType" defaultValue="Assembly">
                 {workTypes.map((type) => (
@@ -85,13 +76,7 @@ export default async function CheckoutPage({ params, searchParams }: PageProps) 
             </div>
           </div>
 
-          <label className="block">
-            <span className="label">Verification document</span>
-            <span className="flex items-center gap-3 border border-neutral-300 bg-white p-4">
-              <FileUp className="text-hazard" size={22} />
-              <input name="verification" type="file" accept="image/*,.pdf" />
-            </span>
-          </label>
+          <PrivateUploadField label="Verification document (optional)" name="verification" type="VERIFICATION" accept="image/jpeg,image/png,application/pdf" />
 
           <label className="flex items-start gap-3 border border-ink bg-smoke p-4">
             <input className="mt-1" type="checkbox" name="safetyAccepted" required />
@@ -143,8 +128,4 @@ export default async function CheckoutPage({ params, searchParams }: PageProps) 
       </aside>
     </main>
   );
-}
-
-function one(value: string | string[] | undefined): string | undefined {
-  return Array.isArray(value) ? value[0] : value;
 }

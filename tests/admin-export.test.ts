@@ -34,6 +34,13 @@ describe("admin CSV export", () => {
       expect(existsSync(join(root, routePath))).toBe(true);
       expect(route).toContain("toCsv");
       expect(route).toContain("csvResponse");
+      expect(route).toContain("requireAdmin");
+      expect(route).toContain("adminExportEvent.create");
     }
+  });
+
+  it("does not include direct login contact fields in user or booking exports", () => {
+    expect(readProjectFile("app/dashboard/admin/export/users.csv/route.ts")).not.toContain('header: "Email"');
+    expect(readProjectFile("app/dashboard/admin/export/bookings.csv/route.ts")).not.toContain('header: "Renter email"');
   });
 });

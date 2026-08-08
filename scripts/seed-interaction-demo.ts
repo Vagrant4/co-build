@@ -49,53 +49,54 @@ async function seedPreDealChats() {
   const eastListing = await prisma.listing.findUniqueOrThrow({ where: { slug: "demo-east-confirmed-bay" } });
   const westListing = await prisma.listing.findUniqueOrThrow({ where: { slug: "demo-west-confirmed-bay" } });
 
-  await prisma.listingMessage.deleteMany({
-    where: {
-      id: {
-        in: [
+  await prisma.conversationMessage.deleteMany({
+    where: { id: { in: [
           "demo-prechat-east-1",
           "demo-prechat-east-2",
           "demo-prechat-east-3",
           "demo-prechat-west-1",
           "demo-prechat-west-2"
-        ]
-      }
-    }
+    ] } }
   });
+  await prisma.conversation.deleteMany({ where: { id: { in: ["demo-conversation-east", "demo-conversation-west"] } } });
 
-  await prisma.listingMessage.createMany({
+  await prisma.conversation.createMany({ data: [
+    { id: "demo-conversation-east", listingId: eastListing.id, renterId: "demo-renter-alpha", hostId: "demo-host-east", updatedAt: new Date("2026-06-23T08:08:00.000Z") },
+    { id: "demo-conversation-west", listingId: westListing.id, renterId: "demo-renter-beta", hostId: "demo-host-west", updatedAt: new Date("2026-06-23T08:20:00.000Z") }
+  ] });
+  await prisma.conversationMessage.createMany({
     data: [
       {
         id: "demo-prechat-east-1",
-        listingId: eastListing.id,
+        conversationId: "demo-conversation-east",
         senderId: "demo-renter-alpha",
         body: "Can we reserve the bay for 7 days for assembly and packing? We will keep all communication here in Co-Build chat.",
         createdAt: new Date("2026-06-23T08:00:00.000Z")
       },
       {
         id: "demo-prechat-east-2",
-        listingId: eastListing.id,
+        conversationId: "demo-conversation-east",
         senderId: "demo-host-east",
         body: "Yes. Ramp access is available from 8am, and power tools can be requested as add-ons before checkout.",
         createdAt: new Date("2026-06-23T08:05:00.000Z")
       },
       {
         id: "demo-prechat-east-3",
-        listingId: eastListing.id,
+        conversationId: "demo-conversation-east",
         senderId: "demo-renter-alpha",
         body: "Confirmed. We will submit the booking request with workbench and safety acceptance.",
         createdAt: new Date("2026-06-23T08:08:00.000Z")
       },
       {
         id: "demo-prechat-west-1",
-        listingId: westListing.id,
+        conversationId: "demo-conversation-west",
         senderId: "demo-renter-beta",
         body: "We need 30 days for signage assembly with material storage. Is cargo lift access available?",
         createdAt: new Date("2026-06-23T08:15:00.000Z")
       },
       {
         id: "demo-prechat-west-2",
-        listingId: westListing.id,
+        conversationId: "demo-conversation-west",
         senderId: "demo-host-west",
         body: "Cargo lift and B2 suitability are available. Please keep the project scope in the checkout notes and chat.",
         createdAt: new Date("2026-06-23T08:20:00.000Z")
@@ -277,28 +278,28 @@ async function seedOperationalUploads() {
         id: "demo-alpha-verification",
         type: "VERIFICATION",
         originalName: "uen-verification-demo.pdf",
-        localPath: "uploads/demo/uen-verification-demo.pdf",
-        userId: "demo-renter-alpha"
+        storageProvider: "LEGACY_LOCAL", legacyLocalPath: "uploads/demo/uen-verification-demo.pdf", uploadStatus: "LEGACY_DEMO", scanStatus: "NOT_REQUIRED",
+        uploadedByUserId: "demo-renter-alpha", ownerUserId: "demo-renter-alpha"
       },
       {
         id: "demo-alpha-check-in",
         type: "CHECK_IN",
         originalName: "check-in-bay-condition.jpg",
-        localPath: "uploads/demo/check-in-bay-condition.jpg",
+        storageProvider: "LEGACY_LOCAL", legacyLocalPath: "uploads/demo/check-in-bay-condition.jpg", uploadStatus: "LEGACY_DEMO", scanStatus: "NOT_REQUIRED",
         bookingId: "demo-deal-alpha-east"
       },
       {
         id: "demo-alpha-check-out",
         type: "CHECK_OUT",
         originalName: "check-out-cleaned-bay.jpg",
-        localPath: "uploads/demo/check-out-cleaned-bay.jpg",
+        storageProvider: "LEGACY_LOCAL", legacyLocalPath: "uploads/demo/check-out-cleaned-bay.jpg", uploadStatus: "LEGACY_DEMO", scanStatus: "NOT_REQUIRED",
         bookingId: "demo-deal-alpha-east"
       },
       {
         id: "demo-east-listing-photo",
         type: "LISTING_PHOTO",
         originalName: "demo-east-workspace-photo.png",
-        localPath: "public/assets/sample-workshop-photo-small-bay.png",
+        storageProvider: "LEGACY_LOCAL", legacyLocalPath: "public/assets/sample-workshop-photo-small-bay.png", uploadStatus: "LEGACY_DEMO", scanStatus: "NOT_REQUIRED",
         listingId: (await prisma.listing.findUniqueOrThrow({ where: { slug: "demo-east-confirmed-bay" } })).id
       }
     ]
@@ -396,7 +397,6 @@ async function upsertAdditionalRequirement({
           bookingId: booking.id,
           listingTitle: booking.listing.title,
           renterName: booking.user.fullName,
-          renterEmail: booking.user.email,
           hostName: booking.listing.host?.fullName ?? "Host",
           requirementDetail: detail,
           quotedRate,
@@ -410,8 +410,8 @@ async function upsertAdditionalRequirement({
       status,
       quotedRate: status === "PENDING_HOST" ? 0 : quotedRate,
       contractText,
-      emailedTo: status === "PENDING_HOST" ? null : booking.user.email,
-      emailedAt: status === "PENDING_HOST" ? null : new Date("2026-06-23T09:58:00.000Z"),
+      emailedTo: null,
+      emailedAt: null,
       paidAt: paidAt ?? null
     },
     create: {
@@ -422,8 +422,8 @@ async function upsertAdditionalRequirement({
       status,
       quotedRate: status === "PENDING_HOST" ? 0 : quotedRate,
       contractText,
-      emailedTo: status === "PENDING_HOST" ? null : booking.user.email,
-      emailedAt: status === "PENDING_HOST" ? null : new Date("2026-06-23T09:58:00.000Z"),
+      emailedTo: null,
+      emailedAt: null,
       paidAt: paidAt ?? null
     }
   });

@@ -1,44 +1,43 @@
 import { ArrowRight, Bolt, CalendarDays, Check, ClipboardList, Ruler, ShieldAlert, Truck, X, type LucideIcon } from "lucide-react";
 import { notFound } from "next/navigation";
-import { DemoAccountSelector } from "@/components/demo-account-selector";
 import { ListingChat } from "@/components/listing-chat";
 import { StatusBadge } from "@/components/status-badge";
 import { formatCurrency, sizeRequirementLabel } from "@/src/lib/fabrication";
 import { prisma } from "@/src/lib/db";
-import { getEquipmentAddons, getListingBySlug } from "@/src/lib/repository";
+import { getEquipmentAddons, getPublicListingBySlug } from "@/src/lib/repository";
+import { getOptionalUser } from "@/src/lib/authorization";
 
 export const dynamic = "force-dynamic";
 
 type PageProps = {
   params: Promise<{ slug: string }> | { slug: string };
-  searchParams?: Promise<Record<string, string | string[] | undefined>> | Record<string, string | string[] | undefined>;
 };
 
-export default async function ListingDetailPage({ params, searchParams }: PageProps) {
+export default async function ListingDetailPage({ params }: PageProps) {
   const { slug } = await params;
-  const query = (await searchParams) ?? {};
-  const requestedAccountId = one(query.account);
-  const [listing, addons, listingMessages, renterAccounts] = await Promise.all([
-    getListingBySlug(slug),
+  const [listing, addons, actor, listingRecord] = await Promise.all([
+    getPublicListingBySlug(slug),
     getEquipmentAddons(),
-    prisma.listingMessage.findMany({
-      where: { listing: { slug } },
-      include: { sender: true },
-      orderBy: { createdAt: "asc" }
-    }),
-    prisma.user.findMany({ where: { role: "RENTER" }, orderBy: { createdAt: "asc" } })
+    getOptionalUser(),
+    prisma.listing.findFirst({
+      where: { slug, status: "APPROVED", host: { is: { role: "HOST", suspended: false, verificationStatus: "APPROVED", platformSubscriptionStatus: "ACTIVE" } } },
+      select: { id: true }
+    })
   ]);
-  if (!listing) notFound();
+  if (!listing || !listingRecord) notFound();
+
+  const conversation = actor?.role === "RENTER" && !actor.suspended ? await prisma.conversation.findUnique({
+    where: { listingId_renterId: { listingId: listingRecord.id, renterId: actor.id } },
+    include: { messages: { include: { sender: true }, orderBy: { createdAt: "asc" } } }
+  }) : null;
 
   const listingAddons = addons.filter((addon) => listing.equipmentSlugs.includes(addon.slug));
-  const renter = renterAccounts.find((account) => account.id === requestedAccountId) ?? renterAccounts.find((account) => account.id === "demo-renter") ?? renterAccounts[0];
-  const accountQuery = renter ? `?account=${renter.id}` : "";
   return (
     <main>
       <section className="bg-ink text-white">
         <div className="section-shell grid gap-8 py-8 lg:grid-cols-[1.1fr_0.9fr]">
           <div>
-            <img src={listing.photoUrls[0]} alt="" className="h-[460px] w-full border border-white/20 object-cover" />
+            <img src={listing.photoUrls[0]} alt={`${listing.title} workspace`} className="h-[460px] w-full border border-white/20 object-cover" />
           </div>
           <div className="flex flex-col justify-between gap-6">
             <div>
@@ -56,7 +55,7 @@ export default async function ListingDetailPage({ params, searchParams }: PagePr
               <Spec icon={Truck} label="Loading" value={listing.loadingAccess.join(", ")} />
               <Spec icon={CalendarDays} label="Access" value={listing.accessHours} />
             </div>
-            <a href={`/checkout/${listing.slug}${accountQuery}`} className="button-primary">
+            <a href={`/checkout/${listing.slug}`} className="button-primary">
               Request booking <ArrowRight size={18} />
             </a>
           </div>
@@ -66,7 +65,7 @@ export default async function ListingDetailPage({ params, searchParams }: PagePr
       <section className="section-shell grid gap-8 py-10 lg:grid-cols-[1fr_360px]">
         <div className="space-y-8">
           <Panel title="Floor plan">
-            <img src={listing.floorPlanUrl} alt="" className="h-72 w-full border border-neutral-300 bg-white object-cover" />
+            <img src={listing.floorPlanUrl} alt={`Floor plan for ${listing.title}`} className="h-72 w-full border border-neutral-300 bg-white object-cover" loading="lazy" />
           </Panel>
           <Panel title="Included amenities">
             <TagList items={listing.includedAmenities} icon="check" />
@@ -114,28 +113,28 @@ export default async function ListingDetailPage({ params, searchParams }: PagePr
             ))}
           </div>
           <p className="mt-4 text-sm font-bold text-steel">Welding/hot work adds an extra deposit where available.</p>
-          <a className="button-dark mt-5 w-full" href={`/checkout/${listing.slug}${accountQuery}`}>
+          <a className="button-dark mt-5 w-full" href={`/checkout/${listing.slug}`}>
             Continue to checkout
           </a>
           <div className="mt-5 grid gap-3">
-            {renter && (
-              <DemoAccountSelector accounts={renterAccounts} currentAccountId={renter.id} hrefBase={`/listings/${listing.slug}`} label="Choose renter account for this chat" />
+            {actor?.role === "RENTER" && !actor.suspended ? (
+              <ListingChat
+                listingId={listingRecord.id}
+                conversationId={conversation?.id}
+                messages={conversation?.messages ?? []}
+                currentUserId={actor.id}
+                title="Chat with host before booking"
+                placeholder="Ask about access, loading, power, equipment, or timing before checkout."
+              />
+            ) : (
+              <a className="button-secondary w-full" href="/sign-in">Sign in as a renter to start a private chat</a>
             )}
-            <ListingChat
-              listingSlug={listing.slug}
-              messages={listingMessages}
-              senderRole="RENTER"
-              senderId={renter?.id}
-              title="Chat with host before booking"
-              placeholder="Ask about access, loading, power, equipment, or timing before checkout."
-            />
           </div>
         </aside>
       </section>
     </main>
   );
 }
-
 function Spec({ icon: Icon, label, value }: { icon: LucideIcon; label: string; value: string }) {
   return (
     <div className="border border-white/20 p-3">
@@ -171,8 +170,4 @@ function TagList({ items, icon }: { items: string[]; icon: "check" | "x" | "aler
       })}
     </div>
   );
-}
-
-function one(value: string | string[] | undefined): string | undefined {
-  return Array.isArray(value) ? value[0] : value;
 }

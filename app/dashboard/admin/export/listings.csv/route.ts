@@ -1,12 +1,17 @@
 import { csvResponse, toCsv } from "@/src/lib/csv-export";
 import { prisma } from "@/src/lib/db";
+import { requireAdmin } from "@/src/lib/authorization";
+import { enforceRateLimit } from "@/src/lib/rate-limit";
 
 export const dynamic = "force-dynamic";
 
 export async function GET() {
-  const listings = await prisma.listing.findMany({
-    orderBy: { createdAt: "desc" },
-    select: {
+  const admin = await requireAdmin();
+  await enforceRateLimit({ action: "export:listings", identity: admin.id, limit: 5, windowSeconds: 60 * 60 });
+  const listings = await prisma.$transaction(async (tx) => {
+    const rows = await tx.listing.findMany({
+      orderBy: { createdAt: "desc" },
+      select: {
       accessHours: true,
       address: true,
       cleaningFee: true,
@@ -28,8 +33,11 @@ export async function GET() {
       spaceType: true,
       status: true,
       title: true,
-      zoning: true
-    }
+        factoryType: true
+      }
+    });
+    await tx.adminExportEvent.create({ data: { actorId: admin.id, exportType: "listings", rowCount: rows.length } });
+    return rows;
   });
 
   const csv = toCsv(listings, [
@@ -41,7 +49,7 @@ export async function GET() {
     { key: "location", header: "Location" },
     { key: "sizeSqft", header: "Size sqft" },
     { key: "spaceType", header: "Space type" },
-    { key: "zoning", header: "Factory type" },
+    { key: "factoryType", header: "Factory type" },
     { key: "powerType", header: "Power" },
     { key: "loadingAccessJson", header: "Loading access" },
     { key: "accessHours", header: "Access hours" },

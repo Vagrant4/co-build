@@ -1,4 +1,4 @@
-import { Camera, ClipboardPlus, CreditCard, FileCheck2, FileText } from "lucide-react";
+import { Camera, ClipboardPlus, CreditCard, Download, FileCheck2, FileText } from "lucide-react";
 import {
   confirmDealAction,
   confirmAdditionalRequirementPaymentAction,
@@ -7,46 +7,45 @@ import {
   submitPlatformSubscriptionPaymentAction,
   uploadBookingPhotoAction
 } from "@/app/actions";
+import { PrivateUploadField } from "@/components/private-upload-field";
 import { BookingChat } from "@/components/booking-chat";
-import { DemoAccountSelector } from "@/components/demo-account-selector";
 import { StatusBadge } from "@/components/status-badge";
+import { PrivacyRequestPanel } from "@/components/privacy-request-panel";
+import { NotificationCenter } from "@/components/notification-center";
 import { dealConfirmationStatus, formatCurrency, PLATFORM_SUBSCRIPTION_MONTHLY } from "@/src/lib/fabrication";
 import { prisma } from "@/src/lib/db";
+import { requirePageRole } from "@/src/lib/page-authorization";
+import { getAppMode } from "@/src/lib/app-mode";
 
 export const dynamic = "force-dynamic";
 
-type PageProps = {
-  searchParams?: Promise<Record<string, string | string[] | undefined>> | Record<string, string | string[] | undefined>;
-};
-
-export default async function UserDashboardPage({ searchParams }: PageProps) {
-  const params = (await searchParams) ?? {};
-  const requestedAccountId = one(params.account);
-  const renterAccounts = await prisma.user.findMany({ where: { role: "RENTER" }, orderBy: { createdAt: "asc" } });
-  const user = renterAccounts.find((account) => account.id === requestedAccountId) ?? renterAccounts.find((account) => account.id === "demo-renter") ?? renterAccounts[0];
-  const bookings = await prisma.booking.findMany({
+export default async function UserDashboardPage() {
+  const user = await requirePageRole("RENTER");
+  const [bookings, privacyRequests, notifications] = await Promise.all([prisma.booking.findMany({
       where: { userId: user.id },
       include: {
         listing: true,
         addons: { include: { equipmentAddon: true } },
         uploads: true,
         messages: { include: { sender: true }, orderBy: { createdAt: "asc" } },
-        additionalRequirements: { orderBy: { createdAt: "desc" } }
+        additionalRequirements: { orderBy: { createdAt: "desc" } },
+        paymentRecords: { orderBy: { submittedAt: "desc" } }
       },
-      orderBy: { createdAt: "desc" }
-    });
+      orderBy: { createdAt: "desc" },
+      take: 50
+    }), prisma.privacyRequest.findMany({ where: { userId: user.id }, orderBy: { createdAt: "desc" }, take: 10 }), prisma.notification.findMany({ where: { userId: user.id, channel: "IN_APP" }, orderBy: { createdAt: "desc" }, take: 20 })]);
+  const realPaymentProofRequired = getAppMode() !== "demo";
+  const accountLabel = getAppMode() === "demo" ? "Demo renter" : "Renter account";
 
   return (
     <main className="section-shell py-8">
       <div className="mb-6">
-        <p className="text-sm font-black uppercase text-hazard">Demo renter</p>
+        <p className="text-sm font-black uppercase text-hazard">{accountLabel}</p>
         <h1 className="text-4xl font-black">User dashboard</h1>
         <p className="mt-2 font-bold text-steel">Track approvals, company-account payment proof, and check-in/check-out photo uploads.</p>
       </div>
-      <DemoAccountSelector accounts={renterAccounts} currentAccountId={user.id} hrefBase="/dashboard/user" label="Choose renter account" />
       <PlatformSubscriptionPanel
         title="Renter platform subscription"
-        userId={user.id}
         email={user.email}
         status={user.platformSubscriptionStatus}
         reference={user.platformSubscriptionReference}
@@ -54,6 +53,7 @@ export default async function UserDashboardPage({ searchParams }: PageProps) {
         periodEndAt={user.platformSubscriptionPeriodEnd}
         labelPrefix="Renter"
       />
+      <NotificationCenter notifications={notifications} />
       <div className="grid gap-5">
         {bookings.map((booking) => (
           <section key={booking.id} className="card grid gap-5 p-5 lg:grid-cols-[1fr_360px]">
@@ -67,6 +67,7 @@ export default async function UserDashboardPage({ searchParams }: PageProps) {
               <p className="font-bold text-steel">{booking.listing.address}</p>
               <div className="mt-4 grid gap-3 md:grid-cols-4">
                 <Metric label="Duration" value={`${booking.durationDays} days`} />
+                <Metric label="Start" value={booking.startAt ? formatDate(booking.startAt) : "Not recorded"} />
                 <Metric label="Work" value={booking.workType} />
                 <Metric label="Deposit" value={formatCurrency(booking.deposit)} />
                 <Metric label="Total" value={formatCurrency(booking.grandTotal)} />
@@ -96,36 +97,46 @@ export default async function UserDashboardPage({ searchParams }: PageProps) {
             </div>
             <aside className="space-y-4 border border-neutral-300 bg-smoke p-4">
               {booking.status === "APPROVED_FOR_PAYMENT" && (
-                <form action={confirmPaymentAction}>
+                <form action={confirmPaymentAction} className="grid gap-3 border border-neutral-300 bg-white p-3">
                   <input type="hidden" name="bookingId" value={booking.id} />
+                  <label>
+                    <span className="label">Company-account payment reference</span>
+                    <input className="field" name="paymentReference" placeholder="PayNow or bank reference" required />
+                  </label>
+                  <PrivateUploadField label={`Payment proof${realPaymentProofRequired ? "" : " (optional in demo)"}`} name="paymentProof" type="PAYMENT_EVIDENCE" bookingId={booking.id} accept="image/jpeg,image/png,application/pdf" required={realPaymentProofRequired} />
                   <button className="button-primary w-full" type="submit">
-                    <CreditCard size={18} /> Confirm company-account payment
+                    <CreditCard size={18} /> Submit payment for verification
                   </button>
                 </form>
               )}
-              <DealConfirmationForm bookingId={booking.id} confirmed={Boolean(booking.renterDealConfirmedAt)} role="RENTER" actorId={user.id} label="Confirm deal as renter" />
+              {booking.status === "PAYMENT_SUBMITTED" && <p className="border border-amber-400 bg-amber-50 p-3 text-sm font-black text-amber-900">Payment proof submitted. Booking remains unpaid until admin verifies the company account.</p>}
+              <a className="button-secondary w-full" href={`/dashboard/bookings/${booking.id}/agreement`}>
+                <FileText size={18} aria-hidden="true" /> View booking agreement
+              </a>
+              <a className="button-secondary w-full" href={`/api/bookings/${booking.id}/documents/booking-summary`}><Download size={18} aria-hidden="true" /> Download PDF</a>
+              <DealConfirmationForm bookingId={booking.id} confirmed={Boolean(booking.renterDealConfirmedAt)} label="Confirm deal as renter" />
               <BookingChat
                 bookingId={booking.id}
                 messages={booking.messages}
-                senderRole="RENTER"
                 title="Chat with host"
-                senderId={user.id}
+                currentUserId={user.id}
                 placeholder="Ask the host about access, loading, timing, or setup."
               />
-              <AdditionalRequirementForm bookingId={booking.id} userId={user.id} />
+              <AdditionalRequirementForm bookingId={booking.id} />
               <PhotoForm bookingId={booking.id} type="CHECK_IN" label="Upload check-in photos" />
               <PhotoForm bookingId={booking.id} type="CHECK_OUT" label="Upload check-out photos" />
             </aside>
           </section>
         ))}
+        {!bookings.length && <section className="card p-6"><h2 className="text-2xl font-black">No booking requests yet</h2><p className="mt-2 font-bold text-steel">Search approved spaces and submit your first request when you are ready.</p></section>}
       </div>
+      <PrivacyRequestPanel requests={privacyRequests} />
     </main>
   );
 }
 
 function PlatformSubscriptionPanel({
   title,
-  userId,
   email,
   status,
   reference,
@@ -134,7 +145,6 @@ function PlatformSubscriptionPanel({
   labelPrefix
 }: {
   title: string;
-  userId: string;
   email: string;
   status: string;
   reference: string | null;
@@ -164,8 +174,7 @@ function PlatformSubscriptionPanel({
         {reference && <p className="mt-2 text-sm font-bold text-steel">Latest payment reference: {reference}</p>}
       </div>
       <form action={submitPlatformSubscriptionPaymentAction} className="payment-card grid content-between gap-3 border border-neutral-200 bg-white p-4">
-        <input type="hidden" name="userId" value={userId} />
-        <input type="hidden" name="paymentReference" value={`company_account_${labelPrefix.toLowerCase()}_${userId}`} />
+        <input type="hidden" name="paymentReference" value={`company_account_${labelPrefix.toLowerCase()}_${Date.now()}`} />
         <div>
           <p className="label">{labelPrefix} company-account payment</p>
           <p className="text-sm font-bold text-steel">Submit the recurring S$5/month payment reference. Admin activates after checking the company account.</p>
@@ -192,7 +201,6 @@ type AdditionalRequirementView = {
   status: string;
   quotedRate: number;
   contractText: string | null;
-  emailedTo: string | null;
 };
 
 function AdditionalRequirementList({ requests }: { requests: AdditionalRequirementView[] }) {
@@ -208,23 +216,14 @@ function AdditionalRequirementList({ requests }: { requests: AdditionalRequireme
                 {request.quotedRate > 0 && <span className="status-pill">{formatCurrency(request.quotedRate)}</span>}
               </div>
               <p className="mt-2 text-sm font-bold text-steel">{request.detail}</p>
-              {request.contractText && (
-                <details className="mt-3" open>
-                  <summary className="flex cursor-pointer items-center gap-2 text-sm font-black uppercase text-hazard">
-                    <FileText size={16} aria-hidden="true" />
-                    Generated contract
-                  </summary>
-                  <pre className="mt-2 whitespace-pre-wrap border border-neutral-200 bg-smoke p-3 text-xs font-bold text-steel">
-                    {request.contractText}
-                  </pre>
-                </details>
-              )}
-              {request.emailedTo && <p className="mt-2 text-sm font-black">Contract emailed to {request.emailedTo}</p>}
+              {request.contractText && <p className="mt-3 flex items-center gap-2 text-sm font-black text-hazard"><FileText size={16} aria-hidden="true" /> Approved add-on included in the booking agreement.</p>}
+              {request.contractText && <p className="mt-2 text-sm font-black">Record available in the renter and host dashboards.</p>}
               {request.status === "APPROVED_FOR_PAYMENT" && (
-                <form action={confirmAdditionalRequirementPaymentAction} className="mt-3">
+                <form action={confirmAdditionalRequirementPaymentAction} className="mt-3 grid gap-2">
                   <input type="hidden" name="requestId" value={request.id} />
+                  <input className="field" name="paymentReference" placeholder="PayNow or bank reference" required />
                   <button className="button-primary" type="submit">
-                    <CreditCard size={18} /> Confirm add-on payment {formatCurrency(request.quotedRate)}
+                    <CreditCard size={18} /> Submit add-on payment {formatCurrency(request.quotedRate)}
                   </button>
                 </form>
               )}
@@ -247,11 +246,10 @@ function Metric({ label, value }: { label: string; value: string }) {
   );
 }
 
-function AdditionalRequirementForm({ bookingId, userId }: { bookingId: string; userId: string }) {
+function AdditionalRequirementForm({ bookingId }: { bookingId: string }) {
   return (
     <form action={createAdditionalRequirementAction} className="grid gap-3 border border-neutral-200 bg-white p-3">
       <input type="hidden" name="bookingId" value={bookingId} />
-      <input type="hidden" name="userId" value={userId} />
       <label>
         <span className="label">Additional requirement details</span>
         <textarea
@@ -268,14 +266,12 @@ function AdditionalRequirementForm({ bookingId, userId }: { bookingId: string; u
   );
 }
 
-function DealConfirmationForm({ bookingId, role, label, confirmed, actorId }: { bookingId: string; role: "RENTER" | "HOST"; label: string; confirmed: boolean; actorId: string }) {
+function DealConfirmationForm({ bookingId, label, confirmed }: { bookingId: string; label: string; confirmed: boolean }) {
   return confirmed ? (
     <div className="border border-neutral-200 bg-white p-3 text-sm font-black text-steel">Deal confirmed on platform.</div>
   ) : (
     <form action={confirmDealAction} className="grid gap-2 border border-neutral-200 bg-white p-3">
       <input type="hidden" name="bookingId" value={bookingId} />
-      <input type="hidden" name="role" value={role} />
-      <input type="hidden" name="actorId" value={actorId} />
       <p className="text-sm font-bold text-steel">Confirm the deal on-platform. Admin does not charge a deal commission.</p>
       <button className="button-secondary" type="submit">
         {label}
@@ -289,17 +285,10 @@ function PhotoForm({ bookingId, type, label }: { bookingId: string; type: "CHECK
     <form action={uploadBookingPhotoAction} className="grid gap-3 border border-neutral-200 bg-white p-3">
       <input type="hidden" name="bookingId" value={bookingId} />
       <input type="hidden" name="uploadKind" value={type} />
-      <label>
-        <span className="label">{label}</span>
-        <input name="photo" type="file" accept="image/*" />
-      </label>
+      <PrivateUploadField label={label} name="photo" type={type} bookingId={bookingId} accept="image/jpeg,image/png,image/webp" required />
       <button className="button-secondary" type="submit">
         <Camera size={18} /> Upload
       </button>
     </form>
   );
-}
-
-function one(value: string | string[] | undefined): string | undefined {
-  return Array.isArray(value) ? value[0] : value;
 }

@@ -10,13 +10,13 @@ function read(path: string) {
 
 describe("production deployment setup", () => {
   it("keeps a Postgres Prisma schema for live hosting without changing the local SQLite demo", () => {
-    const schemaPath = join(root, "prisma", "schema.postgres.prisma");
+    const schemaPath = join(root, "prisma", "postgres", "schema.prisma");
 
     expect(existsSync(schemaPath)).toBe(true);
 
-    const postgresSchema = read("prisma/schema.postgres.prisma");
-    expect(postgresSchema).toContain('provider = "postgresql"');
-    expect(postgresSchema).toContain('url      = env("DATABASE_URL")');
+    const postgresSchema = read("prisma/postgres/schema.prisma");
+    expect(postgresSchema).toMatch(/provider\s+=\s+"postgresql"/);
+    expect(postgresSchema).toMatch(/url\s+=\s+env\("DATABASE_URL"\)/);
     expect(postgresSchema).toContain("model Booking");
 
     const localSchema = read("prisma/schema.prisma");
@@ -28,23 +28,23 @@ describe("production deployment setup", () => {
     const packageJson = JSON.parse(read("package.json")) as { scripts: Record<string, string> };
 
     expect(packageJson.scripts["prisma:generate:prod"]).toBe(
-      "prisma generate --schema prisma/schema.postgres.prisma"
-    );
-    expect(packageJson.scripts["db:push:prod"]).toBe(
-      "prisma db push --schema prisma/schema.postgres.prisma"
+      "prisma generate --schema prisma/postgres/schema.prisma"
     );
     expect(packageJson.scripts["db:deploy:prod"]).toBe(
-      "prisma db push --schema prisma/schema.postgres.prisma --skip-generate"
+      "prisma migrate deploy --schema prisma/postgres/schema.prisma"
     );
     expect(packageJson.scripts["db:seed:if-empty"]).toBe("tsx prisma/seed-if-empty.ts");
     expect(packageJson.scripts["vercel-build"]).toBe(
-      "npm run db:deploy:prod && npm run prisma:generate:prod && npm run db:seed:if-empty && next build"
+      "npm run prisma:generate:prod && npm run pilot:preflight && next build"
     );
 
     expect(read("vercel.json")).toContain('"buildCommand": "npm run vercel-build"');
 
     const envExample = read(".env.example");
     expect(envExample).toContain("DATABASE_URL=");
+    expect(envExample).toContain("APP_MODE=");
+    expect(envExample).toContain("NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=");
+    expect(envExample).toContain("CLERK_SECRET_KEY=");
     expect(envExample).toContain("NEXT_PUBLIC_APP_URL=");
     expect(envExample).toContain("COMPANY_PAYMENT_NAME=");
     expect(envExample).toContain("COMPANY_PAYMENT_UEN=");

@@ -1,6 +1,7 @@
 import { MessageSquare, Send } from "lucide-react";
-import { sendListingMessageAction } from "@/app/actions";
+import { sendConversationMessageAction, startListingConversationAction } from "@/app/actions";
 import { CONTACT_POLICY_MESSAGE } from "@/src/lib/contact-policy";
+import { MessageReportForm } from "@/components/message-report-form";
 
 export type ListingChatMessage = {
   id: string;
@@ -14,18 +15,18 @@ export type ListingChatMessage = {
 };
 
 export function ListingChat({
-  listingSlug,
+  listingId,
+  conversationId,
   messages,
-  senderRole,
-  senderId,
+  currentUserId,
   title,
   placeholder,
   variant = "full"
 }: {
-  listingSlug: string;
+  listingId: string;
+  conversationId?: string;
   messages: ListingChatMessage[];
-  senderRole: "RENTER" | "HOST";
-  senderId?: string;
+  currentUserId: string;
   title: string;
   placeholder: string;
   variant?: "full" | "compact";
@@ -55,8 +56,8 @@ export function ListingChat({
             <p className="border border-hazard/40 bg-hazard/10 px-3 py-2 text-xs font-black uppercase leading-relaxed text-ink">
               {CONTACT_POLICY_MESSAGE}
             </p>
-            <MessageList messages={messages} senderRole={senderRole} senderId={senderId} compact />
-            <ListingMessageForm listingSlug={listingSlug} senderRole={senderRole} senderId={senderId} placeholder={placeholder} />
+            <MessageList messages={messages} currentUserId={currentUserId} compact />
+            <ListingMessageForm listingId={listingId} conversationId={conversationId} placeholder={placeholder} />
           </div>
         </details>
       </section>
@@ -79,21 +80,19 @@ export function ListingChat({
       <p className="border border-hazard/40 bg-hazard/10 px-3 py-2 text-xs font-black uppercase leading-relaxed text-ink">
         {CONTACT_POLICY_MESSAGE}
       </p>
-      <MessageList messages={messages} senderRole={senderRole} senderId={senderId} />
-      <ListingMessageForm listingSlug={listingSlug} senderRole={senderRole} senderId={senderId} placeholder={placeholder} />
+      <MessageList messages={messages} currentUserId={currentUserId} />
+      <ListingMessageForm listingId={listingId} conversationId={conversationId} placeholder={placeholder} />
     </section>
   );
 }
 
 function MessageList({
   messages,
-  senderRole,
-  senderId,
+  currentUserId,
   compact = false
 }: {
   messages: ListingChatMessage[];
-  senderRole: "RENTER" | "HOST";
-  senderId?: string;
+  currentUserId: string;
   compact?: boolean;
 }) {
   const visibleMessages = compact ? messages.slice(-3) : messages;
@@ -102,7 +101,7 @@ function MessageList({
     <div className={compact ? "grid max-h-56 gap-2 overflow-y-auto border border-neutral-200 bg-smoke p-2" : "grid max-h-72 gap-2 overflow-y-auto border border-neutral-200 bg-smoke p-2"}>
       {visibleMessages.length ? (
         visibleMessages.map((message) => {
-          const isMine = senderId ? message.sender.id === senderId : message.sender.role === senderRole;
+          const isMine = message.sender.id === currentUserId;
           return (
             <article
               key={message.id}
@@ -117,6 +116,7 @@ function MessageList({
                 <time className={isMine ? "text-neutral-300" : "text-steel"}>{formatChatTime(message.createdAt)}</time>
               </div>
               <p className={isMine ? "mt-1 text-sm font-bold text-neutral-100" : "mt-1 text-sm font-bold text-steel"}>{message.body}</p>
+              {!isMine ? <MessageReportForm messageId={message.id} messageKind="CONVERSATION" dark={isMine} /> : null}
             </article>
           );
         })
@@ -130,21 +130,21 @@ function MessageList({
 }
 
 function ListingMessageForm({
-  listingSlug,
-  senderRole,
-  senderId,
+  listingId,
+  conversationId,
   placeholder
 }: {
-  listingSlug: string;
-  senderRole: "RENTER" | "HOST";
-  senderId?: string;
+  listingId: string;
+  conversationId?: string;
   placeholder: string;
 }) {
   return (
-    <form action={sendListingMessageAction} className="grid gap-2">
-      <input type="hidden" name="listingSlug" value={listingSlug} />
-      <input type="hidden" name="senderRole" value={senderRole} />
-      {senderId && <input type="hidden" name="senderId" value={senderId} />}
+    <form action={conversationId ? sendConversationMessageAction : startListingConversationAction} className="grid gap-2">
+      {conversationId ? (
+        <input type="hidden" name="conversationId" value={conversationId} />
+      ) : (
+        <input type="hidden" name="listingId" value={listingId} />
+      )}
       <label className="grid gap-1">
         <span className="label">New message</span>
         <textarea className="field min-h-20 resize-y" name="message" maxLength={1000} required placeholder={placeholder} />

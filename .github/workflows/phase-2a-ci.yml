@@ -1,0 +1,114 @@
+name: Pilot readiness release gate
+
+on:
+  push:
+    branches:
+      - "codex/**"
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      run_blob_smoke:
+        description: Run private Blob smoke test (requires repository secret)
+        required: false
+        type: boolean
+        default: false
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: co_build_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d co_build_ci"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      APP_MODE: demo
+      DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/co_build_ci
+      DIRECT_URL: postgresql://postgres:postgres@127.0.0.1:5432/co_build_ci
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: npm
+      - name: Install dependencies
+        shell: bash
+        run: |
+          set +e
+          npm ci > npm-ci.log 2>&1
+          status=$?
+          cat npm-ci.log
+          if [ "$status" -ne 0 ]; then
+            message=$( (head -n 30 npm-ci.log; tail -n 10 npm-ci.log) | tr '\n' ' ' | sed 's/%/%25/g')
+            echo "::error title=npm ci failed::$message"
+            exit "$status"
+          fi
+      - run: npx prisma validate --schema prisma/schema.prisma
+      - run: npx prisma validate --schema prisma/postgres/schema.prisma
+      - run: npm run prisma:generate:prod
+      - run: npm run db:deploy:prod
+      - name: Verify Postgres baseline
+        run: npx tsx scripts/verify-postgres-baseline.ts
+      - run: npm run prisma:generate
+      - run: npm test
+      - run: npm run test:auth
+      - run: npm audit --audit-level=high
+      - run: npm run prisma:generate:prod
+      - name: Build pilot artifact
+        env:
+          APP_MODE: pilot
+          NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: pk_test_ci_placeholder
+          CLERK_SECRET_KEY: sk_test_ci_placeholder
+          NEXT_PUBLIC_APP_URL: https://co-build.example
+          REAL_UPLOADS_ENABLED: "true"
+          BLOB_READ_WRITE_TOKEN: vercel_blob_rw_ci_placeholder
+          ALLOW_UNSCANNED_UPLOADS: "true"
+          COMPANY_PAYMENT_NAME: Co-Build Pte Ltd
+          COMPANY_PAYMENT_UEN: 202600000A
+          COMPANY_PAYMENT_BANK: Test Bank
+          COMPANY_PAYMENT_ACCOUNT: 000-000
+          DPO_CONTACT_EMAIL: privacy@example.com
+          SUPPORT_CONTACT_EMAIL: support@example.com
+          OPERATIONS_OWNER_EMAIL: ops@example.com
+          SECURITY_OWNER_EMAIL: security@example.com
+          BACKUP_OWNER_EMAIL: backup@example.com
+          CRON_SECRET: ci-cron-secret
+          ERROR_MONITORING_PROJECT_URL: https://monitoring.example/co-build
+          OPS_ALERT_WEBHOOK_URL: https://alerts.example/co-build
+          UPTIME_MONITOR_URL: https://monitor.example/co-build
+          INCIDENT_RESPONSE_URL: https://docs.example/co-build/incidents
+          RESTORE_DRILL_COMPLETED_AT: 2026-08-08T00:00:00.000Z
+          DATA_RETENTION_UPLOAD_DAYS: "365"
+          DATA_RETENTION_ACCOUNT_DAYS: "2555"
+          RETENTION_EXECUTION_ENABLED: "true"
+          RESEND_API_KEY: re_ci_placeholder
+          TRANSACTIONAL_EMAIL_FROM: "Co-Build <notifications@example.com>"
+          LEGAL_REVIEW_APPROVED_VERSION: pilot-2026-08-07-r2
+          PREFLIGHT_ALLOW_NON_POOLER_DATABASE: "true"
+        run: npm run vercel-build
+      - run: npx playwright install --with-deps chromium
+      - run: npm run db:seed
+      - run: npm run test:e2e
+
+  private-blob-smoke:
+    if: github.event_name == 'workflow_dispatch' && inputs.run_blob_smoke
+    runs-on: ubuntu-latest
+    env:
+      BLOB_READ_WRITE_TOKEN: ${{ secrets.BLOB_READ_WRITE_TOKEN }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npx tsx scripts/blob-smoke.ts

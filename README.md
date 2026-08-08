@@ -1,64 +1,66 @@
 # Co-Build MVP
 
-Full-stack MVP for short-term fabrication workspace rental in Singapore.
+Singapore-first marketplace MVP for short-term fabrication workspace rental.
 
-## Current Status
+## Status
 
-This repository is ready for controlled demos and structured pre-launch review. It is not ready for public production traffic yet.
+Phase 1 established managed identity, centralized authorization, participant-scoped conversations, and protected admin exports. Phase 2A adds private direct uploads, validated upload metadata, permission-checked downloads, reviewed PostgreSQL migrations, operations reporting, and a basic health/logging baseline. The pilot automation pass adds fail-closed pre-render route gates, in-app and email notification outboxes, message moderation, audit checkpoints, guarded retention, bank reconciliation, restore-drill tooling, public approved-listing photos, and desktop/mobile browser gates.
 
-Primary public-launch blockers:
+Co-Build is suitable for demos and continued invite-only pilot preparation. It is **not production-ready**, and real uploads remain disabled by default.
 
-- Real authentication and authorization are not implemented.
-- Admin dashboards and CSV exports are currently demo-accessible.
-- Uploads are stored on the local filesystem, which is not durable on Vercel serverless hosting.
-- Production deployment currently uses `prisma db push` and demo seeding, not reviewed migrations and controlled production seed data.
+Before any real pilot account or file:
 
-Start the readiness review here: [docs/PRELAUNCH_REVIEW.md](docs/PRELAUNCH_REVIEW.md).
+- Connect a Vercel Blob store created with **Private** access.
+- Configure Clerk for the pilot environment.
+- Use a separate Neon production branch, pooled runtime URL, direct migration URL, backups, and a completed restore drill.
+- Configure persistent error alerts and an external uptime check for `/api/health`.
+- Configure and test the malware-scanner adapter. Temporary unscanned pilot uploads require an explicit risk flag; production uploads fail closed without the scanner.
 
 ## Run Locally
 
-```bash
-npm.cmd install --ignore-scripts
+```powershell
+npm.cmd install
 npm.cmd run prisma:generate
-npm.cmd exec prisma db execute -- --schema prisma\schema.prisma --file prisma\migrations\20260614150000_init\migration.sql
+npm.cmd run db:push
+$env:APP_MODE="demo"
 npm.cmd run db:seed
 npm.cmd run dev -- --hostname 127.0.0.1 --port 3000
 ```
 
-The current local SQLite database is `prisma/dev.db` and is ignored by git. Uploaded verification/check-in/check-out files go to `uploads/` and are also ignored.
+SQLite lives at `prisma/dev.db` and is ignored. Seeded upload rows are `LEGACY_DEMO` metadata only; no pilot or production route serves local paths.
 
-## What Is Included
+## Release Commands
 
-- Homepage, search results, listing detail, checkout, renter dashboard, host dashboard, host listing form, admin dashboard, pricing, safety, FAQ, and contact pages.
-- Demo renter, host, and admin role flows.
-- Seeded listings with exact sqft requirements and smaller/bigger-than-1,000-sqft search behavior.
-- Pricing, deposit, cleaning fee, equipment add-on, zoning/risk, and booking workflow logic.
-- Local file uploads for verification and check-in/check-out photos.
-- Admin approval controls for listings, users, high-risk work, pricing, equipment, and unsafe-user suspension.
+```powershell
+npm.cmd test
+npm.cmd exec prisma validate -- --schema prisma/schema.prisma
+npm.cmd exec prisma validate -- --schema prisma/postgres/schema.prisma
+npm.cmd run build
+npm.cmd run ops:report -- --json
+npm.cmd run test:e2e
+npm.cmd audit --audit-level=high
+```
+
+Production migrations are a controlled release step:
+
+```powershell
+npm.cmd run prisma:generate:prod
+npm.cmd run db:deploy:prod
+npm.cmd run vercel-build
+```
+
+`vercel-build` does not mutate the database and does not seed demo data.
 
 ## Documentation
 
-- [Pre-launch review index](docs/PRELAUNCH_REVIEW.md)
-- [Architecture overview](docs/ARCHITECTURE.md)
-- [Database schema review](docs/DATABASE_SCHEMA_REVIEW.md)
-- [Security audit](docs/SECURITY_AUDIT.md)
-- [Performance and scalability notes](docs/PERFORMANCE_SCALABILITY.md)
-- [Production readiness checklist](docs/PRODUCTION_READINESS_CHECKLIST.md)
+- [Phase 2A implementation report](docs/PHASE_2A_IMPLEMENTATION_REPORT.md)
+- [Private storage setup](docs/PRIVATE_STORAGE_SETUP.md)
+- [Production operations checklist](docs/PRODUCTION_OPERATIONS_CHECKLIST.md)
+- [Phase 1 implementation report](docs/PHASE_1_IMPLEMENTATION_REPORT.md)
+- [Clerk pilot setup](docs/CLERK_SETUP.md)
 - [Deployment guide](DEPLOYMENT.md)
-- [Rollback and recovery guide](docs/ROLLBACK_RECOVERY.md)
-- [Maintenance guide](docs/MAINTENANCE.md)
-
-## Verification
-
-```bash
-npm.cmd test
-npm.cmd exec prisma validate
-npm.cmd run build
-node scripts\verify-webapp.cjs
-```
-
-## Publish Live
-
-See [DEPLOYMENT.md](DEPLOYMENT.md) for the Vercel + Postgres + company-account payment-reference deployment path.
-
-The local demo uses SQLite at `prisma/dev.db`. Live hosting should use `prisma/schema.postgres.prisma` with a hosted Postgres `DATABASE_URL`.
+- [Rollback and recovery](docs/ROLLBACK_RECOVERY.md)
+- [Production readiness checklist](docs/PRODUCTION_READINESS_CHECKLIST.md)
+- [Pilot readiness automation report](docs/PILOT_READINESS_AUTOMATION_REPORT.md)
+- [Pilot operations runbook](docs/PILOT_OPERATIONS_RUNBOOK.md)
+- [External configuration checklist](docs/EXTERNAL_CONFIGURATION_CHECKLIST.md)

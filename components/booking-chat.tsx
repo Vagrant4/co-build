@@ -1,6 +1,7 @@
 import { MessageSquare, Send } from "lucide-react";
 import { sendBookingMessageAction } from "@/app/actions";
 import { CONTACT_POLICY_MESSAGE } from "@/src/lib/contact-policy";
+import { MessageReportForm } from "@/components/message-report-form";
 
 export type BookingChatMessage = {
   id: string;
@@ -16,15 +17,13 @@ export type BookingChatMessage = {
 export function BookingChat({
   bookingId,
   messages,
-  senderRole,
-  senderId,
+  currentUserId,
   title,
   placeholder
 }: {
   bookingId: string;
   messages: BookingChatMessage[];
-  senderRole: "RENTER" | "HOST";
-  senderId?: string;
+  currentUserId: string;
   title: string;
   placeholder: string;
 }) {
@@ -45,7 +44,7 @@ export function BookingChat({
       <div className="grid max-h-72 gap-2 overflow-y-auto border border-neutral-200 bg-smoke p-2">
         {messages.length ? (
           messages.map((message) => {
-            const isMine = senderId ? message.sender.id === senderId : message.sender.role === senderRole;
+            const isMine = message.sender.id === currentUserId;
             return (
               <article
                 key={message.id}
@@ -60,6 +59,7 @@ export function BookingChat({
                   <time className={isMine ? "text-neutral-300" : "text-steel"}>{formatChatTime(message.createdAt)}</time>
                 </div>
                 <p className={isMine ? "mt-1 text-sm font-bold text-neutral-100" : "mt-1 text-sm font-bold text-steel"}>{message.body}</p>
+                {!isMine ? <MessageReportForm messageId={message.id} messageKind="BOOKING" dark={isMine} /> : null}
               </article>
             );
           })
@@ -72,8 +72,6 @@ export function BookingChat({
 
       <form action={sendBookingMessageAction} className="grid gap-2">
         <input type="hidden" name="bookingId" value={bookingId} />
-        <input type="hidden" name="senderRole" value={senderRole} />
-        {senderId && <input type="hidden" name="senderId" value={senderId} />}
         <label className="grid gap-1">
           <span className="label">New message</span>
           <textarea className="field min-h-20 resize-y" name="message" maxLength={1000} required placeholder={placeholder} />

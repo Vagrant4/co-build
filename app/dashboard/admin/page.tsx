@@ -2,8 +2,14 @@ import Link from "next/link";
 import { CheckCircle2, DollarSign, Download, ShieldAlert, SlidersHorizontal, UserX, XCircle } from "lucide-react";
 import {
   approvePlatformSubscriptionAction,
+  executeAccountDeletionAction,
+  resolvePrivacyRequestAction,
+  reviewAdditionalRequirementPaymentAction,
+  reviewBookingPaymentAction,
+  reviewModerationReportAction,
   toggleUserSuspensionAction,
   updateBookingStatusAction,
+  updateDepositStatusAction,
   updateEquipmentPriceAction,
   updateListingPricingAction,
   updateListingStatusAction,
@@ -11,23 +17,36 @@ import {
 } from "@/app/actions";
 import { LaunchReadinessPanel } from "@/components/launch-readiness-panel";
 import { StatusBadge } from "@/components/status-badge";
+import { NotificationCenter } from "@/components/notification-center";
 import { calculatePlatformSubscriptionRevenue, formatCurrency, PLATFORM_SUBSCRIPTION_MONTHLY } from "@/src/lib/fabrication";
 import { getDashboardData } from "@/src/lib/repository";
+import { requirePageRole } from "@/src/lib/page-authorization";
+import { getAppMode } from "@/src/lib/app-mode";
+import { prisma } from "@/src/lib/db";
 
 export const dynamic = "force-dynamic";
 
-export default async function AdminDashboardPage() {
-  const { users, listings, bookings, uploads, approvalEvents, equipment } = await getDashboardData();
+type PageProps = { searchParams?: Promise<{ page?: string }> | { page?: string } };
+
+export default async function AdminDashboardPage({ searchParams }: PageProps) {
+  const admin = await requirePageRole("ADMIN");
+  const params = (await searchParams) ?? {};
+  const requestedPage = Number(params.page);
+  const page = Number.isSafeInteger(requestedPage) && requestedPage > 0 ? requestedPage : 1;
+  const [{ users, listings, bookings, uploads, approvalEvents, equipment, payments, privacyRequests, moderationReports, pagination, totals }, notifications] = await Promise.all([
+    getDashboardData({ page }),
+    prisma.notification.findMany({ where: { userId: admin.id, channel: "IN_APP" }, orderBy: { createdAt: "desc" }, take: 20 })
+  ]);
   const subscriptionUsers = users.filter((user) => user.role === "RENTER" || user.role === "HOST");
-  const activeSubscriptionCount = subscriptionUsers.filter((user) => user.platformSubscriptionStatus === "ACTIVE").length;
+  const activeSubscriptionCount = totals.activeSubscriptionCount;
   const subscriptionRevenue = calculatePlatformSubscriptionRevenue(activeSubscriptionCount);
-  const occupancy = listings.length ? Math.round((bookings.filter((booking) => ["PAID_CONFIRMED", "CHECKED_IN"].includes(booking.status)).length / listings.length) * 100) : 0;
+  const occupancy = totals.listingCount ? Math.round((totals.occupiedBookingCount / totals.listingCount) * 100) : 0;
 
   return (
     <main className="section-shell py-8">
       <div className="mb-6 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
         <div>
-          <p className="text-sm font-black uppercase text-hazard">Demo admin</p>
+          <p className="text-sm font-black uppercase text-hazard">{getAppMode() === "demo" ? "Demo admin" : "Administrator"}</p>
           <h1 className="text-4xl font-black">Admin dashboard</h1>
           <p className="mt-2 max-w-4xl font-bold text-steel">
             Admin collects {formatCurrency(PLATFORM_SUBSCRIPTION_MONTHLY)}/month from each active renter and host through the company account.
@@ -40,13 +59,38 @@ export default async function AdminDashboardPage() {
       </div>
 
       <section className="mb-8 grid gap-4 md:grid-cols-4">
-        <Metric label="Listings" value={String(listings.length)} />
-        <Metric label="Bookings" value={String(bookings.length)} />
+        <Metric label="Listings" value={String(totals.listingCount)} />
+        <Metric label="Bookings" value={String(totals.bookingCount)} />
         <Metric label="Subscription revenue" value={formatCurrency(subscriptionRevenue)} />
         <Metric label="Occupancy" value={`${occupancy}%`} />
       </section>
 
       <LaunchReadinessPanel />
+
+      <NotificationCenter notifications={notifications} />
+
+      <DashboardSection title="Moderation and policy reports">
+        <div className="grid gap-4 lg:grid-cols-2">
+          {moderationReports.length ? moderationReports.map((report) => (
+            <article key={report.id} className="border border-neutral-300 bg-white p-4">
+              <div className="flex flex-wrap gap-2"><StatusBadge status={report.status} /><StatusBadge status={report.reason} /></div>
+              <h3 className="mt-3 font-black">{report.contextType.replaceAll("_", " ")} report</h3>
+              <p className="mt-1 text-sm font-bold text-steel">Reported by {report.reporter.fullName}{report.reportedUser ? ` · Account: ${report.reportedUser.fullName}` : ""}</p>
+              {report.detail ? <p className="mt-2 text-sm font-bold text-steel">{report.detail}</p> : null}
+              {report.status === "OPEN" || report.status === "REVIEWING" ? (
+                <form action={reviewModerationReportAction} className="mt-3 grid gap-2">
+                  <input type="hidden" name="reportId" value={report.id} />
+                  <textarea className="field min-h-20" name="resolution" maxLength={1000} placeholder="Record investigation and action taken" required />
+                  <div className="grid grid-cols-2 gap-2">
+                    <button className="button-primary" name="status" value="RESOLVED" type="submit">Resolve</button>
+                    <button className="button-secondary" name="status" value="DISMISSED" type="submit">Dismiss</button>
+                  </div>
+                </form>
+              ) : <p className="mt-3 text-sm font-bold text-steel">{report.resolution}</p>}
+            </article>
+          )) : <p className="font-bold text-steel">No moderation reports submitted.</p>}
+        </div>
+      </DashboardSection>
 
       <DashboardSection title="Platform subscriptions">
         <div className="premium-panel mb-3 border border-neutral-300 bg-white p-4 font-bold text-steel">
@@ -74,10 +118,13 @@ export default async function AdminDashboardPage() {
                 <p className="mt-2 text-sm font-black">
                   Next renewal: {nextRenewal ? formatDate(nextRenewal) : "starts after activation"}
                 </p>
-                <form action={approvePlatformSubscriptionAction} className="mt-3">
+                <form action={approvePlatformSubscriptionAction} className="mt-3 grid grid-cols-2 gap-2">
                   <input type="hidden" name="userId" value={user.id} />
-                  <button className="button-primary w-full" type="submit" disabled={user.platformSubscriptionStatus !== "PENDING_ADMIN"}>
-                    Activate S$5/month subscription
+                  <button className="button-primary w-full" name="decision" value="verify" type="submit" disabled={user.platformSubscriptionStatus !== "PENDING_ADMIN"}>
+                    Verify and activate
+                  </button>
+                  <button className="button-secondary w-full" name="decision" value="reject" type="submit" disabled={user.platformSubscriptionStatus !== "PENDING_ADMIN"}>
+                    Reject reference
                   </button>
                 </form>
               </article>
@@ -93,7 +140,7 @@ export default async function AdminDashboardPage() {
               <div>
                 <div className="mb-2 flex flex-wrap gap-2">
                   <StatusBadge status={listing.status} />
-                  <span className="status-pill">{listing.zoning}</span>
+                  <span className="status-pill">{listing.factoryType}</span>
                 </div>
                 <h3 className="text-xl font-black">{listing.title}</h3>
                 <p className="font-bold text-steel">
@@ -123,10 +170,31 @@ export default async function AdminDashboardPage() {
                 <p className="font-bold text-steel">
                   {booking.user.fullName} · {booking.workType} · {formatCurrency(booking.grandTotal)}
                 </p>
+                <p className="mt-2 text-sm font-black">Deposit: {formatCurrency(booking.deposit)} / {booking.depositStatus.replaceAll("_", " ")}</p>
               </div>
               <div className="grid grid-cols-2 gap-2">
+                <a className="button-secondary col-span-2 w-full" href={`/dashboard/bookings/${booking.id}/agreement`}>
+                  View booking agreement
+                </a>
+                <a className="button-secondary col-span-2 w-full" href={`/api/bookings/${booking.id}/documents/booking-summary`}><Download size={18} aria-hidden="true" /> Download PDF</a>
                 <BookingAdminButton bookingId={booking.id} action="ADMIN_APPROVE" label="Approve high-risk" disabled={booking.status !== "PENDING_ADMIN_HIGH_RISK"} />
                 <BookingAdminButton bookingId={booking.id} action="ADMIN_REJECT" label="Reject high-risk" disabled={booking.status !== "PENDING_ADMIN_HIGH_RISK"} />
+                <form action={updateDepositStatusAction} className="col-span-2 grid gap-2 border border-neutral-200 bg-white p-3">
+                  <input type="hidden" name="bookingId" value={booking.id} />
+                  <select className="field" name="depositStatus" defaultValue={booking.depositStatus}>
+                    <option value="HELD">Held</option>
+                    <option value="RELEASED">Released to renter</option>
+                    <option value="PARTIALLY_RETAINED">Partially retained</option>
+                    <option value="RETAINED">Retained</option>
+                    <option value="DISPUTED">Disputed</option>
+                  </select>
+                  <div className="grid grid-cols-2 gap-2">
+                    <input className="field" name="depositReturned" type="number" min="0" placeholder="Returned amount" />
+                    <input className="field" name="depositRetained" type="number" min="0" placeholder="Retained amount" />
+                  </div>
+                  <input className="field" name="depositNote" placeholder="Required reconciliation or dispute note" required />
+                  <button className="button-secondary" type="submit">Record deposit outcome</button>
+                </form>
               </div>
             </article>
           ))}
@@ -164,13 +232,58 @@ export default async function AdminDashboardPage() {
         </div>
       </DashboardSection>
 
+      <DashboardSection title="Payment reconciliation">
+        <div className="grid gap-4 lg:grid-cols-2">
+          {payments.length ? payments.map((payment) => (
+            <article key={payment.id} className="border border-neutral-300 bg-white p-4">
+              <div className="flex flex-wrap gap-2"><StatusBadge status={payment.kind} /><StatusBadge status={payment.status} /></div>
+              <h3 className="mt-3 text-lg font-black">{payment.payer.fullName} · {formatCurrency(payment.amount)}</h3>
+              <p className="mt-1 break-all text-sm font-bold text-steel">Reference: {payment.reference}</p>
+              {payment.booking ? <p className="mt-1 text-sm font-bold text-steel">Booking: {payment.booking.listing.title}</p> : null}
+              {payment.proofUpload ? <a className="button-secondary mt-3 w-full" href={`/api/uploads/${payment.proofUpload.id}`}>Review private proof</a> : <p className="mt-3 text-sm font-bold text-amber-800">No uploaded proof. Verify the bank reference independently.</p>}
+              {payment.status === "SUBMITTED" && payment.kind === "BOOKING_TOTAL" ? <PaymentReviewForm paymentId={payment.id} action={reviewBookingPaymentAction} /> : null}
+              {payment.status === "SUBMITTED" && payment.kind === "ADDITIONAL_REQUIREMENT" ? <PaymentReviewForm paymentId={payment.id} action={reviewAdditionalRequirementPaymentAction} /> : null}
+            </article>
+          )) : <p className="font-bold text-steel">No payment records submitted.</p>}
+        </div>
+      </DashboardSection>
+
+      <DashboardSection title="Privacy requests">
+        <div className="grid gap-4 lg:grid-cols-2">
+          {privacyRequests.length ? privacyRequests.map((request) => (
+            <article key={request.id} className="border border-neutral-300 bg-white p-4">
+              <div className="flex flex-wrap gap-2"><StatusBadge status={request.type} /><StatusBadge status={request.status} /></div>
+              <h3 className="mt-3 font-black">{request.user.fullName}</h3>
+              <p className="mt-2 whitespace-pre-wrap text-sm font-bold text-steel">{request.detail}</p>
+              {request.status === "SUBMITTED" || request.status === "IN_REVIEW" ? (
+                <form action={resolvePrivacyRequestAction} className="mt-3 grid gap-2">
+                  <input type="hidden" name="requestId" value={request.id} />
+                  <textarea className="field min-h-20" name="resolution" placeholder="Record the action taken or reason" required />
+                  <div className="grid grid-cols-2 gap-2">
+                    {request.type !== "DELETION" ? <button className="button-primary" name="status" value="COMPLETED" type="submit">Complete</button> : <span />}
+                    <button className="button-secondary" name="status" value="REJECTED" type="submit">Reject</button>
+                  </div>
+                </form>
+              ) : null}
+              {request.type === "DELETION" && (request.status === "SUBMITTED" || request.status === "IN_REVIEW") ? (
+                <form action={executeAccountDeletionAction} className="mt-2 border border-red-300 bg-red-50 p-3">
+                  <input type="hidden" name="requestId" value={request.id} />
+                  <p className="text-xs font-black text-red-900">Checks active obligations, deletes the managed identity, and anonymizes the marketplace profile.</p>
+                  <button className="button-dark mt-2 w-full" type="submit">Execute verified deletion</button>
+                </form>
+              ) : null}
+            </article>
+          )) : <p className="font-bold text-steel">No privacy requests submitted.</p>}
+        </div>
+      </DashboardSection>
+
       <DashboardSection title="Deposits, disputes, and photos">
         <div className="grid gap-3 md:grid-cols-2">
           {uploads.map((upload) => (
             <div key={upload.id} className="border border-neutral-300 bg-white p-4">
               <p className="font-black">{upload.type.replaceAll("_", " ")}</p>
               <p className="text-sm font-bold text-steel">{upload.originalName}</p>
-              <p className="mt-2 text-xs font-bold text-steel">Stored locally for dispute/deposit review.</p>
+              <p className="mt-2 text-xs font-bold text-steel">Private upload metadata for authorized dispute/deposit review.</p>
             </div>
           ))}
         </div>
@@ -227,6 +340,12 @@ export default async function AdminDashboardPage() {
           ))}
         </div>
       </DashboardSection>
+
+      <nav className="flex items-center justify-between border-t border-neutral-300 pt-5" aria-label="Admin dashboard pages">
+        {pagination.page > 1 ? <Link className="button-secondary" href={`/dashboard/admin?page=${pagination.page - 1}`}>Previous page</Link> : <span />}
+        <span className="font-black text-steel">Page {pagination.page} of {pagination.totalPages}</span>
+        {pagination.page < pagination.totalPages ? <Link className="button-secondary" href={`/dashboard/admin?page=${pagination.page + 1}`}>Next page</Link> : <span />}
+      </nav>
     </main>
   );
 }
@@ -275,10 +394,22 @@ function BookingAdminButton({ bookingId, action, label, disabled }: { bookingId:
     <form action={updateBookingStatusAction}>
       <input type="hidden" name="bookingId" value={bookingId} />
       <input type="hidden" name="action" value={action} />
-      <input type="hidden" name="actorId" value="demo-admin" />
       <button className={action === "ADMIN_APPROVE" ? "button-primary w-full" : "button-secondary w-full"} disabled={disabled} type="submit">
         {label}
       </button>
+    </form>
+  );
+}
+
+function PaymentReviewForm({ paymentId, action }: { paymentId: string; action: (formData: FormData) => Promise<void> }) {
+  return (
+    <form action={action} className="mt-3 grid gap-2">
+      <input type="hidden" name="paymentId" value={paymentId} />
+      <input className="field" name="reviewNote" placeholder="Optional reconciliation note" />
+      <div className="grid grid-cols-2 gap-2">
+        <button className="button-primary" name="decision" value="verify" type="submit">Verify paid</button>
+        <button className="button-secondary" name="decision" value="reject" type="submit">Reject proof</button>
+      </div>
     </form>
   );
 }

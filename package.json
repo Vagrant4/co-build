@@ -4,36 +4,65 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "cross-env APP_MODE=demo next build",
     "start": "next start",
     "test": "vitest run",
     "test:watch": "vitest",
     "prisma:generate": "prisma generate",
-    "prisma:generate:prod": "prisma generate --schema prisma/schema.postgres.prisma",
+    "prisma:generate:prod": "prisma generate --schema prisma/postgres/schema.prisma",
     "db:push": "prisma db push",
-    "db:push:prod": "prisma db push --schema prisma/schema.postgres.prisma",
-    "db:deploy:prod": "prisma db push --schema prisma/schema.postgres.prisma --skip-generate",
+    "db:deploy:prod": "prisma migrate deploy --schema prisma/postgres/schema.prisma",
+    "db:restore-drill": "tsx scripts/postgres-restore-drill.ts",
+    "admin:bootstrap-first": "tsx scripts/bootstrap-first-admin.ts",
     "db:seed": "tsx prisma/seed.ts",
     "db:seed:if-empty": "tsx prisma/seed-if-empty.ts",
-    "vercel-build": "npm run db:deploy:prod && npm run prisma:generate:prod && npm run db:seed:if-empty && next build"
+    "test:auth": "vitest run tests/authorization*.test.ts tests/account-registration.test.ts tests/public-listing-eligibility.test.ts tests/clean-database.test.ts",
+    "test:e2e": "playwright test",
+    "ops:report": "tsx scripts/ops-report.ts",
+    "ops:health-check": "tsx scripts/production-health-check.ts",
+    "uploads:cleanup": "tsx scripts/cleanup-orphan-uploads.ts",
+    "rate-limits:cleanup": "tsx scripts/cleanup-rate-limits.ts",
+    "privacy:retention-report": "tsx scripts/retention-report.ts",
+    "privacy:retention-execute": "tsx scripts/retention-execute.ts",
+    "audit:checkpoint": "tsx scripts/audit-checkpoint.ts",
+    "payments:reconcile": "tsx scripts/reconcile-bank-statement.ts",
+    "pilot:preflight": "tsx scripts/pilot-preflight.ts",
+    "vercel-build": "npm run prisma:generate:prod && npm run pilot:preflight && next build"
   },
   "dependencies": {
+    "@clerk/nextjs": "^7.6.1",
     "@prisma/client": "6.19.3",
+    "@vercel/blob": "^2.6.1",
+    "csv-parse": "^6.1.0",
     "lucide-react": "latest",
-    "next": "latest",
+    "next": "^16.2.12",
+    "pdf-lib": "^1.17.1",
     "react": "latest",
-    "react-dom": "latest"
+    "react-dom": "latest",
+    "sharp": "0.35.3"
   },
   "devDependencies": {
+    "@emnapi/core": "1.11.2",
+    "@emnapi/runtime": "1.11.2",
+    "@playwright/test": "^1.62.0",
     "@types/node": "latest",
     "@types/react": "latest",
     "@types/react-dom": "latest",
     "autoprefixer": "10.4.20",
-    "postcss": "8.4.49",
+    "cross-env": "^10.1.0",
+    "postcss": "8.5.23",
+    "nanoid": "3.3.17",
     "prisma": "6.19.3",
     "tailwindcss": "3.4.17",
     "tsx": "latest",
     "typescript": "latest",
     "vitest": "latest"
+  },
+  "overrides": {
+    "postcss": "8.5.23",
+    "next": {
+      "postcss": "8.5.23",
+      "sharp": "0.35.3"
+    }
   }
 }

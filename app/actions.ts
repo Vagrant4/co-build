@@ -1,7 +1,9 @@
 "use server";
 
+import { auth, clerkClient, currentUser } from "@clerk/nextjs/server";
+import { cookies } from "next/headers";
+import { forbidden, notFound, redirect, unauthorized } from "next/navigation";
 import { revalidatePath } from "next/cache";
-import { redirect } from "next/navigation";
 import type { BookingAction, DurationDays, PowerType, SpaceType, Zoning } from "@/src/lib/fabrication";
 import {
   advanceAdditionalRequirementStatus,
@@ -11,795 +13,772 @@ import {
   calculateBookingQuote,
   dealConfirmationStatus,
   formatCurrency,
-  inferSpaceTypeFromSize
+  inferSpaceTypeFromSize,
+  PLATFORM_SUBSCRIPTION_MONTHLY
 } from "@/src/lib/fabrication";
-import { prisma } from "@/src/lib/db";
+import { registerAccount, updateOwnProfile } from "@/src/lib/account-service";
+import { canManageBookingStatus } from "@/src/lib/authorization-policy";
+import {
+  DEMO_SESSION_COOKIE,
+  requireAdmin,
+  requireBookingParticipant,
+  requireConversationParticipant,
+  requireListingOwner,
+  requireRole,
+  requireUser
+} from "@/src/lib/authorization";
+import { getAppMode } from "@/src/lib/app-mode";
+import { bookingDocumentDigest, hasCurrentAgreementAcceptance } from "@/src/lib/agreement-acceptance";
+import { canCreateBooking, canHostOperate } from "@/src/lib/booking-eligibility";
+import { ACTIVE_BOOKING_STATUSES, parseSingaporeBookingWindow } from "@/src/lib/booking-window";
+import { loadBookingDocument } from "@/src/lib/booking-document";
 import { CONTACT_POLICY_MESSAGE, containsRestrictedContactDetail } from "@/src/lib/contact-policy";
+import { prisma } from "@/src/lib/db";
+import { LEGAL_DOCUMENT_VERSION } from "@/src/lib/legal-documents";
+import { nextPaymentState } from "@/src/lib/payment-workflow";
+import { queueAdminNotifications, queueUserNotification } from "@/src/lib/notifications";
+import { enforceRateLimit } from "@/src/lib/rate-limit";
 import { toListing } from "@/src/lib/repository";
-import { saveUpload } from "@/src/lib/uploads";
 import { commonSafetyRules } from "@/src/lib/seed-data";
 
 export async function createBookingAction(formData: FormData) {
-  const safetyAccepted = formData.get("safetyAccepted") === "on";
-  if (!safetyAccepted) {
-    throw new Error("Safety rules must be accepted before submitting a booking request.");
-  }
+  const renter = await requireRole("RENTER");
+  await enforceRateLimit({ action: "booking:create", identity: renter.id, limit: 5, windowSeconds: 60 * 60 });
+  if (!canCreateBooking(renter)) throw new Error("An approved, active renter subscription is required before requesting a booking.");
+  if (formData.get("safetyAccepted") !== "on") throw new Error("Safety rules must be accepted before submitting a booking request.");
 
   const listingSlug = requireString(formData, "listingSlug");
-  const renterId = optionalString(formData, "userId") || "demo-renter";
   const durationDays = parseDuration(requireString(formData, "durationDays"));
+  const bookingWindow = parseSingaporeBookingWindow(requireString(formData, "startDate"), durationDays);
   const workType = requireString(formData, "workType");
   const addonSlugs = formData.getAll("addons").map(String);
-
-  const listingRecord = await prisma.listing.findUnique({
-    where: { slug: listingSlug },
+  const listing = await prisma.listing.findFirst({
+    where: {
+      slug: listingSlug,
+      status: "APPROVED",
+      host: { is: { role: "HOST", suspended: false, verificationStatus: "APPROVED", platformSubscriptionStatus: "ACTIVE" } }
+    },
     include: { equipmentAddons: { include: { equipmentAddon: true } } }
   });
-  if (!listingRecord) throw new Error("Listing not found.");
+  if (!listing) notFound();
 
-  const addons = await prisma.equipmentAddon.findMany({
-    where: { slug: { in: addonSlugs } }
-  });
-  const quote = calculateBookingQuote({
-    listing: toListing(listingRecord),
-    durationDays,
-    workType,
-    addons
-  });
+  const addons = await prisma.equipmentAddon.findMany({ where: { slug: { in: addonSlugs } } });
+  const quote = calculateBookingQuote({ listing: toListing(listing), durationDays, workType, addons });
+  const verificationUploadId = optionalString(formData, "verificationUploadId");
 
-  const booking = await prisma.booking.create({
-    data: {
-      listing: { connect: { slug: listingSlug } },
-      user: { connect: { id: renterId } },
-      durationDays,
-      workType,
-      riskLevel: quote.riskLevel,
-      status: "PENDING_HOST",
-      rentalTotal: quote.rentalTotal,
-      deposit: quote.deposit,
-      cleaningFee: quote.cleaningFee,
-      addonTotal: quote.addonTotal,
-      grandTotal: quote.grandTotal,
-      safetyAcceptedAt: new Date(),
-      addons: {
-        create: addons.map((addon) => ({
-          equipmentAddon: { connect: { slug: addon.slug } },
-          priceAtBooking: addon.pricePerBooking
-        }))
-      }
-    }
-  });
-
-  const verificationUpload = await saveUpload(formData.get("verification") as File | null, "verification");
-  if (verificationUpload) {
-    await prisma.upload.create({
+  await prisma.$transaction(async (tx) => {
+    const conflictingBooking = await tx.booking.findFirst({
+      where: {
+        listingId: listing.id,
+        status: { in: ACTIVE_BOOKING_STATUSES },
+        startAt: { lt: bookingWindow.endAt },
+        endAt: { gt: bookingWindow.startAt }
+      },
+      select: { id: true }
+    });
+    if (conflictingBooking) throw new Error("This space is no longer available for the selected dates. Choose another start date.");
+    const booking = await tx.booking.create({
       data: {
-        type: "VERIFICATION",
-        originalName: verificationUpload.originalName,
-        localPath: verificationUpload.localPath,
-        user: { connect: { id: renterId } },
-        booking: { connect: { id: booking.id } }
+        listingId: listing.id,
+        userId: renter.id,
+        durationDays,
+        startAt: bookingWindow.startAt,
+        endAt: bookingWindow.endAt,
+        bookingTimeZone: bookingWindow.timeZone,
+        workType,
+        riskLevel: quote.riskLevel,
+        status: "PENDING_HOST",
+        rentalTotal: quote.rentalTotal,
+        deposit: quote.deposit,
+        cleaningFee: quote.cleaningFee,
+        addonTotal: quote.addonTotal,
+        grandTotal: quote.grandTotal,
+        safetyAcceptedAt: new Date(),
+        addons: { create: addons.map((addon) => ({ equipmentAddonId: addon.id, priceAtBooking: addon.pricePerBooking })) }
       }
     });
-  }
+    if (verificationUploadId) {
+      const result = await tx.upload.updateMany({
+        where: { id: verificationUploadId, type: "VERIFICATION", ownerUserId: renter.id, uploadedByUserId: renter.id, bookingId: null, uploadStatus: "AVAILABLE" },
+        data: { bookingId: booking.id }
+      });
+      if (result.count !== 1) throw new Error("Verification upload is unavailable or does not belong to this account.");
+    }
+    await tx.approvalEvent.create({
+      data: { actorId: renter.id, bookingId: booking.id, target: "booking_request", decision: "APPROVED", note: "Authenticated renter submitted booking request and accepted safety rules." }
+    });
+    if (listing.hostId) await queueUserNotification(tx, { userId: listing.hostId, type: "BOOKING_REQUEST", title: "New booking request", body: `${listing.title} has a new booking request awaiting your review.`, dedupeKey: `booking:${booking.id}:host-request`, email: true });
+  }, { isolationLevel: "Serializable" });
 
-  revalidatePath("/dashboard/user");
-  redirect(`/dashboard/user?account=${renterId}&booking=submitted`);
+  revalidateDashboards();
+  redirect("/dashboard/user?booking=submitted");
 }
 
 export async function updateBookingStatusAction(formData: FormData) {
+  const actor = await requireUser();
   const bookingId = requireString(formData, "bookingId");
   const action = requireString(formData, "action") as BookingAction;
-  const actorId = formData.get("actorId") ? String(formData.get("actorId")) : "demo-host";
-
-  const booking = await prisma.booking.findUnique({ where: { id: bookingId } });
-  if (!booking) throw new Error("Booking not found.");
+  const booking = await prisma.booking.findUnique({ where: { id: bookingId }, include: { listing: { select: { hostId: true } } } });
+  if (!booking) notFound();
+  if (!canManageBookingStatus(actor, booking.listing.hostId, action)) forbidden();
+  if (actor.role === "HOST" && !canHostOperate(actor)) throw new Error("An approved, active host subscription is required to manage bookings.");
 
   const nextStatus = advanceBookingStatus(booking.status, action, booking.riskLevel);
-  await prisma.booking.update({
-    where: { id: bookingId },
-    data: { status: nextStatus }
-  });
-
-  if (nextStatus !== booking.status) {
-    await prisma.approvalEvent.create({
+  if (nextStatus === booking.status) throw new Error("This booking transition is not allowed.");
+  await prisma.$transaction(async (tx) => {
+    await tx.booking.update({ where: { id: bookingId }, data: { status: nextStatus } });
+    await tx.approvalEvent.create({
       data: {
-        actor: { connect: { id: actorId } },
-        booking: { connect: { id: bookingId } },
+        actorId: actor.id,
+        bookingId,
         target: "booking",
         decision: nextStatus.includes("REJECTED") ? "REJECTED" : "APPROVED",
         note: `${action.replaceAll("_", " ").toLowerCase()} changed booking to ${nextStatus}.`
       }
     });
-  }
-
-  revalidatePath("/dashboard/host");
-  revalidatePath("/dashboard/admin");
-  revalidatePath("/dashboard/user");
+    await queueUserNotification(tx, { userId: booking.userId, type: "BOOKING_STATUS", title: "Booking status updated", body: `Your booking is now ${nextStatus.replaceAll("_", " ").toLowerCase()}.`, dedupeKey: `booking:${bookingId}:status:${nextStatus}`, email: true });
+  });
+  revalidateDashboards();
 }
 
 export async function confirmPaymentAction(formData: FormData) {
+  const renter = await requireRole("RENTER");
+  await enforceRateLimit({ action: "payment:booking-submit", identity: renter.id, limit: 6, windowSeconds: 60 * 60 });
   const bookingId = requireString(formData, "bookingId");
-  const booking = await prisma.booking.findUnique({ where: { id: bookingId } });
-  if (!booking || booking.status !== "APPROVED_FOR_PAYMENT") {
-    throw new Error("Booking must be approved before payment proof can be confirmed.");
+  const booking = await prisma.booking.findUnique({ where: { id: bookingId }, include: { listing: { select: { hostId: true } }, agreementAcceptances: true } });
+  if (!booking) notFound();
+  if (booking.userId !== renter.id) forbidden();
+  if (booking.status !== "APPROVED_FOR_PAYMENT") throw new Error("Booking must be approved before payment proof can be submitted.");
+  if (!booking.renterDealConfirmedAt || !booking.hostDealConfirmedAt) throw new Error("Renter and host must both confirm the deal before payment proof is submitted.");
+  if (!booking.listing.hostId) throw new Error("Booking host is unavailable.");
+  const document = await loadBookingDocument(bookingId);
+  if (!document) notFound();
+  const documentHash = bookingDocumentDigest(document.body);
+  if (!hasCurrentAgreementAcceptance(booking.agreementAcceptances, [booking.userId, booking.listing.hostId], documentHash)) {
+    throw new Error("Both renter and host must accept the current booking agreement before payment proof is submitted.");
   }
+  const paymentReference = requireString(formData, "paymentReference").slice(0, 120);
+  const proofUploadId = optionalString(formData, "paymentProofUploadId");
+  if (getAppMode() !== "demo" && !proofUploadId) throw new Error("Payment proof is required for pilot and production bookings.");
+  const nextStatus = nextPaymentState(booking.status, "SUBMIT_PROOF");
 
-  await prisma.booking.update({
-    where: { id: bookingId },
-    data: { status: "PAID_CONFIRMED" }
-  });
-
-  await prisma.approvalEvent.create({
-    data: {
-      actor: { connect: { id: booking.userId } },
-      booking: { connect: { id: bookingId } },
-      target: "payment",
-      decision: "APPROVED",
-      note: "Company-account payment proof submitted. Rental, deposit, cleaning fee, and add-ons marked paid."
+  await prisma.$transaction(async (tx) => {
+    if (proofUploadId) {
+      const proof = await tx.upload.findFirst({
+        where: { id: proofUploadId, type: "PAYMENT_EVIDENCE", ownerUserId: renter.id, uploadedByUserId: renter.id, bookingId, uploadStatus: "AVAILABLE" },
+        select: { id: true }
+      });
+      if (!proof) throw new Error("Payment proof is unavailable or does not belong to this booking.");
     }
+    await tx.paymentRecord.create({
+      data: {
+        payerId: renter.id,
+        bookingId,
+        proofUploadId: proofUploadId || null,
+        kind: "BOOKING_TOTAL",
+        amount: booking.grandTotal,
+        reference: paymentReference,
+        idempotencyKey: `booking:${bookingId}:${paymentReference.toLowerCase()}`
+      }
+    });
+    await tx.booking.update({ where: { id: bookingId }, data: { status: nextStatus } });
+    await tx.approvalEvent.create({ data: { actorId: renter.id, bookingId, target: "payment_submission", decision: "APPROVED", note: "Authenticated renter submitted company-account payment proof for admin reconciliation." } });
+    await queueAdminNotifications(tx, { type: "PAYMENT_REVIEW", title: "Payment proof needs review", body: `Booking ${bookingId} has a submitted company-account payment reference.`, dedupeKey: `booking:${bookingId}:payment-review`, email: true });
   });
+  revalidateDashboards();
+}
 
-  revalidatePath("/dashboard/user");
-  revalidatePath("/dashboard/admin");
+export async function reviewBookingPaymentAction(formData: FormData) {
+  const admin = await requireAdmin();
+  const paymentId = requireString(formData, "paymentId");
+  const decision = requireString(formData, "decision") as "verify" | "reject";
+  if (decision !== "verify" && decision !== "reject") throw new Error("Invalid payment decision.");
+  const payment = await prisma.paymentRecord.findUnique({ where: { id: paymentId }, include: { booking: true } });
+  if (!payment?.booking || payment.kind !== "BOOKING_TOTAL" || payment.status !== "SUBMITTED") notFound();
+  const paidBooking = payment.booking;
+  const bookingStatus = nextPaymentState(paidBooking.status as "PAYMENT_SUBMITTED", decision === "verify" ? "ADMIN_VERIFY" : "ADMIN_REJECT");
+  const now = new Date();
+  await prisma.$transaction(async (tx) => {
+    await tx.paymentRecord.update({ where: { id: payment.id }, data: { status: decision === "verify" ? "VERIFIED" : "REJECTED", reviewerId: admin.id, reviewedAt: now, reviewNote: optionalString(formData, "reviewNote") || null } });
+    await tx.booking.update({ where: { id: paidBooking.id }, data: { status: bookingStatus } });
+    await tx.approvalEvent.create({ data: { actorId: admin.id, bookingId: paidBooking.id, target: "payment_reconciliation", decision: decision === "verify" ? "APPROVED" : "REJECTED", note: `Admin ${decision === "verify" ? "verified" : "rejected"} company-account payment reference.` } });
+    await queueUserNotification(tx, { userId: payment.payerId, type: "PAYMENT_RESULT", title: decision === "verify" ? "Payment verified" : "Payment proof rejected", body: decision === "verify" ? "Your booking payment was verified." : "Your payment proof was rejected. Review the admin note and submit a valid reference.", dedupeKey: `payment:${payment.id}:result`, email: true });
+  });
+  revalidateDashboards();
 }
 
 export async function uploadBookingPhotoAction(formData: FormData) {
+  const renter = await requireRole("RENTER");
   const bookingId = requireString(formData, "bookingId");
   const uploadKind = requireString(formData, "uploadKind") as "CHECK_IN" | "CHECK_OUT";
-  const upload = await saveUpload(formData.get("photo") as File | null, uploadKind.toLowerCase());
-  if (!upload) throw new Error("Select a photo before uploading.");
-
+  if (uploadKind !== "CHECK_IN" && uploadKind !== "CHECK_OUT") throw new Error("Invalid booking photo type.");
   const booking = await prisma.booking.findUnique({ where: { id: bookingId } });
-  if (!booking) throw new Error("Booking not found.");
+  if (!booking) notFound();
+  if (booking.userId !== renter.id) forbidden();
+  const uploadId = requireString(formData, "photoUploadId");
+  const nextStatus = uploadKind === "CHECK_IN" && booking.status === "PAID_CONFIRMED" ? "CHECKED_IN" : uploadKind === "CHECK_OUT" && booking.status === "CHECKED_IN" ? "CHECKED_OUT" : booking.status;
 
-  await prisma.upload.create({
-    data: {
-      type: uploadKind,
-      originalName: upload.originalName,
-      localPath: upload.localPath,
-      booking: { connect: { id: bookingId } },
-      user: { connect: { id: booking.userId } }
-    }
+  await prisma.$transaction(async (tx) => {
+    const result = await tx.upload.updateMany({
+      where: { id: uploadId, type: uploadKind, bookingId, ownerUserId: renter.id, uploadedByUserId: renter.id, uploadStatus: "AVAILABLE" },
+      data: { verifiedAt: new Date() }
+    });
+    if (result.count !== 1) throw new Error("Booking photo is unavailable or does not belong to this booking.");
+    if (nextStatus !== booking.status) await tx.booking.update({ where: { id: bookingId }, data: { status: nextStatus } });
+    await tx.approvalEvent.create({ data: { actorId: renter.id, bookingId, target: uploadKind.toLowerCase(), decision: "APPROVED", note: `Authenticated renter uploaded ${uploadKind.toLowerCase().replace("_", " ")} evidence.` } });
   });
-
-  const nextStatus =
-    uploadKind === "CHECK_IN" && booking.status === "PAID_CONFIRMED"
-      ? "CHECKED_IN"
-      : uploadKind === "CHECK_OUT" && booking.status === "CHECKED_IN"
-        ? "CHECKED_OUT"
-        : booking.status;
-
-  if (nextStatus !== booking.status) {
-    await prisma.booking.update({ where: { id: bookingId }, data: { status: nextStatus } });
-  }
-
-  revalidatePath("/dashboard/user");
-  revalidatePath("/dashboard/admin");
+  revalidateDashboards();
 }
 
 export async function createAccountAction(formData: FormData) {
-  const role = requireString(formData, "role").toUpperCase();
-  if (role !== "RENTER" && role !== "HOST") {
-    throw new Error("Account type must be renter or host.");
+  const roleValue = requireString(formData, "role").toUpperCase();
+  if (roleValue !== "RENTER" && roleValue !== "HOST") throw new Error("Account type must be renter or host.");
+  const mode = getAppMode();
+  const id = crypto.randomUUID();
+  let email: string;
+  let authProviderId: string;
+
+  if (mode === "demo") {
+    email = requireString(formData, "email").toLowerCase();
+    authProviderId = `demo:${id}`;
+  } else {
+    const session = await auth();
+    if (!session.userId) unauthorized();
+    const clerkUser = await currentUser();
+    const primaryEmail = clerkUser?.emailAddresses.find((item) => item.id === clerkUser.primaryEmailAddressId)?.emailAddress;
+    if (!primaryEmail) throw new Error("Your managed sign-in account must have a verified primary email address.");
+    email = primaryEmail.toLowerCase();
+    authProviderId = `clerk:${session.userId}`;
   }
+  await enforceRateLimit({ action: "account:register", identity: authProviderId, limit: 3, windowSeconds: 24 * 60 * 60 });
 
-  const email = requireString(formData, "email").toLowerCase();
-  const user = await prisma.user.upsert({
-    where: { email },
-    update: {
-      role,
-      fullName: requireString(formData, "fullName"),
-      mobile: requireString(formData, "mobile"),
-      companyName: requireString(formData, "companyName"),
-      uen: optionalString(formData, "uen") || null,
-      workType: requireString(formData, "workType"),
-      experienceLevel: null,
-      verificationStatus: "PENDING",
-      platformSubscriptionStatus: "UNPAID",
-      platformSubscriptionReference: null,
-      platformSubscriptionPaidAt: null,
-      platformSubscriptionPeriodStart: null,
-      platformSubscriptionPeriodEnd: null,
-      platformSubscriptionNextBilling: null,
-      suspended: false
-    },
-    create: {
-      id: buildAccountId(email),
-      role,
-      fullName: requireString(formData, "fullName"),
-      mobile: requireString(formData, "mobile"),
-      email,
-      companyName: requireString(formData, "companyName"),
-      uen: optionalString(formData, "uen") || null,
-      workType: requireString(formData, "workType")
-    }
+  const user = await prisma.$transaction((tx) => registerAccount(tx.user, {
+    id,
+    authProviderId,
+    email,
+    role: roleValue,
+    fullName: requireString(formData, "fullName"),
+    companyName: requireString(formData, "companyName"),
+    uen: optionalString(formData, "uen") || null,
+    workType: optionalString(formData, "workType") || null
+  }));
+
+  if (mode === "demo") {
+    (await cookies()).set(DEMO_SESSION_COOKIE, user.id, { httpOnly: true, sameSite: "lax", secure: process.env.NODE_ENV === "production", path: "/", maxAge: 60 * 60 * 8 });
+  }
+  revalidateDashboards();
+  redirect(user.role === "HOST" ? "/dashboard/host?created=1" : "/dashboard/user?created=1");
+}
+
+export async function updateOwnProfileAction(formData: FormData) {
+  const user = await requireUser();
+  await updateOwnProfile(prisma.user, user.id, {
+    fullName: requireString(formData, "fullName"),
+    companyName: requireString(formData, "companyName"),
+    uen: optionalString(formData, "uen") || null,
+    workType: optionalString(formData, "workType") || null
   });
-
-  revalidatePath("/dashboard/admin");
-  revalidatePath("/dashboard/user");
-  revalidatePath("/dashboard/host");
-  redirect(user.role === "HOST" ? `/dashboard/host?account=${user.id}&created=1` : `/dashboard/user?account=${user.id}&created=1`);
+  revalidateDashboards();
 }
 
 export async function submitPlatformSubscriptionPaymentAction(formData: FormData) {
-  const userId = requireString(formData, "userId");
-  const user = await prisma.user.findUnique({ where: { id: userId } });
-  if (!user || (user.role !== "RENTER" && user.role !== "HOST")) {
-    throw new Error("Only renter and host accounts can submit platform subscription payments.");
-  }
-  const paymentReference =
-    optionalString(formData, "paymentReference") || buildCompanyAccountPaymentReference(user.email);
-
-  await prisma.user.update({
-    where: { id: userId },
-    data: {
-      platformSubscriptionStatus: "PENDING_ADMIN",
-      platformSubscriptionReference: paymentReference,
-      platformSubscriptionPaidAt: null,
-      platformSubscriptionPeriodStart: null,
-      platformSubscriptionPeriodEnd: null,
-      platformSubscriptionNextBilling: null
-    }
+  const user = await requireUser();
+  if (user.role !== "RENTER" && user.role !== "HOST") forbidden();
+  await enforceRateLimit({ action: "payment:subscription-submit", identity: user.id, limit: 4, windowSeconds: 60 * 60 });
+  const paymentReference = optionalString(formData, "paymentReference") || buildCompanyAccountPaymentReference(user.email);
+  await prisma.$transaction(async (tx) => {
+    await tx.paymentRecord.create({ data: { payerId: user.id, kind: "SUBSCRIPTION", amount: PLATFORM_SUBSCRIPTION_MONTHLY, reference: paymentReference, idempotencyKey: `subscription:${user.id}:${paymentReference.toLowerCase()}` } });
+    await tx.user.update({ where: { id: user.id }, data: { platformSubscriptionStatus: "PENDING_ADMIN", platformSubscriptionReference: paymentReference, platformSubscriptionPaidAt: null, platformSubscriptionPeriodStart: null, platformSubscriptionPeriodEnd: null, platformSubscriptionNextBilling: null } });
+    await tx.approvalEvent.create({ data: { actorId: user.id, target: "platform_subscription_submission", decision: "APPROVED", note: "Authenticated account submitted a recurring subscription payment reference for admin review." } });
+    await queueAdminNotifications(tx, { type: "SUBSCRIPTION_REVIEW", title: "Subscription payment needs review", body: `${user.role.toLowerCase()} subscription payment reference is awaiting reconciliation.`, dedupeKey: `subscription:${user.id}:${paymentReference.toLowerCase()}:review`, email: true });
   });
-
-  revalidatePath("/dashboard/user");
-  revalidatePath("/dashboard/host");
-  revalidatePath("/dashboard/admin");
-  redirect(user.role === "HOST" ? `/dashboard/host?account=${user.id}&subscription=submitted` : `/dashboard/user?account=${user.id}&subscription=submitted`);
+  revalidateDashboards();
+  redirect(user.role === "HOST" ? "/dashboard/host?subscription=submitted" : "/dashboard/user?subscription=submitted");
 }
 
 export async function approvePlatformSubscriptionAction(formData: FormData) {
+  const admin = await requireAdmin();
   const userId = requireString(formData, "userId");
+  const decision = optionalString(formData, "decision") || "verify";
+  if (decision !== "verify" && decision !== "reject") throw new Error("Invalid subscription payment decision.");
   const user = await prisma.user.findUnique({ where: { id: userId } });
-  if (!user || (user.role !== "RENTER" && user.role !== "HOST")) {
-    throw new Error("Only renter and host subscriptions can be approved.");
-  }
-
+  if (!user || (user.role !== "RENTER" && user.role !== "HOST")) notFound();
+  const payment = await prisma.paymentRecord.findFirst({ where: { payerId: userId, kind: "SUBSCRIPTION", status: "SUBMITTED" }, orderBy: { submittedAt: "desc" } });
+  if (!payment) throw new Error("No submitted subscription payment is available to verify.");
   const period = buildRecurringSubscriptionPeriod(new Date());
-
-  await prisma.user.update({
-    where: { id: userId },
-    data: {
-      platformSubscriptionStatus: "ACTIVE",
-      platformSubscriptionPaidAt: period.periodStartAt,
-      platformSubscriptionPeriodStart: period.periodStartAt,
-      platformSubscriptionPeriodEnd: period.periodEndAt,
-      platformSubscriptionNextBilling: period.nextBillingAt
-    }
+  await prisma.$transaction(async (tx) => {
+    await tx.paymentRecord.update({ where: { id: payment.id }, data: { status: decision === "verify" ? "VERIFIED" : "REJECTED", reviewerId: admin.id, reviewedAt: new Date() } });
+    await tx.user.update({ where: { id: userId }, data: decision === "verify"
+      ? { platformSubscriptionStatus: "ACTIVE", platformSubscriptionPaidAt: period.periodStartAt, platformSubscriptionPeriodStart: period.periodStartAt, platformSubscriptionPeriodEnd: period.periodEndAt, platformSubscriptionNextBilling: period.nextBillingAt }
+      : { platformSubscriptionStatus: "UNPAID", platformSubscriptionPaidAt: null, platformSubscriptionPeriodStart: null, platformSubscriptionPeriodEnd: null, platformSubscriptionNextBilling: null }
+    });
+    await tx.approvalEvent.create({ data: { actorId: admin.id, target: "platform_subscription", decision: decision === "verify" ? "APPROVED" : "REJECTED", note: decision === "verify" ? `Admin activated recurring ${user.role.toLowerCase()} subscription at ${formatCurrency(period.monthlyAmount)}/month. Next renewal: ${period.nextBillingAt.toISOString().slice(0, 10)}.` : "Admin rejected the submitted subscription payment reference." } });
+    await queueUserNotification(tx, { userId, type: "SUBSCRIPTION_RESULT", title: decision === "verify" ? "Subscription activated" : "Subscription proof rejected", body: decision === "verify" ? `Your subscription is active until ${period.periodEndAt.toISOString().slice(0, 10)}.` : "Your subscription payment proof was rejected.", dedupeKey: `subscription:${payment.id}:result`, email: true });
   });
-
-  await prisma.approvalEvent.create({
-    data: {
-      actor: { connect: { id: "demo-admin" } },
-      target: "platform_subscription",
-      decision: "APPROVED",
-      note: `Admin activated recurring ${user.role.toLowerCase()} subscription paid to the company account for ${user.email} at ${formatCurrency(period.monthlyAmount)}/month. Next renewal: ${period.nextBillingAt.toISOString().slice(0, 10)}.`
-    }
-  });
-
-  revalidatePath("/dashboard/admin");
-  revalidatePath("/dashboard/user");
-  revalidatePath("/dashboard/host");
+  revalidateDashboards();
 }
 
 export async function confirmDealAction(formData: FormData) {
+  const actor = await requireBookingParticipant(requireString(formData, "bookingId"));
   const bookingId = requireString(formData, "bookingId");
-  const role = requireString(formData, "role");
-  const booking = await prisma.booking.findUnique({ where: { id: bookingId } });
-  if (!booking) throw new Error("Booking not found.");
-
-  const actorId = optionalString(formData, "actorId") || (role === "HOST" ? "demo-host" : "demo-renter");
+  const booking = await prisma.booking.findUnique({ where: { id: bookingId }, include: { listing: { select: { hostId: true } } } });
+  if (!booking) notFound();
   const now = new Date();
-  const data =
-    role === "RENTER"
-      ? { renterDealConfirmedAt: booking.renterDealConfirmedAt ?? now }
-      : role === "HOST"
-        ? { hostDealConfirmedAt: booking.hostDealConfirmedAt ?? now }
-        : null;
-  if (!data) throw new Error("Deal confirmation role must be renter or host.");
+  const isRenter = booking.userId === actor.id;
+  const isHost = booking.listing.hostId === actor.id;
+  if (!isRenter && !isHost) forbidden();
+  const data = isRenter ? { renterDealConfirmedAt: booking.renterDealConfirmedAt ?? now } : { hostDealConfirmedAt: booking.hostDealConfirmedAt ?? now };
+  const status = dealConfirmationStatus(isRenter ? now : booking.renterDealConfirmedAt, isHost ? now : booking.hostDealConfirmedAt);
+  await prisma.$transaction([
+    prisma.booking.update({ where: { id: bookingId }, data }),
+    prisma.approvalEvent.create({ data: { actorId: actor.id, bookingId, target: "deal_confirmation", decision: "APPROVED", note: `${isRenter ? "Renter" : "Host"} confirmed deal on platform. Confirmation status: ${status}.` } })
+  ]);
+  revalidateDashboards();
+}
 
-  await prisma.booking.update({
-    where: { id: bookingId },
-    data
+export async function acceptBookingAgreementAction(formData: FormData) {
+  const bookingId = requireString(formData, "bookingId");
+  const actor = await requireBookingParticipant(bookingId);
+  if (actor.role !== "RENTER" && actor.role !== "HOST") forbidden();
+  await enforceRateLimit({ action: `agreement:accept:${bookingId}`, identity: actor.id, limit: 3, windowSeconds: 60 * 60 });
+  const document = await loadBookingDocument(bookingId);
+  if (!document) notFound();
+  const isRenter = document.booking.userId === actor.id;
+  const isHost = document.booking.listing.hostId === actor.id;
+  if (!isRenter && !isHost) forbidden();
+  const documentHash = bookingDocumentDigest(document.body);
+  await prisma.$transaction(async (tx) => {
+    await tx.agreementAcceptance.upsert({
+      where: { bookingId_userId_documentVersion_documentHash: { bookingId, userId: actor.id, documentVersion: LEGAL_DOCUMENT_VERSION, documentHash } },
+      update: {},
+      create: { bookingId, userId: actor.id, role: actor.role, documentVersion: LEGAL_DOCUMENT_VERSION, documentHash }
+    });
+    await tx.approvalEvent.create({ data: { actorId: actor.id, bookingId, target: `agreement_acceptance:${LEGAL_DOCUMENT_VERSION}:${documentHash.slice(0, 12)}`, decision: "APPROVED", note: `${actor.role === "RENTER" ? "Renter" : "Host"} accepted the current booking agreement record.` } });
   });
+  revalidateDashboards();
+  revalidatePath(`/dashboard/bookings/${bookingId}/agreement`);
+  redirect(`/dashboard/bookings/${bookingId}/agreement`);
+}
 
-  const status = dealConfirmationStatus(
-    role === "RENTER" ? now : booking.renterDealConfirmedAt,
-    role === "HOST" ? now : booking.hostDealConfirmedAt
-  );
-
-  await prisma.approvalEvent.create({
-    data: {
-      actor: { connect: { id: actorId } },
-      booking: { connect: { id: bookingId } },
-      target: "deal_confirmation",
-      decision: "APPROVED",
-      note: `${role.toLowerCase()} confirmed deal on platform. Confirmation status: ${status}. No deal commission charged.`
-    }
+export async function submitPrivacyRequestAction(formData: FormData) {
+  const user = await requireUser();
+  await enforceRateLimit({ action: "privacy:request", identity: user.id, limit: 3, windowSeconds: 24 * 60 * 60 });
+  const type = requireString(formData, "privacyRequestType") as "ACCESS" | "CORRECTION" | "DELETION";
+  if (!(["ACCESS", "CORRECTION", "DELETION"] as const).includes(type)) throw new Error("Invalid privacy request type.");
+  const detail = requireString(formData, "privacyRequestDetail").slice(0, 2000);
+  await prisma.$transaction(async (tx) => {
+    const request = await tx.privacyRequest.create({ data: { userId: user.id, type, detail } });
+    await tx.approvalEvent.create({ data: { actorId: user.id, target: `privacy_request:${request.id}`, decision: "APPROVED", note: `Authenticated user submitted a ${type.toLowerCase()} privacy request.` } });
+    await queueAdminNotifications(tx, { type: "PRIVACY_REQUEST", title: "Privacy request submitted", body: `A ${type.toLowerCase()} request requires administrator review.`, dedupeKey: `privacy:${request.id}:review`, email: true });
   });
+  revalidateDashboards();
+}
 
-  revalidatePath("/dashboard/user");
-  revalidatePath("/dashboard/host");
-  revalidatePath("/dashboard/admin");
+export async function resolvePrivacyRequestAction(formData: FormData) {
+  const admin = await requireAdmin();
+  const requestId = requireString(formData, "requestId");
+  const status = requireString(formData, "status") as "COMPLETED" | "REJECTED";
+  if (status !== "COMPLETED" && status !== "REJECTED") throw new Error("Invalid privacy request decision.");
+  const privacyRequest = await prisma.privacyRequest.findUnique({ where: { id: requestId }, select: { userId: true, type: true } });
+  if (!privacyRequest) notFound();
+  if (privacyRequest.type === "DELETION" && status === "COMPLETED") throw new Error("Use the verified account deletion action for deletion requests.");
+  await prisma.$transaction(async (tx) => {
+    await tx.privacyRequest.update({ where: { id: requestId }, data: { status, resolution: requireString(formData, "resolution").slice(0, 2000), completedAt: new Date() } });
+    await tx.approvalEvent.create({ data: { actorId: admin.id, target: `privacy_request:${requestId}`, decision: status === "COMPLETED" ? "APPROVED" : "REJECTED", note: `Admin closed privacy request as ${status}.` } });
+    await queueUserNotification(tx, { userId: privacyRequest.userId, type: "PRIVACY_RESULT", title: "Privacy request updated", body: `Your privacy request was ${status.toLowerCase()}.`, dedupeKey: `privacy:${requestId}:result`, email: true });
+  });
+  revalidateDashboards();
+}
+
+export async function executeAccountDeletionAction(formData: FormData) {
+  const admin = await requireAdmin();
+  const requestId = requireString(formData, "requestId");
+  const request = await prisma.privacyRequest.findUnique({ where: { id: requestId }, include: { user: true } });
+  if (!request || request.type !== "DELETION" || !["SUBMITTED", "IN_REVIEW"].includes(request.status)) notFound();
+  if (request.user.role === "ADMIN") throw new Error("Administrator deletion requires a separate break-glass procedure.");
+  const activeStatuses = [...ACTIVE_BOOKING_STATUSES];
+  const [renterObligations, hostObligations] = await Promise.all([
+    prisma.booking.count({ where: { userId: request.userId, status: { in: activeStatuses } } }),
+    prisma.booking.count({ where: { listing: { hostId: request.userId }, status: { in: activeStatuses } } })
+  ]);
+  if (renterObligations || hostObligations) throw new Error("Account deletion is blocked while active booking, payment, deposit, or dispute obligations remain.");
+
+  const providerId = request.user.authProviderId?.startsWith("clerk:") ? request.user.authProviderId.slice("clerk:".length) : null;
+  if (getAppMode() !== "demo") {
+    if (!providerId) throw new Error("Managed authentication identity is missing; investigate before deleting the database account.");
+    const client = await clerkClient();
+    await client.users.deleteUser(providerId);
+  }
+  const anonymizedEmail = `deleted+${request.userId}@deleted.invalid`;
+  await prisma.$transaction(async (tx) => {
+    await tx.user.update({ where: { id: request.userId }, data: { authProviderId: null, fullName: "Deleted account", mobile: "", email: anonymizedEmail, companyName: "Deleted", uen: null, workType: null, verificationStatus: "REJECTED", platformSubscriptionStatus: "UNPAID", platformSubscriptionReference: null, platformSubscriptionPaidAt: null, platformSubscriptionPeriodStart: null, platformSubscriptionPeriodEnd: null, platformSubscriptionNextBilling: null, suspended: true } });
+    await tx.privacyRequest.update({ where: { id: requestId }, data: { status: "COMPLETED", resolution: "Managed identity deleted and marketplace profile anonymized after active-obligation check.", completedAt: new Date() } });
+    await tx.approvalEvent.create({ data: { actorId: admin.id, target: `account_deletion:${requestId}`, decision: "APPROVED", note: "Administrator completed a verified deletion request and anonymized the marketplace account." } });
+  });
+  revalidateDashboards();
 }
 
 export async function sendBookingMessageAction(formData: FormData) {
   const bookingId = requireString(formData, "bookingId");
-  const senderRole = requireString(formData, "senderRole");
-  const body = requireString(formData, "message").slice(0, 1000);
-  if (containsRestrictedContactDetail(body)) {
-    throw new Error(CONTACT_POLICY_MESSAGE);
-  }
-  const requestedSenderId = optionalString(formData, "senderId");
-  const fallbackSenderId = senderRole === "HOST" ? "demo-host" : senderRole === "RENTER" ? "demo-renter" : "";
-  const sender = requestedSenderId
-    ? await prisma.user.findUnique({ where: { id: requestedSenderId } })
-    : fallbackSenderId
-      ? await prisma.user.findUnique({ where: { id: fallbackSenderId } })
-      : null;
-  if (!sender || sender.role !== senderRole) {
-    throw new Error("Message sender must be renter or host.");
-  }
-  const senderId = sender.id;
-
-  const booking = await prisma.booking.findUnique({
-    where: { id: bookingId },
-    include: { listing: true }
+  const sender = await requireBookingParticipant(bookingId);
+  await enforceRateLimit({ action: "chat:booking", identity: sender.id, limit: 30, windowSeconds: 60 });
+  const body = await validatedMessageForActor(formData, sender.id, "BOOKING", bookingId);
+  const booking = await prisma.booking.findUnique({ where: { id: bookingId }, select: { userId: true, listing: { select: { hostId: true, title: true } } } });
+  if (!booking) notFound();
+  await prisma.$transaction(async (tx) => {
+    const message = await tx.bookingMessage.create({ data: { bookingId, senderId: sender.id, body } });
+    const recipients = [booking.userId, booking.listing.hostId].filter((id): id is string => Boolean(id && id !== sender.id));
+    for (const userId of recipients) await queueUserNotification(tx, { userId, type: "BOOKING_MESSAGE", title: "New booking message", body: `${booking.listing.title} has a new message in Co-Build chat.`, dedupeKey: `booking-message:${message.id}`, email: true });
   });
-  if (!booking) throw new Error("Booking not found.");
-  if (senderRole === "RENTER" && booking.userId !== senderId) {
-    throw new Error("Renter can only message on their own bookings.");
-  }
-  if (senderRole === "HOST" && booking.listing.hostId !== senderId) {
-    throw new Error("Host can only message on bookings for their own listings.");
-  }
-
-  await prisma.bookingMessage.create({
-    data: {
-      booking: { connect: { id: bookingId } },
-      sender: { connect: { id: senderId } },
-      body
-    }
-  });
-
-  revalidatePath("/dashboard/user");
-  revalidatePath("/dashboard/host");
+  revalidateDashboards();
 }
 
-export async function sendListingMessageAction(formData: FormData) {
-  const listingSlug = requireString(formData, "listingSlug");
-  const senderRole = requireString(formData, "senderRole");
-  const body = requireString(formData, "message").slice(0, 1000);
-  if (containsRestrictedContactDetail(body)) {
-    throw new Error(CONTACT_POLICY_MESSAGE);
-  }
-  const requestedSenderId = optionalString(formData, "senderId");
-  const fallbackSenderId = senderRole === "HOST" ? "demo-host" : senderRole === "RENTER" ? "demo-renter" : "";
-  const sender = requestedSenderId
-    ? await prisma.user.findUnique({ where: { id: requestedSenderId } })
-    : fallbackSenderId
-      ? await prisma.user.findUnique({ where: { id: fallbackSenderId } })
-      : null;
-  if (!sender || sender.role !== senderRole) {
-    throw new Error("Message sender must be renter or host.");
-  }
-  const senderId = sender.id;
-
-  const listing = await prisma.listing.findUnique({
-    where: { slug: listingSlug },
-    select: { id: true, slug: true, hostId: true }
+export async function startListingConversationAction(formData: FormData) {
+  const renter = await requireRole("RENTER");
+  await enforceRateLimit({ action: "chat:listing", identity: renter.id, limit: 20, windowSeconds: 60 });
+  const listingId = requireString(formData, "listingId");
+  const body = await validatedMessageForActor(formData, renter.id, "LISTING", listingId);
+  const listing = await prisma.listing.findFirst({ where: { id: listingId, status: "APPROVED", host: { is: { role: "HOST", suspended: false, verificationStatus: "APPROVED", platformSubscriptionStatus: "ACTIVE" } } }, select: { id: true, slug: true, hostId: true } });
+  if (!listing?.hostId) notFound();
+  await prisma.$transaction(async (tx) => {
+    const conversation = await tx.conversation.upsert({
+      where: { listingId_renterId: { listingId, renterId: renter.id } },
+      update: { hostId: listing.hostId! },
+      create: { listingId, renterId: renter.id, hostId: listing.hostId! }
+    });
+    const message = await tx.conversationMessage.create({ data: { conversationId: conversation.id, senderId: renter.id, body } });
+    await queueUserNotification(tx, { userId: listing.hostId!, type: "LISTING_MESSAGE", title: "New listing enquiry", body: "A renter sent a question through the private listing chat.", dedupeKey: `conversation-message:${message.id}`, email: true });
   });
-  if (!listing) throw new Error("Listing not found.");
-  if (senderRole === "HOST" && listing.hostId !== senderId) {
-    throw new Error("Host can only message on their own listings.");
-  }
-
-  await prisma.listingMessage.create({
-    data: {
-      listing: { connect: { id: listing.id } },
-      sender: { connect: { id: senderId } },
-      body
-    }
-  });
-
   revalidatePath(`/listings/${listing.slug}`);
   revalidatePath("/dashboard/host");
 }
 
-export async function createAdditionalRequirementAction(formData: FormData) {
-  const bookingId = requireString(formData, "bookingId");
-  const detail = requireString(formData, "additionalDetail");
-  const renterId = optionalString(formData, "userId") || "demo-renter";
-
-  const booking = await prisma.booking.findUnique({
-    where: { id: bookingId },
-    include: { user: true, listing: true }
+export async function sendConversationMessageAction(formData: FormData) {
+  const conversationId = requireString(formData, "conversationId");
+  const sender = await requireConversationParticipant(conversationId);
+  await enforceRateLimit({ action: "chat:conversation", identity: sender.id, limit: 30, windowSeconds: 60 });
+  const body = await validatedMessageForActor(formData, sender.id, "CONVERSATION", conversationId);
+  const conversation = await prisma.conversation.findUnique({ where: { id: conversationId }, select: { renterId: true, hostId: true } });
+  if (!conversation) notFound();
+  await prisma.$transaction(async (tx) => {
+    const message = await tx.conversationMessage.create({ data: { conversationId, senderId: sender.id, body } });
+    const recipientId = sender.id === conversation.renterId ? conversation.hostId : conversation.renterId;
+    await queueUserNotification(tx, { userId: recipientId, type: "LISTING_MESSAGE", title: "New listing chat message", body: "You received a new message in a private Co-Build listing conversation.", dedupeKey: `conversation-message:${message.id}`, email: true });
   });
-  if (!booking || booking.userId !== renterId) {
-    throw new Error("Booking not found for this renter.");
-  }
-
-  await prisma.additionalRequirement.create({
-    data: {
-      detail,
-      booking: { connect: { id: bookingId } },
-      user: { connect: { id: renterId } }
-    }
-  });
-
-  revalidatePath("/dashboard/user");
   revalidatePath("/dashboard/host");
-  redirect(`/dashboard/user?account=${renterId}&additional=submitted`);
+  revalidatePath("/dashboard/user");
+}
+
+export async function createAdditionalRequirementAction(formData: FormData) {
+  const renter = await requireRole("RENTER");
+  const bookingId = requireString(formData, "bookingId");
+  const booking = await prisma.booking.findUnique({ where: { id: bookingId }, select: { userId: true, listing: { select: { hostId: true } } } });
+  if (!booking) notFound();
+  if (booking.userId !== renter.id) forbidden();
+  const detail = requireString(formData, "additionalDetail");
+  assertNoRestrictedContact(detail);
+  await prisma.$transaction(async (tx) => {
+    const request = await tx.additionalRequirement.create({ data: { bookingId, userId: renter.id, detail } });
+    if (booking.listing.hostId) await queueUserNotification(tx, { userId: booking.listing.hostId, type: "ADDITIONAL_REQUIREMENT", title: "Additional requirement submitted", body: "A renter submitted an additional requirement for your approval and quotation.", dedupeKey: `additional:${request.id}:host-review`, email: true });
+  });
+  revalidateDashboards();
+  redirect("/dashboard/user?additional=submitted");
 }
 
 export async function approveAdditionalRequirementAction(formData: FormData) {
   const requestId = requireString(formData, "requestId");
-  const hostId = optionalString(formData, "hostId") || "demo-host";
   const quotedRate = Number(requireString(formData, "quotedRate"));
-  if (!Number.isFinite(quotedRate) || quotedRate <= 0) {
-    throw new Error("Add-on rate must be greater than zero.");
-  }
-
-  const request = await prisma.additionalRequirement.findUnique({
-    where: { id: requestId },
-    include: {
-      user: true,
-      booking: {
-        include: {
-          listing: {
-            include: { host: true }
-          }
-        }
-      }
-    }
-  });
-  if (!request) throw new Error("Additional requirement request not found.");
-  if (request.booking.listing.hostId !== hostId) throw new Error("Host can only manage their own additional requirements.");
-
+  if (!Number.isFinite(quotedRate) || quotedRate <= 0) throw new Error("Add-on rate must be greater than zero.");
+  const request = await prisma.additionalRequirement.findUnique({ where: { id: requestId }, include: { user: true, booking: { include: { listing: { include: { host: true } } } } } });
+  if (!request) notFound();
+  const host = await requireListingOwner(request.booking.listingId);
   const nextStatus = advanceAdditionalRequirementStatus(request.status, "HOST_APPROVE");
-  if (nextStatus === request.status) {
-    throw new Error("Additional requirement is not pending host approval.");
-  }
-
-  const contractText = buildAdditionalRequirementContract({
-    bookingId: request.booking.id,
-    listingTitle: request.booking.listing.title,
-    renterName: request.user.fullName,
-    renterEmail: request.user.email,
-    hostName: request.booking.listing.host?.fullName ?? "Host",
-    requirementDetail: request.detail,
-    quotedRate
-  });
-
-  await prisma.additionalRequirement.update({
-    where: { id: requestId },
-    data: {
-      status: nextStatus,
-      quotedRate,
-      contractText,
-      emailedTo: request.user.email,
-      emailedAt: new Date()
-    }
-  });
-
-  await prisma.approvalEvent.create({
-    data: {
-      actor: { connect: { id: hostId } },
-      booking: { connect: { id: request.bookingId } },
-      target: "additional_requirement",
-      decision: "APPROVED",
-      note: `Host approved additional requirement at ${formatCurrency(quotedRate)}. Contract emailed to ${request.user.email}.`
-    }
-  });
-
-  revalidatePath("/dashboard/host");
-  revalidatePath("/dashboard/user");
-  redirect(`/dashboard/host?account=${hostId}&additional=approved`);
+  if (nextStatus === request.status) throw new Error("Additional requirement is not pending host approval.");
+  const contractText = buildAdditionalRequirementContract({ bookingId: request.booking.id, listingTitle: request.booking.listing.title, renterName: request.user.fullName, hostName: request.booking.listing.host?.fullName ?? "Host", requirementDetail: request.detail, quotedRate });
+  await prisma.$transaction([
+    prisma.additionalRequirement.update({ where: { id: requestId }, data: { status: nextStatus, quotedRate, contractText, emailedTo: null, emailedAt: null } }),
+    prisma.approvalEvent.create({ data: { actorId: host.id, bookingId: request.bookingId, target: "additional_requirement", decision: "APPROVED", note: `Host approved additional requirement at ${formatCurrency(quotedRate)}.` } }),
+    prisma.notification.create({ data: { userId: request.userId, type: "ADDITIONAL_REQUIREMENT_RESULT", title: "Additional requirement quoted", body: `The host quoted ${formatCurrency(quotedRate)}. Review the add-on before submitting payment.`, channel: "IN_APP", dedupeKey: `additional:${requestId}:quote:in-app` } })
+  ]);
+  revalidateDashboards();
+  redirect("/dashboard/host?additional=approved");
 }
 
 export async function rejectAdditionalRequirementAction(formData: FormData) {
   const requestId = requireString(formData, "requestId");
-  const hostId = optionalString(formData, "hostId") || "demo-host";
   const request = await prisma.additionalRequirement.findUnique({ where: { id: requestId }, include: { booking: { include: { listing: true } } } });
-  if (!request) throw new Error("Additional requirement request not found.");
-  if (request.booking.listing.hostId !== hostId) throw new Error("Host can only manage their own additional requirements.");
-
+  if (!request) notFound();
+  const host = await requireListingOwner(request.booking.listingId);
   const nextStatus = advanceAdditionalRequirementStatus(request.status, "HOST_REJECT");
-  if (nextStatus === request.status) {
-    throw new Error("Additional requirement is not pending host approval.");
-  }
-
-  await prisma.additionalRequirement.update({
-    where: { id: requestId },
-    data: { status: nextStatus }
+  if (nextStatus === request.status) throw new Error("Additional requirement is not pending host approval.");
+  await prisma.$transaction(async (tx) => {
+    await tx.additionalRequirement.update({ where: { id: requestId }, data: { status: nextStatus } });
+    await tx.approvalEvent.create({ data: { actorId: host.id, bookingId: request.bookingId, target: "additional_requirement", decision: "REJECTED", note: "Host rejected additional requirement request." } });
+    await queueUserNotification(tx, { userId: request.booking.userId, type: "ADDITIONAL_REQUIREMENT_RESULT", title: "Additional requirement declined", body: "The host declined your additional requirement. Continue the discussion in booking chat if needed.", dedupeKey: `additional:${requestId}:rejected`, email: true });
   });
-
-  await prisma.approvalEvent.create({
-    data: {
-      actor: { connect: { id: hostId } },
-      booking: { connect: { id: request.bookingId } },
-      target: "additional_requirement",
-      decision: "REJECTED",
-      note: "Host rejected additional requirement request."
-    }
-  });
-
-  revalidatePath("/dashboard/host");
-  revalidatePath("/dashboard/user");
-  redirect(`/dashboard/host?account=${hostId}&additional=rejected`);
+  revalidateDashboards();
 }
 
 export async function confirmAdditionalRequirementPaymentAction(formData: FormData) {
+  const renter = await requireRole("RENTER");
   const requestId = requireString(formData, "requestId");
   const request = await prisma.additionalRequirement.findUnique({ where: { id: requestId } });
-  if (!request) {
-    throw new Error("Additional requirement request not found for this renter.");
-  }
-  const renterId = request.userId;
-
+  if (!request) notFound();
+  if (request.userId !== renter.id) forbidden();
+  await enforceRateLimit({ action: "payment:additional-submit", identity: renter.id, limit: 6, windowSeconds: 60 * 60 });
   const nextStatus = advanceAdditionalRequirementStatus(request.status, "PAY");
-  if (nextStatus === request.status) {
-    throw new Error("Additional requirement must be approved before payment.");
-  }
+  if (nextStatus === request.status) throw new Error("Additional requirement must be approved before payment.");
+  const paymentReference = requireString(formData, "paymentReference").slice(0, 120);
+  await prisma.$transaction([
+    prisma.paymentRecord.create({ data: { payerId: renter.id, bookingId: request.bookingId, additionalRequirementId: request.id, kind: "ADDITIONAL_REQUIREMENT", amount: request.quotedRate, reference: paymentReference, idempotencyKey: `additional:${request.id}:${paymentReference.toLowerCase()}` } }),
+    prisma.additionalRequirement.update({ where: { id: requestId }, data: { status: nextStatus, paidAt: null } }),
+    prisma.approvalEvent.create({ data: { actorId: renter.id, bookingId: request.bookingId, target: "additional_requirement_payment", decision: "APPROVED", note: `Renter submitted payment proof for ${formatCurrency(request.quotedRate)}.` } })
+  ]);
+  revalidateDashboards();
+}
 
-  await prisma.additionalRequirement.update({
-    where: { id: requestId },
-    data: {
-      status: nextStatus,
-      paidAt: new Date()
-    }
+export async function reviewAdditionalRequirementPaymentAction(formData: FormData) {
+  const admin = await requireAdmin();
+  const paymentId = requireString(formData, "paymentId");
+  const decision = requireString(formData, "decision") as "verify" | "reject";
+  if (decision !== "verify" && decision !== "reject") throw new Error("Invalid payment decision.");
+  const payment = await prisma.paymentRecord.findUnique({ where: { id: paymentId }, include: { additionalRequirement: true } });
+  if (!payment?.additionalRequirement || payment.kind !== "ADDITIONAL_REQUIREMENT" || payment.status !== "SUBMITTED") notFound();
+  const nextStatus = decision === "verify" ? "PAID_CONFIRMED" : "APPROVED_FOR_PAYMENT";
+  await prisma.$transaction(async (tx) => {
+    await tx.paymentRecord.update({ where: { id: payment.id }, data: { status: decision === "verify" ? "VERIFIED" : "REJECTED", reviewerId: admin.id, reviewedAt: new Date() } });
+    await tx.additionalRequirement.update({ where: { id: payment.additionalRequirement!.id }, data: { status: nextStatus, paidAt: decision === "verify" ? new Date() : null } });
+    await tx.approvalEvent.create({ data: { actorId: admin.id, bookingId: payment.additionalRequirement!.bookingId, target: "additional_requirement_payment_reconciliation", decision: decision === "verify" ? "APPROVED" : "REJECTED", note: `Admin ${decision === "verify" ? "verified" : "rejected"} additional requirement payment.` } });
+    await queueUserNotification(tx, { userId: payment.payerId, type: "ADDITIONAL_PAYMENT_RESULT", title: decision === "verify" ? "Add-on payment verified" : "Add-on payment rejected", body: decision === "verify" ? "Your additional requirement payment was verified." : "Your add-on payment reference was rejected.", dedupeKey: `additional-payment:${payment.id}:result`, email: true });
   });
-
-  await prisma.approvalEvent.create({
-    data: {
-      actor: { connect: { id: renterId } },
-      booking: { connect: { id: request.bookingId } },
-      target: "additional_requirement_payment",
-      decision: "APPROVED",
-      note: `Renter submitted company-account payment proof for approved additional requirement rate of ${formatCurrency(request.quotedRate)}.`
-    }
-  });
-
-  revalidatePath("/dashboard/user");
-  revalidatePath("/dashboard/host");
-  redirect(`/dashboard/user?account=${renterId}&additional=paid`);
+  revalidateDashboards();
 }
 
 export async function createListingAction(formData: FormData) {
+  const host = await requireRole("HOST");
+  if (!canHostOperate(host)) throw new Error("An approved, active host subscription is required before submitting a listing.");
   const title = requireString(formData, "title");
+  assertNoRestrictedContact(title, requireString(formData, "amenities"), requireString(formData, "permittedWork"), requireString(formData, "restrictedWork"), optionalString(formData, "factoryTypeOther"), optionalString(formData, "equipmentOther"));
   const slug = slugify(`${title}-${Date.now()}`);
-  const hostId = optionalString(formData, "hostId") || "demo-host";
-  const photoUpload = await saveUpload(formData.get("photo") as File | null, "listing-photo");
-  const floorPlanUpload = await saveUpload(formData.get("floorPlan") as File | null, "floor-plan");
-  const equipmentSlugs = formData
-    .getAll("equipment")
-    .map(String)
-    .filter((slugValue) => slugValue !== "other");
-  const equipmentOther = optionalString(formData, "equipmentOther");
-  const factoryTypes = formData
-    .getAll("factoryType")
-    .map(String)
-    .filter((typeValue) => ["OFFICE", "B1", "B2", "OTHER"].includes(typeValue));
-  const factoryTypeOther = optionalString(formData, "factoryTypeOther");
+  const photoUploadId = optionalString(formData, "photoUploadId");
+  const floorPlanUploadId = optionalString(formData, "floorPlanUploadId");
+  const equipmentSlugs = formData.getAll("equipment").map(String).filter((slugValue) => slugValue !== "other");
+  const factoryTypes = formData.getAll("factoryType").map(String).filter((value) => ["OFFICE", "B1", "B2", "OTHER"].includes(value));
   const sizeSqft = Number(requireString(formData, "sizeSqft"));
   const spaceType = inferSpaceTypeFromSize(sizeSqft);
   const amenities = splitList(requireString(formData, "amenities"));
-  const declaredType = formatDeclaredType(factoryTypes, factoryTypeOther);
-  if (declaredType) {
-    amenities.push(declaredType);
-  }
-  if (equipmentOther) {
-    amenities.push(`Other equipment: ${equipmentOther}`);
-  }
+  const declaredType = formatDeclaredType(factoryTypes, optionalString(formData, "factoryTypeOther"));
+  if (declaredType) amenities.push(declaredType);
+  const equipmentOther = optionalString(formData, "equipmentOther");
+  if (equipmentOther) amenities.push(`Other equipment: ${equipmentOther}`);
 
-  const listing = await prisma.listing.create({
-    data: {
-      slug,
-      title,
-      address: requireString(formData, "address"),
-      location: requireString(formData, "location"),
-      sizeSqft,
-      spaceType,
-      zoning: zoningFromFactoryTypes(factoryTypes),
-      status: "PENDING_ADMIN",
-      accessHours: requireString(formData, "accessHours"),
-      powerType: requireString(formData, "powerType") as PowerType,
-      loadingAccessJson: JSON.stringify(splitList(requireString(formData, "loadingAccess"))),
-      amenitiesJson: JSON.stringify(amenities),
-      permittedWorkJson: JSON.stringify(splitList(requireString(formData, "permittedWork"))),
-      prohibitedWorkJson: JSON.stringify(splitList(requireString(formData, "restrictedWork"))),
-      safetyRulesJson: JSON.stringify(commonSafetyRules),
-      cancellationPolicy: "Host reviews cancellation requests case by case for this pending listing.",
-      photoUrlsJson: JSON.stringify([fallbackListingImage(spaceType)]),
-      floorPlanUrl: floorPlanUpload?.localPath ?? fallbackFloorPlan(spaceType),
-      priceDay: Number(requireString(formData, "priceDay")),
-      priceSevenDays: Number(requireString(formData, "priceSevenDays")),
-      priceThirtyDays: Number(requireString(formData, "priceThirtyDays")),
-      priceSixtyDays: Number(requireString(formData, "priceSixtyDays")),
-      depositStandard: Number(requireString(formData, "depositStandard")),
-      depositHighRisk: Number(formData.get("depositHighRisk") || 0),
-      cleaningFee: Number(requireString(formData, "cleaningFee")),
-      landlordApproval: "Not collected in host listing form",
-      insuranceStatus: "Not collected in host listing form",
-      fireSafety: requireString(formData, "fireSafety"),
-      electricalSupply: requireString(formData, "electricalSupply"),
-      host: { connect: { id: hostId } },
-      equipmentAddons: {
-        create: equipmentSlugs.map((slugValue) => ({
-          equipmentAddon: { connect: { slug: slugValue } }
-        }))
+  await prisma.$transaction(async (tx) => {
+    const listing = await tx.listing.create({
+      data: {
+        slug, title, address: requireString(formData, "address"), location: requireString(formData, "location"), sizeSqft, spaceType,
+        factoryType: zoningFromFactoryTypes(factoryTypes), status: "PENDING_ADMIN", accessHours: requireString(formData, "accessHours"),
+        powerType: requireString(formData, "powerType") as PowerType,
+        loadingAccessJson: JSON.stringify(splitList(requireString(formData, "loadingAccess"))), amenitiesJson: JSON.stringify(amenities),
+        permittedWorkJson: JSON.stringify(splitList(requireString(formData, "permittedWork"))), prohibitedWorkJson: JSON.stringify(splitList(requireString(formData, "restrictedWork"))),
+        safetyRulesJson: JSON.stringify(commonSafetyRules), cancellationPolicy: "Host reviews cancellation requests case by case for this pending listing.",
+        photoUrlsJson: JSON.stringify([fallbackListingImage(spaceType)]), floorPlanUrl: fallbackFloorPlan(spaceType),
+        priceDay: numberField(formData, "priceDay"), priceSevenDays: numberField(formData, "priceSevenDays"), priceThirtyDays: numberField(formData, "priceThirtyDays"), priceSixtyDays: numberField(formData, "priceSixtyDays"),
+        depositStandard: numberField(formData, "depositStandard"), depositHighRisk: Number(formData.get("depositHighRisk") || 0), cleaningFee: numberField(formData, "cleaningFee"),
+        fireSafety: requireString(formData, "fireSafety"), electricalSupply: requireString(formData, "electricalSupply"), hostId: host.id,
+        equipmentAddons: { create: equipmentSlugs.map((value) => ({ equipmentAddon: { connect: { slug: value } } })) }
       }
+    });
+    for (const [uploadId, type] of [[photoUploadId, "LISTING_PHOTO"], [floorPlanUploadId, "FLOOR_PLAN"]] as const) {
+      if (!uploadId) continue;
+      const result = await tx.upload.updateMany({
+        where: { id: uploadId, type, listingId: null, ownerUserId: host.id, uploadedByUserId: host.id, uploadStatus: "AVAILABLE" },
+        data: { listingId: listing.id }
+      });
+      if (result.count !== 1) throw new Error(`${type.toLowerCase().replace("_", " ")} is unavailable or does not belong to this host.`);
     }
+    await tx.approvalEvent.create({ data: { actorId: host.id, listingId: listing.id, target: "listing_submission", decision: "APPROVED", note: "Authenticated host submitted listing for admin review." } });
+    await queueAdminNotifications(tx, { type: "LISTING_REVIEW", title: "Listing needs approval", body: `${title} was submitted for administrator review.`, dedupeKey: `listing:${listing.id}:admin-review`, email: true });
   });
-
-  if (photoUpload) {
-    await prisma.upload.create({
-      data: {
-        type: "LISTING_PHOTO",
-        originalName: photoUpload.originalName,
-        localPath: photoUpload.localPath,
-        listing: { connect: { id: listing.id } }
-      }
-    });
-  }
-  if (floorPlanUpload) {
-    await prisma.upload.create({
-      data: {
-        type: "FLOOR_PLAN",
-        originalName: floorPlanUpload.originalName,
-        localPath: floorPlanUpload.localPath,
-        listing: { connect: { id: listing.id } }
-      }
-    });
-  }
-
-  revalidatePath("/dashboard/host");
-  revalidatePath("/dashboard/admin");
-  redirect(`/dashboard/host?account=${hostId}&listing=submitted`);
+  revalidateDashboards();
+  redirect("/dashboard/host?listing=submitted");
 }
 
 export async function updateListingStatusAction(formData: FormData) {
+  const admin = await requireAdmin();
   const listingId = requireString(formData, "listingId");
   const status = requireString(formData, "status") as "APPROVED" | "REJECTED" | "SUSPENDED";
-  await prisma.listing.update({ where: { id: listingId }, data: { status } });
-  await prisma.approvalEvent.create({
-    data: {
-      actor: { connect: { id: "demo-admin" } },
-      listing: { connect: { id: listingId } },
-      target: "listing",
-      decision: status === "APPROVED" ? "APPROVED" : status === "SUSPENDED" ? "SUSPENDED" : "REJECTED",
-      note: `Admin changed listing status to ${status}.`
-    }
+  if (!["APPROVED", "REJECTED", "SUSPENDED"].includes(status)) throw new Error("Invalid listing status.");
+  const listing = await prisma.listing.findUnique({ where: { id: listingId }, select: { hostId: true, title: true } });
+  if (!listing) notFound();
+  await prisma.$transaction(async (tx) => {
+    await tx.listing.update({ where: { id: listingId }, data: { status } });
+    await tx.approvalEvent.create({ data: { actorId: admin.id, listingId, target: "listing", decision: status === "APPROVED" ? "APPROVED" : status === "SUSPENDED" ? "SUSPENDED" : "REJECTED", note: `Admin changed listing status to ${status}.` } });
+    if (listing.hostId) await queueUserNotification(tx, { userId: listing.hostId, type: "LISTING_STATUS", title: "Listing status updated", body: `${listing.title} is now ${status.toLowerCase()}.`, dedupeKey: `listing:${listingId}:status:${status}`, email: true });
   });
-  revalidatePath("/dashboard/admin");
-  revalidatePath("/search");
+  revalidatePath("/search"); revalidatePath("/dashboard/admin");
 }
 
 export async function updateUserVerificationAction(formData: FormData) {
+  const admin = await requireAdmin();
   const userId = requireString(formData, "userId");
-  const verificationStatus = requireString(formData, "verificationStatus") as "APPROVED" | "REJECTED" | "PENDING";
-  await prisma.user.update({ where: { id: userId }, data: { verificationStatus } });
+  const status = requireString(formData, "verificationStatus") as "APPROVED" | "REJECTED" | "PENDING";
+  if (!["APPROVED", "REJECTED", "PENDING"].includes(status)) throw new Error("Invalid verification status.");
+  await prisma.$transaction([
+    prisma.user.update({ where: { id: userId }, data: { verificationStatus: status } }),
+    prisma.approvalEvent.create({ data: { actorId: admin.id, target: `user_verification:${userId}`, decision: status === "APPROVED" ? "APPROVED" : "REJECTED", note: `Admin changed user verification to ${status}.` } })
+  ]);
   revalidatePath("/dashboard/admin");
 }
 
 export async function toggleUserSuspensionAction(formData: FormData) {
+  const admin = await requireAdmin();
   const userId = requireString(formData, "userId");
+  if (userId === admin.id) throw new Error("Administrators cannot suspend their own active session.");
   const suspended = requireString(formData, "suspended") === "true";
-  await prisma.user.update({ where: { id: userId }, data: { suspended } });
-  await prisma.approvalEvent.create({
-    data: {
-      actor: { connect: { id: "demo-admin" } },
-      target: "user",
-      decision: suspended ? "SUSPENDED" : "APPROVED",
-      note: `Admin ${suspended ? "suspended" : "restored"} user ${userId}.`
-    }
-  });
+  await prisma.$transaction([
+    prisma.user.update({ where: { id: userId }, data: { suspended } }),
+    prisma.approvalEvent.create({ data: { actorId: admin.id, target: `user:${userId}`, decision: suspended ? "SUSPENDED" : "APPROVED", note: `Admin ${suspended ? "suspended" : "restored"} user.` } })
+  ]);
   revalidatePath("/dashboard/admin");
 }
 
 export async function updateEquipmentPriceAction(formData: FormData) {
+  const admin = await requireAdmin();
   const slug = requireString(formData, "slug");
-  const pricePerBooking = Number(requireString(formData, "pricePerBooking"));
-  await prisma.equipmentAddon.update({ where: { slug }, data: { pricePerBooking } });
-  revalidatePath("/dashboard/admin");
-  revalidatePath("/checkout");
+  const pricePerBooking = numberField(formData, "pricePerBooking");
+  await prisma.$transaction([
+    prisma.equipmentAddon.update({ where: { slug }, data: { pricePerBooking } }),
+    prisma.approvalEvent.create({ data: { actorId: admin.id, target: `equipment_price:${slug}`, decision: "APPROVED", note: `Admin updated equipment price to ${formatCurrency(pricePerBooking)}.` } })
+  ]);
+  revalidatePath("/dashboard/admin"); revalidatePath("/checkout");
 }
 
 export async function updateListingPricingAction(formData: FormData) {
+  const admin = await requireAdmin();
   const listingId = requireString(formData, "listingId");
-  await prisma.listing.update({
-    where: { id: listingId },
-    data: {
-      priceDay: Number(requireString(formData, "priceDay")),
-      priceThirtyDays: Number(requireString(formData, "priceThirtyDays")),
-      priceSixtyDays: Number(requireString(formData, "priceSixtyDays")),
-      depositStandard: Number(requireString(formData, "depositStandard")),
-      cleaningFee: Number(requireString(formData, "cleaningFee"))
+  await prisma.$transaction([
+    prisma.listing.update({ where: { id: listingId }, data: { priceDay: numberField(formData, "priceDay"), priceThirtyDays: numberField(formData, "priceThirtyDays"), priceSixtyDays: numberField(formData, "priceSixtyDays"), depositStandard: numberField(formData, "depositStandard"), cleaningFee: numberField(formData, "cleaningFee") } }),
+    prisma.approvalEvent.create({ data: { actorId: admin.id, listingId, target: "listing_pricing", decision: "APPROVED", note: "Admin updated listing pricing and deposit controls." } })
+  ]);
+  revalidatePath("/dashboard/admin"); revalidatePath("/search");
+}
+
+export async function updateDepositStatusAction(formData: FormData) {
+  const admin = await requireAdmin();
+  const bookingId = requireString(formData, "bookingId");
+  const status = requireString(formData, "depositStatus") as "HELD" | "RELEASED" | "PARTIALLY_RETAINED" | "RETAINED" | "DISPUTED";
+  if (!(["HELD", "RELEASED", "PARTIALLY_RETAINED", "RETAINED", "DISPUTED"] as const).includes(status)) throw new Error("Invalid deposit status.");
+  const booking = await prisma.booking.findUnique({ where: { id: bookingId }, select: { deposit: true } });
+  if (!booking) notFound();
+  let depositReturned = 0;
+  let depositRetained = 0;
+  if (status === "RELEASED") depositReturned = booking.deposit;
+  if (status === "RETAINED") depositRetained = booking.deposit;
+  if (status === "PARTIALLY_RETAINED") {
+    depositReturned = numberField(formData, "depositReturned");
+    depositRetained = numberField(formData, "depositRetained");
+    if (depositReturned <= 0 || depositRetained <= 0 || depositReturned + depositRetained !== booking.deposit) {
+      throw new Error("Returned and retained deposit amounts must both be positive and equal the booked deposit total.");
     }
+  }
+  const note = requireString(formData, "depositNote").slice(0, 1000);
+  await prisma.$transaction([
+    prisma.booking.update({ where: { id: bookingId }, data: { depositStatus: status, depositReturned, depositRetained } }),
+    prisma.approvalEvent.create({ data: { actorId: admin.id, bookingId, target: "deposit_ledger", decision: status === "DISPUTED" || status === "RETAINED" ? "REJECTED" : "APPROVED", note: `${status}: returned ${formatCurrency(depositReturned)}, retained ${formatCurrency(depositRetained)}. ${note}` } })
+  ]);
+  revalidateDashboards();
+}
+
+export async function markNotificationReadAction(formData: FormData) {
+  const user = await requireUser();
+  const notificationId = requireString(formData, "notificationId");
+  await prisma.notification.updateMany({
+    where: { id: notificationId, userId: user.id, channel: "IN_APP" },
+    data: { status: "READ", readAt: new Date() }
+  });
+  revalidateDashboards();
+}
+
+export async function reportMessageAction(formData: FormData) {
+  const actor = await requireUser();
+  await enforceRateLimit({ action: "moderation:report", identity: actor.id, limit: 8, windowSeconds: 24 * 60 * 60 });
+  const messageKind = requireString(formData, "messageKind");
+  const messageId = requireString(formData, "messageId");
+  const reason = requireString(formData, "reason");
+  if (!("CONTACT_SHARING HARASSMENT UNSAFE_REQUEST SPAM OTHER".split(" ")).includes(reason)) throw new Error("Invalid report reason.");
+
+  let contextType: "BOOKING" | "CONVERSATION";
+  let contextId: string;
+  let reportedUserId: string;
+  if (messageKind === "BOOKING") {
+    const message = await prisma.bookingMessage.findUnique({ where: { id: messageId }, select: { senderId: true, bookingId: true } });
+    if (!message) notFound();
+    await requireBookingParticipant(message.bookingId);
+    contextType = "BOOKING";
+    contextId = message.bookingId;
+    reportedUserId = message.senderId;
+  } else if (messageKind === "CONVERSATION") {
+    const message = await prisma.conversationMessage.findUnique({ where: { id: messageId }, select: { senderId: true, conversationId: true } });
+    if (!message) notFound();
+    await requireConversationParticipant(message.conversationId);
+    contextType = "CONVERSATION";
+    contextId = message.conversationId;
+    reportedUserId = message.senderId;
+  } else {
+    throw new Error("Invalid message type.");
+  }
+  if (reportedUserId === actor.id) throw new Error("You cannot report your own message.");
+
+  await prisma.$transaction(async (tx) => {
+    const report = await tx.moderationReport.create({ data: { reporterId: actor.id, reportedUserId, contextType, contextId, messageId, reason, detail: optionalString(formData, "detail").slice(0, 1000) || null } });
+    await tx.approvalEvent.create({ data: { actorId: actor.id, target: `moderation_report:${report.id}`, decision: "REJECTED", note: `Authenticated participant reported a ${contextType.toLowerCase()} message for ${reason.toLowerCase().replaceAll("_", " ")}.` } });
+    await queueAdminNotifications(tx, { type: "MODERATION_REPORT", title: "Chat report requires review", body: `A ${reason.toLowerCase().replaceAll("_", " ")} report was submitted.`, dedupeKey: `moderation:${report.id}:admin`, email: true });
+  });
+  revalidateDashboards();
+}
+
+export async function reviewModerationReportAction(formData: FormData) {
+  const admin = await requireAdmin();
+  const reportId = requireString(formData, "reportId");
+  const status = requireString(formData, "status") as "RESOLVED" | "DISMISSED";
+  if (status !== "RESOLVED" && status !== "DISMISSED") throw new Error("Invalid moderation decision.");
+  const report = await prisma.moderationReport.findUnique({ where: { id: reportId }, select: { reporterId: true } });
+  if (!report) notFound();
+  const resolution = requireString(formData, "resolution").slice(0, 1000);
+  await prisma.$transaction(async (tx) => {
+    await tx.moderationReport.update({ where: { id: reportId }, data: { status, resolution, reviewerId: admin.id, reviewedAt: new Date() } });
+    await tx.approvalEvent.create({ data: { actorId: admin.id, target: `moderation_report:${reportId}`, decision: status === "RESOLVED" ? "APPROVED" : "REJECTED", note: `Admin closed moderation report as ${status}.` } });
+    await queueUserNotification(tx, { userId: report.reporterId, type: "MODERATION_RESULT", title: "Chat report reviewed", body: `Your report was ${status.toLowerCase()}.`, dedupeKey: `moderation:${reportId}:result`, email: true });
   });
   revalidatePath("/dashboard/admin");
-  revalidatePath("/search");
 }
 
-function requireString(formData: FormData, key: string): string {
-  const value = formData.get(key);
-  if (typeof value !== "string" || !value.trim()) {
-    throw new Error(`${key} is required.`);
+async function validatedMessageForActor(formData: FormData, actorId: string, contextType: string, contextId: string): Promise<string> {
+  const body = requireString(formData, "message").slice(0, 1000);
+  if (containsRestrictedContactDetail(body)) {
+    await prisma.$transaction(async (tx) => {
+      const report = await tx.moderationReport.create({ data: { reporterId: actorId, reportedUserId: actorId, contextType, contextId, reason: "CONTACT_SHARING_ATTEMPT", detail: "Restricted contact detail was blocked before the message was stored." } });
+      await tx.approvalEvent.create({ data: { actorId, target: `contact_policy_violation:${report.id}`, decision: "REJECTED", note: "A contact-sharing attempt was blocked. The submitted message body was not retained." } });
+      await queueAdminNotifications(tx, { type: "CONTACT_POLICY", title: "Contact-sharing attempt blocked", body: "A user attempted to submit restricted contact details. The message was blocked and not stored.", dedupeKey: `contact-policy:${report.id}:admin` });
+    });
+    throw new Error(CONTACT_POLICY_MESSAGE);
   }
-  return value.trim();
+  return body;
 }
 
-function optionalString(formData: FormData, key: string): string {
-  const value = formData.get(key);
-  return typeof value === "string" ? value.trim() : "";
+function assertNoRestrictedContact(...values: string[]) {
+  if (values.some(containsRestrictedContactDetail)) throw new Error(CONTACT_POLICY_MESSAGE);
 }
 
-function parseDuration(value: string): DurationDays {
-  const duration = Number(value);
-  if (duration === 1 || duration === 7 || duration === 30 || duration === 60) return duration;
-  throw new Error("Duration must be 1, 7, 30, or 60 days.");
-}
-
-function splitList(value: string): string[] {
-  return value
-    .split(/\r?\n|,/)
-    .map((item) => item.trim())
-    .filter(Boolean);
-}
-
-function zoningFromFactoryTypes(factoryTypes: string[]): Zoning {
-  if (factoryTypes.includes("B2")) return "B2";
-  if (factoryTypes.includes("B1")) return "B1";
-  return "UNKNOWN";
-}
-
-function formatDeclaredType(factoryTypes: string[], otherType: string): string {
-  const labels = factoryTypes.map((typeValue) => {
-    if (typeValue === "OFFICE") return "Office";
-    if (typeValue === "OTHER" && otherType) return `Other: ${otherType}`;
-    if (typeValue === "OTHER") return "Other";
-    return typeValue;
-  });
-
-  if (!labels.length && otherType) {
-    labels.push(`Other: ${otherType}`);
-  }
-
-  return labels.length ? `Declared type: ${labels.join(", ")}` : "";
-}
-
-function slugify(value: string): string {
-  return value
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/(^-|-$)/g, "");
-}
-
-function buildAccountId(email: string): string {
-  return `account-${slugify(email).slice(0, 40)}-${Date.now()}`;
-}
-
-function buildCompanyAccountPaymentReference(email: string): string {
-  return `company_account_payment_${slugify(email).slice(0, 30)}_${Date.now()}`;
-}
-
-function fallbackListingImage(spaceType: SpaceType): string {
-  const assets: Record<SpaceType, string> = {
-    MAKER_BENCH: "/assets/sample-workshop-photo-bench.png",
-    SMALL_BAY: "/assets/sample-workshop-photo-small-bay.png",
-    MEDIUM_BAY: "/assets/sample-workshop-photo-medium-bay.png",
-    LARGE_BAY: "/assets/sample-workshop-photo-large-bay.png"
-  };
-  return assets[spaceType];
-}
-
-function fallbackFloorPlan(spaceType: SpaceType): string {
-  const assets: Record<SpaceType, string> = {
-    MAKER_BENCH: "/assets/floor-plan-maker-bench.png",
-    SMALL_BAY: "/assets/floor-plan-small-bay.png",
-    MEDIUM_BAY: "/assets/floor-plan-medium-bay.png",
-    LARGE_BAY: "/assets/floor-plan-large-bay.png"
-  };
-  return assets[spaceType];
-}
+function revalidateDashboards() { revalidatePath("/dashboard/user"); revalidatePath("/dashboard/host"); revalidatePath("/dashboard/admin"); }
+function requireString(formData: FormData, key: string) { const value = formData.get(key); if (typeof value !== "string" || !value.trim()) throw new Error(`${key} is required.`); return value.trim(); }
+function optionalString(formData: FormData, key: string) { const value = formData.get(key); return typeof value === "string" ? value.trim() : ""; }
+function numberField(formData: FormData, key: string) { const value = Number(requireString(formData, key)); if (!Number.isFinite(value) || value < 0) throw new Error(`${key} must be a valid non-negative number.`); return value; }
+function parseDuration(value: string): DurationDays { const duration = Number(value); if (duration === 1 || duration === 7 || duration === 30 || duration === 60) return duration; throw new Error("Duration must be 1, 7, 30, or 60 days."); }
+function splitList(value: string) { return value.split(/\r?\n|,/).map((item) => item.trim()).filter(Boolean); }
+function zoningFromFactoryTypes(types: string[]): Zoning { return types.includes("B2") ? "B2" : types.includes("B1") ? "B1" : "UNKNOWN"; }
+function formatDeclaredType(types: string[], other: string) { const labels = types.map((value) => value === "OFFICE" ? "Office" : value === "OTHER" ? `Other${other ? `: ${other}` : ""}` : value); if (!labels.length && other) labels.push(`Other: ${other}`); return labels.length ? `Declared type: ${labels.join(", ")}` : ""; }
+function slugify(value: string) { return value.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, ""); }
+function buildCompanyAccountPaymentReference(email: string) { return `company_account_payment_${slugify(email).slice(0, 30)}_${Date.now()}`; }
+function fallbackListingImage(type: SpaceType) { return ({ MAKER_BENCH: "/assets/sample-workshop-photo-bench.png", SMALL_BAY: "/assets/sample-workshop-photo-small-bay.png", MEDIUM_BAY: "/assets/sample-workshop-photo-medium-bay.png", LARGE_BAY: "/assets/sample-workshop-photo-large-bay.png" } as const)[type]; }
+function fallbackFloorPlan(type: SpaceType) { return ({ MAKER_BENCH: "/assets/floor-plan-maker-bench.png", SMALL_BAY: "/assets/floor-plan-small-bay.png", MEDIUM_BAY: "/assets/floor-plan-medium-bay.png", LARGE_BAY: "/assets/floor-plan-large-bay.png" } as const)[type]; }

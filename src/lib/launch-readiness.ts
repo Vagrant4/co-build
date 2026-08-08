@@ -7,37 +7,37 @@ export type LaunchReadinessItem = {
 export const launchReadinessItems: LaunchReadinessItem[] = [
   {
     title: "Search, listing, booking, chat, approval flow",
-    detail: "Core marketplace flow is present for renter, host, and admin demo roles.",
+    detail: "Core marketplace flow is present for authenticated renter, host, and administrator roles.",
     status: "BUILT"
   },
   {
     title: "Company-account subscription proof",
-    detail: "Users can submit S$5/month payment references; admin activates subscriptions after checking payment.",
+    detail: "References create ledger entries and remain submitted until an administrator verifies the company account.",
     status: "BUILT"
   },
   {
     title: "Real authentication",
-    detail: "Replace demo role switching with login, password reset, and account-level permissions.",
-    status: "NEXT"
+    detail: "Managed Clerk sessions and server-derived authorization are implemented; owner configuration is release-gated.",
+    status: "BUILT"
   },
   {
     title: "Email and notification delivery",
-    detail: "Send login details, chat alerts, booking approvals, and generated contracts to the account email.",
-    status: "NEXT"
+    detail: "In-app notices, a retryable email outbox, delivery state, and operations alerts are implemented; connect and verify the sender domain.",
+    status: "BUILT"
   },
   {
     title: "Production uploads",
-    detail: "Move verification, listing, check-in, and check-out files from local storage to durable cloud storage.",
-    status: "NEXT"
+    detail: "Private Blob support, public listing-photo proxying, validation, retention, and a fail-closed malware-scanner adapter are implemented; connect the external services.",
+    status: "BUILT"
   },
   {
     title: "Mobile-first PWA",
-    detail: "Add installable mobile web shell, camera-first upload polish, and notification prompts before native apps.",
-    status: "NEXT"
+    detail: "The responsive web app now publishes installable manifest, icon, service worker, loading, and recovery states.",
+    status: "BUILT"
   },
   {
     title: "Legal templates and dispute rules",
-    detail: "Finalize terms, damage liability, cancellation, deposit review, and host/renter safety declarations.",
+    detail: "Versioned templates, dual-party acceptance, privacy requests, and deposit records exist; Singapore legal approval remains external.",
     status: "NEXT"
   },
   {

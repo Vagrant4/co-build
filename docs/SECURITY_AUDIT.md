@@ -1,5 +1,7 @@
 # Security Audit
 
+> Historical baseline findings from commit `3ac0774`; the "current state" statements below are not a description of the Phase 2A branch. See [PHASE_2A_IMPLEMENTATION_REPORT.md](PHASE_2A_IMPLEMENTATION_REPORT.md) for implemented controls and remaining blockers.
+
 Last reviewed: 2026-07-25
 
 ## Verdict

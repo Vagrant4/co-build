@@ -62,7 +62,8 @@ async function cleanupScenario() {
     }
   });
   await prisma.bookingMessage.deleteMany({ where: { bookingId: { in: bookingIds } } });
-  await prisma.listingMessage.deleteMany({ where: { listingId: { in: listingIds } } });
+  await prisma.conversationMessage.deleteMany({ where: { conversation: { listingId: { in: listingIds } } } });
+  await prisma.conversation.deleteMany({ where: { listingId: { in: listingIds } } });
   await prisma.additionalRequirement.deleteMany({
     where: { OR: [{ bookingId: { in: bookingIds } }, { userId: { in: userIds } }] }
   });
@@ -232,7 +233,7 @@ async function main() {
       location: listingView.location,
       sizeSqft: listingView.sizeSqft,
       spaceType: listingView.spaceType,
-      zoning: listingView.zoning,
+      factoryType: listingView.zoning,
       status: "APPROVED",
       accessHours: listingView.accessHours,
       powerType: listingView.powerType,
@@ -251,8 +252,6 @@ async function main() {
       depositStandard: listingView.deposit.standard,
       depositHighRisk: listingView.deposit.highRiskExtra,
       cleaningFee: listingView.cleaningFee,
-      landlordApproval: "Not collected in host listing form",
-      insuranceStatus: "Not collected in host listing form",
       fireSafety: "Extinguishers, spill kit, PPE signage, clear exit route",
       electricalSupply: "Three-phase supply declared by host",
       host: { connect: { id: host.id } },
@@ -269,37 +268,40 @@ async function main() {
       {
         type: "LISTING_PHOTO",
         originalName: "browser-demo-workspace-photo.png",
-        localPath: "/assets/sample-workshop-photo-large-bay.png",
+        storageProvider: "LEGACY_LOCAL", legacyLocalPath: "/assets/sample-workshop-photo-large-bay.png", uploadStatus: "LEGACY_DEMO", scanStatus: "NOT_REQUIRED",
         listingId: listing.id,
         createdAt: addMinutes(now, -66)
       },
       {
         type: "FLOOR_PLAN",
         originalName: "browser-demo-floor-plan.png",
-        localPath: "/assets/floor-plan-large-bay.png",
+        storageProvider: "LEGACY_LOCAL", legacyLocalPath: "/assets/floor-plan-large-bay.png", uploadStatus: "LEGACY_DEMO", scanStatus: "NOT_REQUIRED",
         listingId: listing.id,
         createdAt: addMinutes(now, -65)
       },
       {
         type: "VERIFICATION",
         originalName: "browser-demo-renter-verification.pdf",
-        localPath: "uploads/browser-demo-renter-verification.pdf",
-        userId: renter.id,
+        storageProvider: "LEGACY_LOCAL", legacyLocalPath: "uploads/browser-demo-renter-verification.pdf", uploadStatus: "LEGACY_DEMO", scanStatus: "NOT_REQUIRED",
+        uploadedByUserId: renter.id, ownerUserId: renter.id,
         createdAt: addMinutes(now, -64)
       }
     ]
   });
 
-  await prisma.listingMessage.createMany({
+  const conversation = await prisma.conversation.create({
+    data: { listingId: listing.id, renterId: renter.id, hostId: host.id }
+  });
+  await prisma.conversationMessage.createMany({
     data: [
       {
-        listingId: listing.id,
+        conversationId: conversation.id,
         senderId: renter.id,
         body: "I need 7 days for signage assembly. Can the bay support three-phase power and lorry unloading? I will keep all contact inside Co-Build chat.",
         createdAt: addMinutes(now, -55)
       },
       {
-        listingId: listing.id,
+        conversationId: conversation.id,
         senderId: host.id,
         body: "Yes. Three-phase power and lorry access are available. Please select workbench, drill, and material storage if needed, then submit the booking on-platform.",
         createdAt: addMinutes(now, -50)
@@ -365,7 +367,6 @@ async function main() {
     bookingId: booking.id,
     listingTitle: listing.title,
     renterName: renter.fullName,
-    renterEmail: renter.email,
     hostName: host.fullName,
     requirementDetail: "Additional evening access on two days and one extra material storage rack.",
     quotedRate: 220,
@@ -380,8 +381,8 @@ async function main() {
       status: "PAID_CONFIRMED",
       quotedRate: 220,
       contractText: addOnContract,
-      emailedTo: renter.email,
-      emailedAt: addMinutes(now, -20),
+      emailedTo: null,
+      emailedAt: null,
       paidAt: addMinutes(now, -18),
       createdAt: addMinutes(now, -35)
     }
@@ -392,16 +393,16 @@ async function main() {
       {
         type: "CHECK_IN",
         originalName: "browser-demo-check-in-photo.png",
-        localPath: "uploads/browser-demo-check-in-photo.png",
-        userId: renter.id,
+        storageProvider: "LEGACY_LOCAL", legacyLocalPath: "uploads/browser-demo-check-in-photo.png", uploadStatus: "LEGACY_DEMO", scanStatus: "NOT_REQUIRED",
+        uploadedByUserId: renter.id, ownerUserId: renter.id,
         bookingId: booking.id,
         createdAt: addMinutes(now, -15)
       },
       {
         type: "CHECK_OUT",
         originalName: "browser-demo-check-out-photo.png",
-        localPath: "uploads/browser-demo-check-out-photo.png",
-        userId: renter.id,
+        storageProvider: "LEGACY_LOCAL", legacyLocalPath: "uploads/browser-demo-check-out-photo.png", uploadStatus: "LEGACY_DEMO", scanStatus: "NOT_REQUIRED",
+        uploadedByUserId: renter.id, ownerUserId: renter.id,
         bookingId: booking.id,
         createdAt: addMinutes(now, -10)
       }
@@ -534,7 +535,7 @@ async function main() {
       title: listing.title,
       status: listing.status,
       sizeSqft: listing.sizeSqft,
-      factoryType: listing.zoning,
+      factoryType: listing.factoryType,
       photo: listingView.photoUrls[0],
       floorPlan: listingView.floorPlanUrl
     },

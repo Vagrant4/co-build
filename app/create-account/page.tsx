@@ -1,8 +1,12 @@
 import { BriefcaseBusiness, UserRound } from "lucide-react";
+import { auth, currentUser } from "@clerk/nextjs/server";
+import { redirect } from "next/navigation";
 import { createAccountAction } from "@/app/actions";
 import { Logo } from "@/components/logo";
 import { PLATFORM_SUBSCRIPTION_MONTHLY, formatCurrency } from "@/src/lib/fabrication";
 import { workTypes } from "@/src/lib/seed-data";
+import { getAppMode } from "@/src/lib/app-mode";
+import { prisma } from "@/src/lib/db";
 
 type PageProps = {
   searchParams?: Promise<Record<string, string | string[] | undefined>> | Record<string, string | string[] | undefined>;
@@ -12,6 +16,16 @@ export default async function CreateAccountPage({ searchParams }: PageProps) {
   const params = (await searchParams) ?? {};
   const role = one(params.role) === "host" ? "HOST" : "RENTER";
   const isHost = role === "HOST";
+  const mode = getAppMode();
+  let managedEmail: string | null = null;
+  if (mode !== "demo") {
+    const session = await auth();
+    if (!session.userId) redirect(`/sign-up?redirect_url=${encodeURIComponent(`/create-account?role=${isHost ? "host" : "renter"}`)}`);
+    const existing = await prisma.user.findUnique({ where: { authProviderId: `clerk:${session.userId}` } });
+    if (existing) redirect(existing.role === "HOST" ? "/dashboard/host" : existing.role === "ADMIN" ? "/dashboard/admin" : "/dashboard/user");
+    const identity = await currentUser();
+    managedEmail = identity?.emailAddresses.find((item) => item.id === identity.primaryEmailAddressId)?.emailAddress ?? null;
+  }
 
   return (
     <main className="signal-page">
@@ -62,14 +76,17 @@ export default async function CreateAccountPage({ searchParams }: PageProps) {
                 <span className="label">Full name</span>
                 <input className="field" name="fullName" autoComplete="name" required />
               </label>
-              <label>
-                <span className="label">Mobile</span>
-                <input className="field" name="mobile" autoComplete="tel" required />
-              </label>
-              <label>
-                <span className="label">Email</span>
-                <input className="field" name="email" type="email" autoComplete="email" required />
-              </label>
+              {mode === "demo" ? (
+                <label>
+                  <span className="label">Demo login email</span>
+                  <input className="field" name="email" type="email" autoComplete="email" required />
+                </label>
+              ) : (
+                <div className="border border-neutral-300 bg-smoke p-3">
+                  <span className="label">Managed sign-in email</span>
+                  <p className="font-black">{managedEmail ?? "Verified Clerk account"}</p>
+                </div>
+              )}
               <label>
                 <span className="label">Company name</span>
                 <input className="field" name="companyName" autoComplete="organization" required />

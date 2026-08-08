@@ -1,51 +1,34 @@
-import { existsSync, readFileSync } from "node:fs";
+import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
+import { assertAuthenticationConfigured, getAppMode } from "../src/lib/app-mode";
 
-const root = process.cwd();
+const read = (path: string) => readFileSync(join(process.cwd(), path), "utf8");
 
-function read(path: string) {
-  return readFileSync(join(root, path), "utf8");
-}
-
-describe("four-account demo login flow", () => {
-  it("renders selectable demo renter and host accounts on dashboards", () => {
-    expect(existsSync(join(root, "components/demo-account-selector.tsx"))).toBe(true);
-
-    const userDashboard = read("app/dashboard/user/page.tsx");
-    const hostDashboard = read("app/dashboard/host/page.tsx");
-
-    expect(userDashboard).toContain("searchParams");
-    expect(userDashboard).toContain("DemoAccountSelector");
-    expect(userDashboard).toContain('role: "RENTER"');
-    expect(userDashboard).toContain('hrefBase="/dashboard/user"');
-    expect(userDashboard).toContain('actorId={user.id}');
-
-    expect(hostDashboard).toContain("searchParams");
-    expect(hostDashboard).toContain("DemoAccountSelector");
-    expect(hostDashboard).toContain('role: "HOST"');
-    expect(hostDashboard).toContain('hrefBase="/dashboard/host"');
-    expect(hostDashboard).toContain('actorId={host.id}');
+describe("application mode boundary", () => {
+  it("allows demo switching only through an HTTP-only demo session", () => {
+    const route = read("app/demo/session/route.ts");
+    expect(route).toContain("if (!isDemoMode())");
+    expect(route).toContain("httpOnly: true");
+    expect(read("app/layout.tsx")).toContain("Demo mode: showcase accounts");
   });
 
-  it("passes the selected demo account through checkout, chat, and deal actions", () => {
-    const checkout = read("app/checkout/[listingId]/page.tsx");
-    const actions = read("app/actions.ts");
-    const bookingChat = read("components/booking-chat.tsx");
-    const listingChat = read("components/listing-chat.tsx");
+  it("fails closed when pilot or production auth configuration is missing", () => {
+    expect(() => assertAuthenticationConfigured({ NODE_ENV: "production", APP_MODE: "pilot" })).toThrow(/managed authentication configuration/);
+    expect(() => assertAuthenticationConfigured({ NODE_ENV: "production", APP_MODE: "production" })).toThrow(/CLERK_SECRET_KEY/);
+    expect(() => getAppMode({ NODE_ENV: "development", APP_MODE: "typo" })).toThrow(/Invalid APP_MODE/);
+    expect(getAppMode({ NODE_ENV: "test" })).toBe("demo");
+  });
 
-    expect(checkout).toContain("searchParams");
-    expect(checkout).toContain('name="userId"');
-    expect(checkout).toContain('hrefBase={`/checkout/${listing.slug}`}');
-
-    expect(bookingChat).toContain("senderId");
-    expect(bookingChat).toContain('name="senderId"');
-    expect(listingChat).toContain("senderId");
-    expect(listingChat).toContain('name="senderId"');
-
-    expect(actions).toContain('optionalString(formData, "userId") || "demo-renter"');
-    expect(actions).toContain('optionalString(formData, "senderId")');
-    expect(actions).toContain('optionalString(formData, "actorId")');
-    expect(actions).toContain('optionalString(formData, "hostId") || "demo-host"');
+  it("does not submit actor identity from protected forms", () => {
+    const files = ["app/actions.ts", "components/booking-chat.tsx", "components/listing-chat.tsx", "app/checkout/[listingId]/page.tsx"];
+    for (const path of files) {
+      const source = read(path);
+      expect(source).not.toContain('name="actorId"');
+      expect(source).not.toContain('name="senderId"');
+      expect(source).not.toContain('name="senderRole"');
+      expect(source).not.toContain('name="hostId"');
+    }
+    expect(read("app/actions.ts")).not.toMatch(/optionalString\(formData, "(?:userId|hostId|actorId|senderId|senderRole|role)"\)/);
   });
 });

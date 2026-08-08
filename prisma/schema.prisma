@@ -34,7 +34,7 @@ enum SpaceType {
   LARGE_BAY
 }
 
-enum Zoning {
+enum FactoryType {
   B1
   B2
   UNKNOWN
@@ -50,6 +50,7 @@ enum BookingStatus {
   PENDING_HOST
   PENDING_ADMIN_HIGH_RISK
   APPROVED_FOR_PAYMENT
+  PAYMENT_SUBMITTED
   PAID_CONFIRMED
   CHECKED_IN
   CHECKED_OUT
@@ -69,6 +70,30 @@ enum UploadType {
   CHECK_OUT
   LISTING_PHOTO
   FLOOR_PLAN
+  PAYMENT_EVIDENCE
+  DISPUTE_EVIDENCE
+  CONTRACT
+}
+
+enum StorageProvider {
+  LEGACY_LOCAL
+  VERCEL_BLOB
+}
+
+enum UploadStatus {
+  PENDING
+  AVAILABLE
+  REJECTED
+  DELETED
+  LEGACY_DEMO
+}
+
+enum ScanStatus {
+  NOT_REQUIRED
+  PENDING
+  SAFE
+  UNSAFE
+  FAILED
 }
 
 enum ApprovalDecision {
@@ -80,9 +105,46 @@ enum ApprovalDecision {
 enum AdditionalRequirementStatus {
   PENDING_HOST
   APPROVED_FOR_PAYMENT
+  PAYMENT_SUBMITTED
   PAID_CONFIRMED
   HOST_REJECTED
   CANCELLED
+}
+
+enum PaymentStatus {
+  SUBMITTED
+  VERIFIED
+  REJECTED
+  REFUNDED
+}
+
+enum PaymentKind {
+  BOOKING_TOTAL
+  SUBSCRIPTION
+  ADDITIONAL_REQUIREMENT
+  DEPOSIT_RELEASE
+  REFUND
+}
+
+enum DepositStatus {
+  HELD
+  RELEASED
+  PARTIALLY_RETAINED
+  RETAINED
+  DISPUTED
+}
+
+enum PrivacyRequestType {
+  ACCESS
+  CORRECTION
+  DELETION
+}
+
+enum PrivacyRequestStatus {
+  SUBMITTED
+  IN_REVIEW
+  COMPLETED
+  REJECTED
 }
 
 enum PlatformSubscriptionStatus {
@@ -91,8 +153,28 @@ enum PlatformSubscriptionStatus {
   ACTIVE
 }
 
+enum NotificationChannel {
+  IN_APP
+  EMAIL
+}
+
+enum NotificationStatus {
+  PENDING
+  SENT
+  FAILED
+  READ
+}
+
+enum ModerationReportStatus {
+  OPEN
+  REVIEWING
+  RESOLVED
+  DISMISSED
+}
+
 model User {
   id                              String                     @id
+  authProviderId                  String?                    @unique
   role                            UserRole
   fullName                        String
   mobile                          String
@@ -100,7 +182,6 @@ model User {
   companyName                     String
   uen                             String?
   workType                        String?
-  experienceLevel                 String?
   verificationStatus              VerificationStatus         @default(PENDING)
   platformSubscriptionStatus      PlatformSubscriptionStatus @default(UNPAID)
   platformSubscriptionReference   String?
@@ -111,11 +192,23 @@ model User {
   suspended                       Boolean                    @default(false)
   bookings                        Booking[]
   sentMessages                    BookingMessage[]           @relation("MessageSender")
-  sentListingMessages             ListingMessage[]           @relation("ListingMessageSender")
+  renterConversations             Conversation[]             @relation("ConversationRenter")
+  hostConversations               Conversation[]             @relation("ConversationHost")
+  conversationMessages            ConversationMessage[]      @relation("ConversationMessageSender")
   hostListings                    Listing[]                  @relation("HostListings")
   additionalRequirements          AdditionalRequirement[]
-  uploads                         Upload[]
+  uploadsCreated                  Upload[]                   @relation("UploadCreator")
+  uploadsOwned                    Upload[]                   @relation("UploadOwner")
   approvalEvents                  ApprovalEvent[]            @relation("ApprovalActor")
+  exportEvents                    AdminExportEvent[]         @relation("ExportActor")
+  agreementAcceptances            AgreementAcceptance[]
+  submittedPayments               PaymentRecord[]            @relation("PaymentPayer")
+  reviewedPayments                PaymentRecord[]            @relation("PaymentReviewer")
+  privacyRequests                 PrivacyRequest[]
+  notifications                  Notification[]
+  moderationReportsCreated       ModerationReport[]         @relation("ModerationReporter")
+  moderationReportsReceived      ModerationReport[]         @relation("ModerationReportedUser")
+  moderationReportsReviewed      ModerationReport[]         @relation("ModerationReviewer")
   createdAt                       DateTime                   @default(now())
   updatedAt                       DateTime                   @updatedAt
 }
@@ -128,7 +221,7 @@ model Listing {
   location           String
   sizeSqft           Int
   spaceType          SpaceType
-  zoning             Zoning
+  factoryType        FactoryType
   status             ListingStatus      @default(PENDING_ADMIN)
   accessHours        String
   powerType          PowerType
@@ -147,15 +240,13 @@ model Listing {
   depositStandard    Int
   depositHighRisk    Int
   cleaningFee        Int
-  landlordApproval   String             @default("unknown")
-  insuranceStatus    String             @default("unknown")
   fireSafety         String             @default("Fire extinguishers on site")
   electricalSupply   String             @default("Declared by host")
   hostId             String?
   host               User?              @relation("HostListings", fields: [hostId], references: [id])
   equipmentAddons    ListingEquipment[]
   bookings           Booking[]
-  listingMessages    ListingMessage[]
+  conversations      Conversation[]
   uploads            Upload[]
   approvalEvents     ApprovalEvent[]
   createdAt          DateTime           @default(now())
@@ -186,6 +277,9 @@ model Booking {
   listingId              String
   userId                 String
   durationDays           Int
+  startAt                DateTime?
+  endAt                  DateTime?
+  bookingTimeZone        String                  @default("Asia/Singapore")
   workType               String
   riskLevel              RiskLevel
   status                 BookingStatus           @default(PENDING_HOST)
@@ -194,6 +288,9 @@ model Booking {
   cleaningFee            Int
   addonTotal             Int
   grandTotal             Int
+  depositStatus          DepositStatus           @default(HELD)
+  depositReturned        Int                     @default(0)
+  depositRetained        Int                     @default(0)
   safetyAcceptedAt       DateTime?
   renterDealConfirmedAt  DateTime?
   hostDealConfirmedAt    DateTime?
@@ -201,28 +298,33 @@ model Booking {
   user                   User                    @relation(fields: [userId], references: [id])
   addons                 BookingAddon[]
   uploads                Upload[]
-  messages        BookingMessage[]
+  messages               BookingMessage[]
   approvalEvents         ApprovalEvent[]
   additionalRequirements AdditionalRequirement[]
+  paymentRecords         PaymentRecord[]
+  agreementAcceptances   AgreementAcceptance[]
   createdAt              DateTime                @default(now())
   updatedAt              DateTime                @updatedAt
+
+  @@index([listingId, startAt, endAt])
 }
 
 model AdditionalRequirement {
-  id           String                      @id @default(cuid())
-  bookingId    String
-  userId       String
-  detail       String
-  status       AdditionalRequirementStatus @default(PENDING_HOST)
-  quotedRate   Int                         @default(0)
-  contractText String?
-  emailedTo    String?
-  emailedAt    DateTime?
-  paidAt       DateTime?
-  booking      Booking                     @relation(fields: [bookingId], references: [id], onDelete: Cascade)
-  user         User                        @relation(fields: [userId], references: [id])
-  createdAt    DateTime                    @default(now())
-  updatedAt    DateTime                    @updatedAt
+  id             String                      @id @default(cuid())
+  bookingId      String
+  userId         String
+  detail         String
+  status         AdditionalRequirementStatus @default(PENDING_HOST)
+  quotedRate     Int                         @default(0)
+  contractText   String?
+  emailedTo      String?
+  emailedAt      DateTime?
+  paidAt         DateTime?
+  booking        Booking                     @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  user           User                        @relation(fields: [userId], references: [id])
+  paymentRecords PaymentRecord[]
+  createdAt      DateTime                    @default(now())
+  updatedAt      DateTime                    @updatedAt
 }
 
 model BookingMessage {
@@ -237,16 +339,33 @@ model BookingMessage {
   @@index([bookingId, createdAt])
 }
 
-model ListingMessage {
-  id        String   @id @default(cuid())
+model Conversation {
+  id        String                @id @default(cuid())
   listingId String
-  senderId  String
-  body      String
-  listing   Listing  @relation(fields: [listingId], references: [id], onDelete: Cascade)
-  sender    User     @relation("ListingMessageSender", fields: [senderId], references: [id])
-  createdAt DateTime @default(now())
+  renterId  String
+  hostId    String
+  listing   Listing               @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  renter    User                  @relation("ConversationRenter", fields: [renterId], references: [id])
+  host      User                  @relation("ConversationHost", fields: [hostId], references: [id])
+  messages  ConversationMessage[]
+  createdAt DateTime              @default(now())
+  updatedAt DateTime              @updatedAt
 
-  @@index([listingId, createdAt])
+  @@unique([listingId, renterId])
+  @@index([renterId, updatedAt])
+  @@index([hostId, updatedAt])
+}
+
+model ConversationMessage {
+  id             String       @id @default(cuid())
+  conversationId String
+  senderId       String
+  body           String
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  sender         User         @relation("ConversationMessageSender", fields: [senderId], references: [id])
+  createdAt      DateTime     @default(now())
+
+  @@index([conversationId, createdAt])
 }
 
 model BookingAddon {
@@ -260,17 +379,34 @@ model BookingAddon {
 }
 
 model Upload {
-  id           String     @id @default(cuid())
-  type         UploadType
-  originalName String
-  localPath    String
-  userId       String?
-  bookingId    String?
-  listingId    String?
-  user         User?      @relation(fields: [userId], references: [id])
-  booking      Booking?   @relation(fields: [bookingId], references: [id])
-  listing      Listing?   @relation(fields: [listingId], references: [id])
-  createdAt    DateTime   @default(now())
+  id               String          @id @default(cuid())
+  type             UploadType
+  originalName     String
+  storageProvider  StorageProvider @default(VERCEL_BLOB)
+  objectKey        String?         @unique
+  legacyLocalPath  String?
+  contentType      String?
+  sizeBytes        Int?
+  checksumSha256   String?
+  uploadStatus     UploadStatus    @default(PENDING)
+  scanStatus       ScanStatus      @default(PENDING)
+  uploadedByUserId String?
+  ownerUserId      String?
+  bookingId        String?
+  listingId        String?
+  uploadedByUser   User?           @relation("UploadCreator", fields: [uploadedByUserId], references: [id])
+  ownerUser        User?           @relation("UploadOwner", fields: [ownerUserId], references: [id])
+  booking          Booking?        @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  listing          Listing?        @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  paymentRecord    PaymentRecord?
+  createdAt        DateTime        @default(now())
+  verifiedAt       DateTime?
+  deletedAt        DateTime?
+
+  @@index([ownerUserId, createdAt])
+  @@index([bookingId, type])
+  @@index([listingId, type])
+  @@index([uploadStatus, createdAt])
 }
 
 model ApprovalEvent {
@@ -285,4 +421,139 @@ model ApprovalEvent {
   listing   Listing?         @relation(fields: [listingId], references: [id])
   booking   Booking?         @relation(fields: [bookingId], references: [id])
   createdAt DateTime         @default(now())
+}
+
+model AdminExportEvent {
+  id         String   @id @default(cuid())
+  actorId    String
+  exportType String
+  rowCount   Int
+  actor      User     @relation("ExportActor", fields: [actorId], references: [id])
+  createdAt  DateTime @default(now())
+
+  @@index([actorId, createdAt])
+}
+
+model PaymentRecord {
+  id                      String                 @id @default(cuid())
+  payerId                 String
+  reviewerId              String?
+  bookingId               String?
+  additionalRequirementId String?
+  proofUploadId           String?                @unique
+  kind                    PaymentKind
+  status                  PaymentStatus          @default(SUBMITTED)
+  amount                  Int
+  currency                String                 @default("SGD")
+  reference               String
+  idempotencyKey          String                 @unique
+  reviewNote              String?
+  submittedAt             DateTime               @default(now())
+  reviewedAt              DateTime?
+  payer                   User                   @relation("PaymentPayer", fields: [payerId], references: [id])
+  reviewer                User?                  @relation("PaymentReviewer", fields: [reviewerId], references: [id])
+  booking                 Booking?               @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  additionalRequirement   AdditionalRequirement? @relation(fields: [additionalRequirementId], references: [id], onDelete: Cascade)
+  proofUpload             Upload?                @relation(fields: [proofUploadId], references: [id])
+
+  @@index([bookingId, status, submittedAt])
+  @@index([payerId, kind, status])
+}
+
+model AgreementAcceptance {
+  id              String   @id @default(cuid())
+  bookingId       String
+  userId          String
+  role            UserRole
+  documentVersion String
+  documentHash    String
+  acceptedAt      DateTime @default(now())
+  booking         Booking  @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([bookingId, userId, documentVersion, documentHash])
+  @@index([bookingId, documentHash])
+}
+
+model PrivacyRequest {
+  id          String               @id @default(cuid())
+  userId      String
+  type        PrivacyRequestType
+  status      PrivacyRequestStatus @default(SUBMITTED)
+  detail      String
+  resolution  String?
+  createdAt   DateTime             @default(now())
+  completedAt DateTime?
+  user        User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([status, createdAt])
+  @@index([userId, createdAt])
+}
+
+model RateLimitBucket {
+  id              String   @id @default(cuid())
+  keyHash         String
+  action          String
+  windowStartedAt DateTime
+  count           Int      @default(1)
+  expiresAt       DateTime
+
+  @@unique([keyHash, action, windowStartedAt])
+  @@index([expiresAt])
+}
+
+model Notification {
+  id            String              @id @default(cuid())
+  userId        String
+  type          String
+  title         String
+  body          String
+  channel       NotificationChannel @default(IN_APP)
+  status        NotificationStatus  @default(PENDING)
+  dedupeKey     String?             @unique
+  attemptCount  Int                 @default(0)
+  lastErrorCode String?
+  availableAt   DateTime            @default(now())
+  sentAt        DateTime?
+  readAt        DateTime?
+  createdAt     DateTime            @default(now())
+  user          User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, status, createdAt])
+  @@index([channel, status, availableAt])
+}
+
+model ModerationReport {
+  id             String                 @id @default(cuid())
+  reporterId     String
+  reportedUserId String?
+  reviewerId     String?
+  contextType    String
+  contextId      String
+  messageId      String?
+  reason         String
+  detail         String?
+  status         ModerationReportStatus @default(OPEN)
+  resolution     String?
+  reviewedAt     DateTime?
+  createdAt      DateTime               @default(now())
+  reporter       User                   @relation("ModerationReporter", fields: [reporterId], references: [id], onDelete: Cascade)
+  reportedUser   User?                  @relation("ModerationReportedUser", fields: [reportedUserId], references: [id], onDelete: SetNull)
+  reviewer       User?                  @relation("ModerationReviewer", fields: [reviewerId], references: [id], onDelete: SetNull)
+
+  @@index([status, createdAt])
+  @@index([reportedUserId, createdAt])
+  @@index([contextType, contextId])
+}
+
+model AuditCheckpoint {
+  id             String   @id @default(cuid())
+  fromAt         DateTime
+  throughAt      DateTime
+  eventCount     Int
+  previousDigest String?
+  digest         String   @unique
+  createdAt      DateTime @default(now())
+
+  @@index([throughAt])
 }

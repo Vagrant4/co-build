@@ -31,7 +31,8 @@ function formatCsvValue(value: CsvValue): string {
     return "";
   }
 
-  return String(value);
+  const text = String(value);
+  return /^[=+\-@]/.test(text) ? `'${text}` : text;
 }
 
 function escapeCsv(value: string): string {

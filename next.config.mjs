@@ -6,6 +6,7 @@ const nextConfig = {
     root: path.resolve()
   },
   experimental: {
+    authInterrupts: true,
     serverActions: {
       bodySizeLimit: "10mb"
     }

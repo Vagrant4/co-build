@@ -1,18 +1,30 @@
 import type { Metadata } from "next";
+import { ClerkProvider } from "@clerk/nextjs";
 import "./globals.css";
 import { Logo } from "@/components/logo";
 import { SiteHeader } from "@/components/site-header";
+import { assertAuthenticationConfigured, getAppMode } from "@/src/lib/app-mode";
+import { ServiceWorkerRegistration } from "@/components/service-worker-registration";
 
 export const metadata: Metadata = {
   title: "Co-Build | Short-term fabrication space rental",
-  description: "Rent fabrication bays, maker benches, equipment add-ons, power, loading access, and safety-reviewed workspaces in Singapore."
+  description: "Rent short-term fabrication workspace by location, floor area, power, loading access, equipment, and permitted work in Singapore."
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
-  return (
+  const mode = getAppMode();
+  assertAuthenticationConfigured();
+
+  const content = (
     <html lang="en">
       <body>
-        <SiteHeader />
+        <ServiceWorkerRegistration />
+        {mode === "demo" && (
+          <div className="demo-banner" role="status">
+            Demo mode: showcase accounts and simulated transactions only
+          </div>
+        )}
+        <SiteHeader appMode={mode} />
         {children}
         <footer className="border-t border-neutral-300 bg-ink py-8 text-white">
           <div className="section-shell flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
@@ -24,6 +36,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               <a href="/pricing">Pricing</a>
               <a href="/create-account">Create account</a>
               <a href="/safety">Safety</a>
+              <a href="/legal">Legal Centre</a>
               <a href="/faq">FAQ</a>
               <a href="/contact">Contact</a>
             </div>
@@ -32,4 +45,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       </body>
     </html>
   );
+
+  return mode === "demo" ? content : <ClerkProvider>{content}</ClerkProvider>;
 }
