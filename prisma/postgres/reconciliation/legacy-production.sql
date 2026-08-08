@@ -111,6 +111,7 @@ ALTER TABLE "Listing" RENAME COLUMN "zoning" TO "factoryType";
 -- Preserve legacy upload paths and infer ownership from the related booking.
 ALTER TABLE "Upload" RENAME COLUMN "localPath" TO "legacyLocalPath";
 ALTER TABLE "Upload" RENAME COLUMN "userId" TO "ownerUserId";
+ALTER TABLE "Upload" ALTER COLUMN "legacyLocalPath" DROP NOT NULL;
 ALTER TABLE "Upload"
 ADD COLUMN     "checksumSha256" TEXT,
 ADD COLUMN     "contentType" TEXT,
