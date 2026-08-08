@@ -47,7 +47,8 @@ jobs:
           encrypted="$(find recovery -type f -name '*.dump.enc' -print -quit)"
           checksum="${encrypted}.sha256"
           test -f "$encrypted" && test -f "$checksum"
-          (cd "$(dirname "$encrypted")" && sha256sum --check "$(basename "$checksum")")
+          expected_digest="$(awk '{print $1}' "$checksum")"
+          printf '%s  %s\n' "$expected_digest" "$encrypted" | sha256sum --check -
           openssl enc -d -aes-256-cbc -pbkdf2 -iter 250000 \
             -in "$encrypted" \
             -out recovery/restore.dump \
