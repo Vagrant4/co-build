@@ -100,8 +100,16 @@ jobs:
           npx prisma migrate diff \
             --from-url "$DIRECT_URL" \
             --to-schema-datamodel prisma/postgres/schema.prisma \
-            --script > live-production-diff.sql
-          sed -i 's/\r$//' live-production-diff.sql prisma/postgres/legacy-production-to-target.sql
+            --script \
+            --output live-production-diff.sql
+          python3 - <<'PY'
+          from pathlib import Path
+          for name in ('live-production-diff.sql', 'prisma/postgres/legacy-production-to-target.sql'):
+              path = Path(name)
+              text = path.read_text(encoding='utf-8-sig').replace('\r\n', '\n')
+              canonical = '\n'.join(line.rstrip() for line in text.splitlines()).strip() + '\n'
+              path.write_text(canonical, encoding='utf-8')
+          PY
           cmp --silent live-production-diff.sql prisma/postgres/legacy-production-to-target.sql || {
             echo "::error::Production schema changed after the reconciliation review. No migration was applied."
             exit 1
