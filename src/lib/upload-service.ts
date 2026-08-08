@@ -6,6 +6,7 @@ import type { PrivateStorageAdapter } from "./storage";
 import { privateStorage } from "./storage";
 import { validateUploadBytes } from "./upload-validation";
 import { assertSafeUploadDeclaration, buildPrivateObjectKey } from "./uploads";
+import { scanUploadBytes, type MalwareScanStatus } from "./malware-scanner";
 
 export type UploadReservationInput = {
   type: UploadType;
@@ -31,7 +32,7 @@ export type PendingUploadRecord = {
 
 export interface UploadLifecycleRepository {
   find(uploadId: string): Promise<PendingUploadRecord | null>;
-  markAvailable(upload: PendingUploadRecord, validated: { contentType: string; sizeBytes: number; checksumSha256: string }, scanStatus: "PENDING" | "NOT_REQUIRED"): Promise<void>;
+  markAvailable(upload: PendingUploadRecord, validated: { contentType: string; sizeBytes: number; checksumSha256: string }, scanStatus: MalwareScanStatus): Promise<void>;
   markRejected(uploadId: string): Promise<void>;
 }
 
@@ -60,7 +61,8 @@ export async function finalizeClientUpload(
   uploadId: string,
   blob: PutBlobResult,
   storage: PrivateStorageAdapter = privateStorage(),
-  repository: UploadLifecycleRepository = prismaUploadLifecycleRepository
+  repository: UploadLifecycleRepository = prismaUploadLifecycleRepository,
+  scanner: typeof scanUploadBytes = scanUploadBytes
 ): Promise<void> {
   const upload = await repository.find(uploadId);
   if (!upload || upload.uploadStatus !== "PENDING" || !upload.objectKey || upload.objectKey !== blob.pathname) {
@@ -72,13 +74,13 @@ export async function finalizeClientUpload(
     const object = await storage.get(upload.objectKey);
     if (!object) throw new Error("Uploaded object could not be read back from private storage.");
     const bytes = await readStreamWithLimit(object.stream, Math.max((upload.sizeBytes || 0) + 1, 16 * 1024 * 1024 + 1));
-    const validated = validateUploadBytes({
+    const validated = await validateUploadBytes({
       type: upload.type,
       originalName: upload.originalName,
       declaredContentType: upload.contentType || blob.contentType,
       bytes
     });
-    const scanStatus = process.env.ALLOW_UNSCANNED_UPLOADS === "true" ? "NOT_REQUIRED" : "PENDING";
+    const scanStatus = await scanner({ bytes, contentType: validated.contentType, originalName: upload.originalName, type: upload.type });
     await repository.markAvailable(upload, validated, scanStatus);
   } catch (error) {
     await storage.delete(upload.objectKey).catch((deleteError) => logEvent("error", "upload_rejected_delete_failed", { uploadId, errorName: deleteError instanceof Error ? deleteError.name : "Unknown" }));

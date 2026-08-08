@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { imageSize } from "image-size";
+import sharp from "sharp";
 import type { UploadType } from "@prisma/client";
 import { assertSafeUploadDeclaration, extensionOf } from "./uploads";
 
@@ -11,13 +11,13 @@ export type ValidatedUpload = {
   checksumSha256: string;
 };
 
-export function validateUploadBytes(input: {
+export async function validateUploadBytes(input: {
   type: UploadType;
   originalName: string;
   declaredContentType: string;
   bytes: Uint8Array;
   environment?: NodeJS.ProcessEnv;
-}): ValidatedUpload {
+}): Promise<ValidatedUpload> {
   const policy = assertSafeUploadDeclaration(input.type, {
     originalName: input.originalName,
     contentType: input.declaredContentType,
@@ -29,7 +29,7 @@ export function validateUploadBytes(input: {
   if (!extensionMatchesMime(extensionOf(input.originalName), detected)) throw new Error("File extension does not match the file contents.");
 
   if (detected.startsWith("image/")) {
-    const dimensions = imageSize(input.bytes);
+    const dimensions = await sharp(input.bytes, { failOn: "error", limitInputPixels: MAX_IMAGE_DIMENSION * MAX_IMAGE_DIMENSION }).metadata();
     if (!dimensions.width || !dimensions.height || dimensions.width > MAX_IMAGE_DIMENSION || dimensions.height > MAX_IMAGE_DIMENSION) {
       throw new Error("Image dimensions are invalid or exceed the safety limit.");
     }

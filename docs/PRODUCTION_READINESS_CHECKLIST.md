@@ -31,7 +31,7 @@ Last reviewed: 2026-08-08
 | Done | Booking eligibility | Server actions require approved, active, unsuspended renter and host accounts | Retain authorization regression tests |
 | Done | Host ownership and role checks | Sensitive actions derive actors from managed sessions and verify resource ownership | Retain authorization regression tests |
 | Done | Admin export privacy | Exports are admin-only, rate-limited, audited, formula-neutralized, and chat exports contain metadata rather than message bodies | Add pagination before wider scale |
-| Needed | Email delivery | False email claims were removed; no provider is connected | Add transactional email provider and verified delivery state |
+| Needed | Email delivery | Retryable email outbox and delivery state are implemented | Connect Resend, verify sender DNS, and test delivery/bounce operations |
 | Done | Core rate limiting | Booking, chat, payment, agreement, privacy, and upload submissions use persistent account-scoped limits | Add edge/WAF controls before public scale |
 | Done | Production migrations | Separate PostgreSQL migration tree and `migrate deploy` | Apply through controlled release process |
 | Needed | Legal approval | Versioned dual-party acceptance and privacy request controls are implemented | Singapore lawyer must approve the exact version and owner must set the release gate |
@@ -40,25 +40,25 @@ Last reviewed: 2026-08-08
 
 | Status | Item | Evidence | Required action |
 | --- | --- | --- | --- |
-| Planned | Search performance | Filters run after loading listing records | Push filtering into Prisma queries |
-| Planned | Dashboard pagination | Admin dashboard uses broad `findMany()` calls | Add pagination, tabs, and filters |
-| Done | Upload validation | Server validates bytes, MIME, extension, dimensions, size, checksum, and scan status | Add malware scanner or record pilot risk acceptance |
-| Planned | Contact policy hardening | Regex-only contact blocking | Add moderation review, violation records, and reporting |
-| Planned | Notification model | No email/chat notification persistence | Add notification table and retry jobs |
-| Done | Audit integrity | Sensitive mutations and authenticated audit events share Prisma transactions | Add tamper-evident archival before regulated use |
-| Planned | Demo data separation | Showcase records are mixed with deploy workflow | Separate demo, staging, and production seeds |
+| Done | Search performance | Public filters execute in Prisma with a bounded result set | Add database-specific search indexes after production query metrics exist |
+| Done | Dashboard pagination | Admin data is paginated and renter/host views are bounded | Add section-specific filters after pilot usage identifies the useful dimensions |
+| Done | Upload validation | Bytes, MIME, extension, dimensions, size, checksum, scanner state, and rejection cleanup are implemented | Connect and test the production scanner or record pilot risk acceptance |
+| Done | Contact policy hardening | Blocking, privacy-safe violation records, participant reports, and admin moderation exist | Configure alert ownership and review the queue daily |
+| Done | Notification model | In-app notifications, email outbox, retries, delivery state, and aggregate alerts exist | Connect and verify the email provider and alert webhook |
+| Done | Audit integrity | Atomic audit events and verifiable SHA-256 checkpoints exist | Retain checkpoint evidence outside the application database before regulated use |
+| Done | Demo data separation | Demo seeds fail outside `APP_MODE=demo`; production starts empty | Keep production seed execution disabled |
 | Needed | Monitoring | Structured redacted logs, health route, and release-gated monitoring URLs exist | Connect the real error project and uptime alert recipients |
 
 ## Low
 
 | Status | Item | Evidence | Required action |
 | --- | --- | --- | --- |
-| Planned | Schema cleanup | `experienceLevel`, `landlordApproval`, `insuranceStatus` remain | Remove or rename with migration |
-| Planned | Factory type naming | Schema uses `Zoning`; UI says type/factory type | Rename when safe |
-| Planned | Listing photo handling | Uploaded listing photo is stored but fallback URL is used | Render uploaded listing photos after object storage migration |
+| Done | Schema cleanup | Obsolete profile/listing fields were removed with forward migrations | Retain migration coverage |
+| Done | Factory type naming | Database enum and field use `FactoryType` / `factoryType` | Keep domain safety classification terminology separate |
+| Done | Listing photo handling | Approved, safe listing photos render through a constrained public proxy | Complete real Blob/scanner acceptance testing |
 | Done | Dashboard copy | Demo labels and role switching are conditional on demo mode | Retain pilot-mode UI checks |
-| Planned | Empty states | Some dashboards rely on seeded data | Improve empty and first-use states |
-| Planned | Brand polish | UI has improved but needs final design QA | Run visual review across mobile/desktop |
+| Done | Empty states | Renter and host dashboards handle clean accounts without showcase records | Retain clean-database browser checks |
+| Done | Brand polish | Responsive overflow, image alternatives, loading, error, not-found, and mobile PWA checks are automated | Conduct owner visual acceptance on the Vercel preview |
 
 ## Confirmed Done
 

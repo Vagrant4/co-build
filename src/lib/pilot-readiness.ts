@@ -20,11 +20,15 @@ const REQUIRED_SHARED = [
   "BACKUP_OWNER_EMAIL",
   "CRON_SECRET",
   "ERROR_MONITORING_PROJECT_URL",
+  "OPS_ALERT_WEBHOOK_URL",
   "UPTIME_MONITOR_URL",
   "INCIDENT_RESPONSE_URL",
   "RESTORE_DRILL_COMPLETED_AT",
   "DATA_RETENTION_UPLOAD_DAYS",
-  "DATA_RETENTION_ACCOUNT_DAYS"
+  "DATA_RETENTION_ACCOUNT_DAYS",
+  "RETENTION_EXECUTION_ENABLED",
+  "RESEND_API_KEY",
+  "TRANSACTIONAL_EMAIL_FROM"
 ] as const;
 
 export function pilotReadinessIssues(environment: NodeJS.ProcessEnv = process.env): ReadinessIssue[] {
@@ -36,12 +40,11 @@ export function pilotReadinessIssues(environment: NodeJS.ProcessEnv = process.en
   }
   if (environment.REAL_UPLOADS_ENABLED !== "true") issues.push({ key: "REAL_UPLOADS_ENABLED", message: "Private durable uploads must be explicitly enabled." });
   if (!environment.BLOB_READ_WRITE_TOKEN?.trim()) issues.push({ key: "BLOB_READ_WRITE_TOKEN", message: "A connected private Blob store is required." });
-  if (mode === "pilot" && environment.ALLOW_UNSCANNED_UPLOADS !== "true") {
+  const scannerConfigured = Boolean(environment.MALWARE_SCANNER_URL?.trim() && environment.MALWARE_SCANNER_TOKEN?.trim());
+  if (mode === "pilot" && environment.ALLOW_UNSCANNED_UPLOADS !== "true" && !scannerConfigured) {
     issues.push({ key: "ALLOW_UNSCANNED_UPLOADS", message: "The pilot owner must explicitly accept the temporary unscanned-upload risk or add a scanner before enabling uploads." });
   }
-  if (mode === "production") {
-    issues.push({ key: "UPLOAD_MALWARE_SCANNER", message: "Production remains blocked until a malware-scanning integration is implemented and tested." });
-  }
+  if (mode === "production" && !scannerConfigured) issues.push({ key: "UPLOAD_MALWARE_SCANNER", message: "Production requires MALWARE_SCANNER_URL and MALWARE_SCANNER_TOKEN." });
   if (environment.LEGAL_REVIEW_APPROVED_VERSION !== LEGAL_DOCUMENT_VERSION) {
     issues.push({ key: "LEGAL_REVIEW_APPROVED_VERSION", message: `A Singapore lawyer must approve legal document version ${LEGAL_DOCUMENT_VERSION}.` });
   }
@@ -49,8 +52,10 @@ export function pilotReadinessIssues(environment: NodeJS.ProcessEnv = process.en
   validateUrl(environment, "UPTIME_MONITOR_URL", issues, true);
   validateUrl(environment, "INCIDENT_RESPONSE_URL", issues, true);
   validateUrl(environment, "ERROR_MONITORING_PROJECT_URL", issues, true);
+  validateUrl(environment, "OPS_ALERT_WEBHOOK_URL", issues, true);
   validatePositiveInteger(environment, "DATA_RETENTION_UPLOAD_DAYS", issues);
   validatePositiveInteger(environment, "DATA_RETENTION_ACCOUNT_DAYS", issues);
+  if (environment.RETENTION_EXECUTION_ENABLED !== "true") issues.push({ key: "RETENTION_EXECUTION_ENABLED", message: "Approved retention execution must be enabled for pilot and production." });
   const databaseUrl = environment.DATABASE_URL || "";
   if (databaseUrl && !databaseUrl.includes("-pooler") && !(environment.CI === "true" && environment.PREFLIGHT_ALLOW_NON_POOLER_DATABASE === "true")) {
     issues.push({ key: "DATABASE_URL", message: "DATABASE_URL must use the Neon pooled endpoint." });

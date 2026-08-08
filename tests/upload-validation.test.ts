@@ -5,14 +5,14 @@ import { assertRealUploadsConfigured, assertSafeUploadDeclaration, privateDownlo
 const onePixelPng = Uint8Array.from(Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=", "base64"));
 
 describe("private upload validation", () => {
-  it("accepts a real image and records a SHA-256 checksum", () => {
-    const result = validateUploadBytes({ type: "CHECK_IN", originalName: "arrival.png", declaredContentType: "image/png", bytes: onePixelPng });
+  it("accepts a real image and records a SHA-256 checksum", async () => {
+    const result = await validateUploadBytes({ type: "CHECK_IN", originalName: "arrival.png", declaredContentType: "image/png", bytes: onePixelPng });
     expect(result.contentType).toBe("image/png");
     expect(result.checksumSha256).toMatch(/^[a-f0-9]{64}$/);
   });
 
-  it("rejects content-type spoofing and disguised dangerous extensions", () => {
-    expect(() => validateUploadBytes({ type: "VERIFICATION", originalName: "identity.pdf", declaredContentType: "application/pdf", bytes: onePixelPng })).toThrow(/contents/i);
+  it("rejects content-type spoofing and disguised dangerous extensions", async () => {
+    await expect(validateUploadBytes({ type: "VERIFICATION", originalName: "identity.pdf", declaredContentType: "application/pdf", bytes: onePixelPng })).rejects.toThrow(/contents/i);
     expect(() => assertSafeUploadDeclaration("VERIFICATION", { originalName: "identity.exe.pdf", contentType: "application/pdf", sizeBytes: 100 })).toThrow(/dangerous/i);
   });
 

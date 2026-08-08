@@ -4,6 +4,7 @@ import "./globals.css";
 import { Logo } from "@/components/logo";
 import { SiteHeader } from "@/components/site-header";
 import { assertAuthenticationConfigured, getAppMode } from "@/src/lib/app-mode";
+import { ServiceWorkerRegistration } from "@/components/service-worker-registration";
 
 export const metadata: Metadata = {
   title: "Co-Build | Short-term fabrication space rental",
@@ -17,6 +18,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   const content = (
     <html lang="en">
       <body>
+        <ServiceWorkerRegistration />
         {mode === "demo" && (
           <div className="demo-banner" role="status">
             Demo mode: showcase accounts and simulated transactions only

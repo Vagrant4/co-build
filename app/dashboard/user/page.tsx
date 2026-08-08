@@ -11,6 +11,7 @@ import { PrivateUploadField } from "@/components/private-upload-field";
 import { BookingChat } from "@/components/booking-chat";
 import { StatusBadge } from "@/components/status-badge";
 import { PrivacyRequestPanel } from "@/components/privacy-request-panel";
+import { NotificationCenter } from "@/components/notification-center";
 import { dealConfirmationStatus, formatCurrency, PLATFORM_SUBSCRIPTION_MONTHLY } from "@/src/lib/fabrication";
 import { prisma } from "@/src/lib/db";
 import { requirePageRole } from "@/src/lib/page-authorization";
@@ -20,7 +21,7 @@ export const dynamic = "force-dynamic";
 
 export default async function UserDashboardPage() {
   const user = await requirePageRole("RENTER");
-  const [bookings, privacyRequests] = await Promise.all([prisma.booking.findMany({
+  const [bookings, privacyRequests, notifications] = await Promise.all([prisma.booking.findMany({
       where: { userId: user.id },
       include: {
         listing: true,
@@ -30,8 +31,9 @@ export default async function UserDashboardPage() {
         additionalRequirements: { orderBy: { createdAt: "desc" } },
         paymentRecords: { orderBy: { submittedAt: "desc" } }
       },
-      orderBy: { createdAt: "desc" }
-    }), prisma.privacyRequest.findMany({ where: { userId: user.id }, orderBy: { createdAt: "desc" }, take: 10 })]);
+      orderBy: { createdAt: "desc" },
+      take: 50
+    }), prisma.privacyRequest.findMany({ where: { userId: user.id }, orderBy: { createdAt: "desc" }, take: 10 }), prisma.notification.findMany({ where: { userId: user.id, channel: "IN_APP" }, orderBy: { createdAt: "desc" }, take: 20 })]);
   const realPaymentProofRequired = getAppMode() !== "demo";
   const accountLabel = getAppMode() === "demo" ? "Demo renter" : "Renter account";
 
@@ -51,6 +53,7 @@ export default async function UserDashboardPage() {
         periodEndAt={user.platformSubscriptionPeriodEnd}
         labelPrefix="Renter"
       />
+      <NotificationCenter notifications={notifications} />
       <div className="grid gap-5">
         {bookings.map((booking) => (
           <section key={booking.id} className="card grid gap-5 p-5 lg:grid-cols-[1fr_360px]">

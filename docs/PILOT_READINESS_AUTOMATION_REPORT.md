@@ -14,6 +14,12 @@ This implementation does not make Co-Build production-ready. It establishes a fa
 - Deposit held, released, retained, partially retained, and disputed states with validated totals and atomic audit records.
 - Versioned agreement acceptance, privacy access/correction/deletion requests, and administrator resolution records.
 - Persistent account-scoped rate limiting for booking, chat, payment, agreement, privacy, and upload operations.
+- Pre-render HTTP authorization gates return real 401/403/404 responses for protected dashboards, private booking records, checkout, and ineligible listings.
+- Participant notifications, a transactional email outbox with bounded retries, administrator alerts, and user-visible notification centres.
+- Participant-scoped message reporting, administrator moderation review, and privacy-safe contact-sharing violation records.
+- Private listing-photo delivery, image metadata validation with `sharp`, and a fail-closed malware-scanner adapter.
+- Guarded retention execution, cryptographic audit checkpoints, masked bank-statement reconciliation, first-admin bootstrap, production health checks, and a PostgreSQL restore-drill command.
+- PWA manifest, service-worker registration, responsive loading state, and desktop/mobile Playwright coverage.
 - SQLite and PostgreSQL forward migrations, expanded CI, and an executable pilot preflight.
 
 ## External Owner Steps Still Required
@@ -24,15 +30,16 @@ This implementation does not make Co-Build production-ready. It establishes a fa
 4. Obtain Singapore legal review of `pilot-2026-08-07-r2`, then set `LEGAL_REVIEW_APPROVED_VERSION` to that exact value only if approved.
 5. Configure a real error-monitoring project connected to Vercel logs (Sentry or equivalent), uptime monitor, incident runbook URL, and named privacy/security/operations/backup owners.
 6. Rehearse company-account payment matching, rejected proof, duplicate reference, refund, deposit dispute, and monthly subscription renewal procedures.
-7. Add transactional email delivery before relying on email notifications. The platform currently keeps operational communication in authenticated dashboards and chat.
+7. Connect and verify the configured transactional email sender and operations-alert webhook before relying on external notifications. In-app notices remain authoritative when delivery is unavailable.
 
-## Phase 2 Blockers
+## Phase 2 External Acceptance Blockers
 
-- Malware scanning and quarantine workflow.
-- Transactional notification delivery with retries and delivery audit.
-- Automated bank reconciliation or an imported bank-statement matching workflow.
-- Retention execution jobs after legal approval of retention periods and deletion exceptions.
-- Edge/WAF rate limiting and persistent alert delivery.
+- Connect the implemented malware-scanner adapter and test clean/malicious fixtures.
+- Connect Resend and verify sender DNS, delivery, rejection, and retry operations.
+- Connect Private Blob and pass the storage smoke test.
+- Configure Vercel Firewall/WAF rules and the implemented aggregate alert webhook.
+- Perform the guarded Neon restore drill and retain evidence.
+- Complete lawyer, bank-owner, DNS-owner, and named-operator attestations.
 
 ## Phase 3 Blockers
 

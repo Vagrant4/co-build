@@ -57,7 +57,6 @@ export const showcaseHosts = [
     companyName: "Lim Industrial Space",
     uen: "201900002B",
     workType: "Space owner",
-    experienceLevel: "Experienced",
     verificationStatus: "APPROVED" as const,
     ...activeSubscription("PAYNOW-HOST-001-SGD5", 0)
   },
@@ -70,7 +69,6 @@ export const showcaseHosts = [
     companyName: "Rivet Yard SG",
     uen: "202100202N",
     workType: "Space owner",
-    experienceLevel: "Experienced",
     verificationStatus: "APPROVED" as const,
     ...activeSubscription("PAYNOW-HOST-002-SGD5", 1)
   },
@@ -83,7 +81,6 @@ export const showcaseHosts = [
     companyName: "North Grid Industrial",
     uen: "202100203K",
     workType: "Space owner",
-    experienceLevel: "Experienced",
     verificationStatus: "APPROVED" as const,
     ...activeSubscription("PAYNOW-HOST-003-SGD5", 2)
   },
@@ -96,7 +93,6 @@ export const showcaseHosts = [
     companyName: "Tuas Shared Works",
     uen: "202100204R",
     workType: "Space owner",
-    experienceLevel: "Experienced",
     verificationStatus: "APPROVED" as const,
     ...pendingSubscription("FAST-HOST-004-SGD5")
   },
@@ -109,7 +105,6 @@ export const showcaseHosts = [
     companyName: "Ubi Maker Assets",
     uen: "202100205D",
     workType: "Space owner",
-    experienceLevel: "Experienced",
     verificationStatus: "APPROVED" as const,
     ...activeSubscription("PAYNOW-HOST-005-SGD5", 3)
   },
@@ -122,7 +117,6 @@ export const showcaseHosts = [
     companyName: "Bedok Build Studio",
     uen: "202100206C",
     workType: "Space owner",
-    experienceLevel: "Experienced",
     verificationStatus: "APPROVED" as const,
     ...activeSubscription("PAYNOW-HOST-006-SGD5", 4)
   },
@@ -135,7 +129,6 @@ export const showcaseHosts = [
     companyName: "Jurong Signage Works",
     uen: "202100207I",
     workType: "Space owner",
-    experienceLevel: "Experienced",
     verificationStatus: "APPROVED" as const,
     ...activeSubscription("PAYNOW-HOST-007-SGD5", 5)
   },
@@ -148,7 +141,6 @@ export const showcaseHosts = [
     companyName: "Changi Project Storage",
     uen: "202100208T",
     workType: "Space owner",
-    experienceLevel: "Experienced",
     verificationStatus: "PENDING" as const,
     ...unpaidSubscription()
   },
@@ -161,7 +153,6 @@ export const showcaseHosts = [
     companyName: "Bukit Batok Metal Bays",
     uen: "202100209S",
     workType: "Space owner",
-    experienceLevel: "Experienced",
     verificationStatus: "APPROVED" as const,
     ...pendingSubscription("INVOICE-HOST-009-SGD5")
   },
@@ -174,7 +165,6 @@ export const showcaseHosts = [
     companyName: "Tuas West Project Hall",
     uen: "202100210W",
     workType: "Space owner",
-    experienceLevel: "Experienced",
     verificationStatus: "APPROVED" as const,
     ...activeSubscription("PAYNOW-HOST-010-SGD5", 6)
   }
@@ -190,7 +180,6 @@ export const showcaseRenters = [
     companyName: "Tan Studio Works",
     uen: "202400001A",
     workType: "Furniture work",
-    experienceLevel: "Intermediate",
     verificationStatus: "APPROVED" as const,
     ...activeSubscription("PAYNOW-RENTER-001-SGD5", 0)
   },
@@ -203,7 +192,6 @@ export const showcaseRenters = [
     companyName: "Menon Repair Lab",
     uen: "202400102M",
     workType: "Repair",
-    experienceLevel: "Intermediate",
     verificationStatus: "APPROVED" as const,
     ...activeSubscription("PAYNOW-RENTER-002-SGD5", 1)
   },
@@ -216,7 +204,6 @@ export const showcaseRenters = [
     companyName: "Circuit Pilot",
     uen: "202400103N",
     workType: "Electronics",
-    experienceLevel: "Intermediate",
     verificationStatus: "APPROVED" as const,
     ...pendingSubscription("FAST-RENTER-003-SGD5")
   },
@@ -229,7 +216,6 @@ export const showcaseRenters = [
     companyName: "Low CNC Fixtures",
     uen: "202400104L",
     workType: "CNC work",
-    experienceLevel: "Experienced",
     verificationStatus: "APPROVED" as const,
     ...activeSubscription("PAYNOW-RENTER-004-SGD5", 2)
   },
@@ -242,7 +228,6 @@ export const showcaseRenters = [
     companyName: "Farah Furniture Runs",
     uen: "202400105A",
     workType: "Furniture work",
-    experienceLevel: "Intermediate",
     verificationStatus: "APPROVED" as const,
     ...activeSubscription("PAYNOW-RENTER-005-SGD5", 3)
   },
@@ -255,7 +240,6 @@ export const showcaseRenters = [
     companyName: "Wei Signage Projects",
     uen: "202400106W",
     workType: "Signage work",
-    experienceLevel: "Experienced",
     verificationStatus: "APPROVED" as const,
     ...activeSubscription("PAYNOW-RENTER-006-SGD5", 4)
   },
@@ -268,7 +252,6 @@ export const showcaseRenters = [
     companyName: "Nadia Ecommerce Ops",
     uen: "202400107S",
     workType: "Packing",
-    experienceLevel: "Beginner",
     verificationStatus: "PENDING" as const,
     ...unpaidSubscription()
   },
@@ -281,7 +264,6 @@ export const showcaseRenters = [
     companyName: "Tay Metal Prototype",
     uen: "202400108T",
     workType: "Grinding",
-    experienceLevel: "Experienced",
     verificationStatus: "APPROVED" as const,
     ...pendingSubscription("FAST-RENTER-008-SGD5")
   },
@@ -294,7 +276,6 @@ export const showcaseRenters = [
     companyName: "Goh Project Assembly",
     uen: "202400109G",
     workType: "Assembly",
-    experienceLevel: "Intermediate",
     verificationStatus: "APPROVED" as const,
     ...activeSubscription("PAYNOW-RENTER-009-SGD5", 5)
   },
@@ -307,7 +288,6 @@ export const showcaseRenters = [
     companyName: "Sim Storage Builds",
     uen: "202400110S",
     workType: "Storage + work area",
-    experienceLevel: "Intermediate",
     verificationStatus: "APPROVED" as const,
     ...activeSubscription("PAYNOW-RENTER-010-SGD5", 6)
   }
@@ -322,7 +302,6 @@ const showcaseAdmin = {
   companyName: "Co-Build Ops",
   uen: "202400999C",
   workType: "Compliance",
-  experienceLevel: "Experienced",
   verificationStatus: "APPROVED" as const,
   ...activeSubscription("INTERNAL-ADMIN", 0)
 };
@@ -592,7 +571,7 @@ function listingData(listing: (typeof seedListings)[number], hostId: string) {
     location: listing.location,
     sizeSqft: listing.sizeSqft,
     spaceType: listing.spaceType,
-    zoning: listing.zoning,
+    factoryType: listing.zoning,
     status: listing.status,
     accessHours: listing.accessHours,
     powerType: listing.powerType,
@@ -611,8 +590,6 @@ function listingData(listing: (typeof seedListings)[number], hostId: string) {
     depositStandard: listing.deposit.standard,
     depositHighRisk: listing.deposit.highRiskExtra,
     cleaningFee: listing.cleaningFee,
-    landlordApproval: "Host declared authority to list this space",
-    insuranceStatus: "Insurance not collected in MVP showcase",
     fireSafety: "Extinguishers, marked exits, spill kit where relevant",
     electricalSupply: listing.powerType === "THREE_PHASE" ? "Three-phase industrial supply" : "Single-phase 240V supply",
     hostId

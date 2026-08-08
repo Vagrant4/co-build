@@ -3,13 +3,14 @@ import { getAppMode } from "../src/lib/app-mode";
 import { buildOpsWarnings } from "../src/lib/ops-signals";
 import { privateStorage } from "../src/lib/storage";
 import { uploadsAreEnabled } from "../src/lib/uploads";
+import { verifyAuditCheckpoints } from "../src/lib/audit-checkpoints";
 
 const prisma = new PrismaClient();
 
 async function main() {
   const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
   const staleBefore = new Date(Date.now() - 60 * 60 * 1000);
-  const [usersByRole, activeSubscriptions, bookingsByStatus, recentBookings, activeBookings, uploadsByType, uploadsByStatus, uploadBytes, stalePending, missingMetadata] = await Promise.all([
+  const [usersByRole, activeSubscriptions, bookingsByStatus, recentBookings, activeBookings, uploadsByType, uploadsByStatus, uploadBytes, stalePending, missingMetadata, failedNotifications, openModerationReports, auditVerification] = await Promise.all([
     prisma.user.groupBy({ by: ["role"], _count: { _all: true } }),
     prisma.user.count({ where: { platformSubscriptionStatus: "ACTIVE", suspended: false } }),
     prisma.booking.groupBy({ by: ["status"], _count: { _all: true } }),
@@ -19,7 +20,10 @@ async function main() {
     prisma.upload.groupBy({ by: ["uploadStatus"], _count: { _all: true } }),
     prisma.upload.aggregate({ _sum: { sizeBytes: true } }),
     prisma.upload.count({ where: { uploadStatus: "PENDING", createdAt: { lt: staleBefore } } }),
-    prisma.upload.count({ where: { uploadStatus: "AVAILABLE", OR: [{ objectKey: null }, { contentType: null }, { sizeBytes: null }, { checksumSha256: null }] } })
+    prisma.upload.count({ where: { uploadStatus: "AVAILABLE", OR: [{ objectKey: null }, { contentType: null }, { sizeBytes: null }, { checksumSha256: null }] } }),
+    prisma.notification.count({ where: { channel: "EMAIL", status: "FAILED", attemptCount: { gte: 5 } } }),
+    prisma.moderationReport.count({ where: { status: { in: ["OPEN", "REVIEWING"] } } }),
+    verifyAuditCheckpoints()
   ]);
 
   const database = await databaseSignals();
@@ -45,8 +49,11 @@ async function main() {
       privateStorageConfigured: uploadsAreEnabled()
     },
     database,
-    backups: { restoreTestVerified: false, note: "Verify provider backups and complete a restore drill before pilot data." },
-    warnings: buildOpsWarnings({ activeSubscriptions, recentBookings, stalePending, missingMetadata, uploadBytes: uploadBytes._sum.sizeBytes || 0, uploadsConfigured: uploadsAreEnabled() })
+    notifications: { failedAfterMaximumAttempts: failedNotifications },
+    moderation: { openReports: openModerationReports },
+    audit: auditVerification,
+    backups: { restoreTestVerified: Boolean(process.env.RESTORE_DRILL_COMPLETED_AT), completedAt: process.env.RESTORE_DRILL_COMPLETED_AT || null },
+    warnings: buildOpsWarnings({ activeSubscriptions, recentBookings, stalePending, missingMetadata, uploadBytes: uploadBytes._sum.sizeBytes || 0, uploadsConfigured: uploadsAreEnabled(), failedNotifications, openModerationReports, auditValid: auditVerification.valid })
   };
 
   if (process.argv.includes("--json")) console.log(JSON.stringify(report, null, 2));

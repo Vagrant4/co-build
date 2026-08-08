@@ -1,9 +1,11 @@
 import { PrismaClient } from "@prisma/client";
 import { seedDemoData } from "./seed-demo";
+import { getAppMode } from "../src/lib/app-mode";
 
 const prisma = new PrismaClient();
 
 async function main() {
+  if (getAppMode() !== "demo") throw new Error("Demo seed is blocked unless APP_MODE=demo.");
   await seedDemoData(prisma, { reset: true });
 }
 

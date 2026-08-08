@@ -35,7 +35,7 @@ enum SpaceType {
   LARGE_BAY
 }
 
-enum Zoning {
+enum FactoryType {
   B1
   B2
   UNKNOWN
@@ -154,6 +154,25 @@ enum PlatformSubscriptionStatus {
   ACTIVE
 }
 
+enum NotificationChannel {
+  IN_APP
+  EMAIL
+}
+
+enum NotificationStatus {
+  PENDING
+  SENT
+  FAILED
+  READ
+}
+
+enum ModerationReportStatus {
+  OPEN
+  REVIEWING
+  RESOLVED
+  DISMISSED
+}
+
 model User {
   id                              String                     @id
   authProviderId                  String?                    @unique
@@ -164,7 +183,6 @@ model User {
   companyName                     String
   uen                             String?
   workType                        String?
-  experienceLevel                 String?
   verificationStatus              VerificationStatus         @default(PENDING)
   platformSubscriptionStatus      PlatformSubscriptionStatus @default(UNPAID)
   platformSubscriptionReference   String?
@@ -188,6 +206,10 @@ model User {
   submittedPayments               PaymentRecord[]            @relation("PaymentPayer")
   reviewedPayments                PaymentRecord[]            @relation("PaymentReviewer")
   privacyRequests                 PrivacyRequest[]
+  notifications                  Notification[]
+  moderationReportsCreated       ModerationReport[]         @relation("ModerationReporter")
+  moderationReportsReceived      ModerationReport[]         @relation("ModerationReportedUser")
+  moderationReportsReviewed      ModerationReport[]         @relation("ModerationReviewer")
   createdAt                       DateTime                   @default(now())
   updatedAt                       DateTime                   @updatedAt
 }
@@ -200,7 +222,7 @@ model Listing {
   location           String
   sizeSqft           Int
   spaceType          SpaceType
-  zoning             Zoning
+  factoryType        FactoryType
   status             ListingStatus      @default(PENDING_ADMIN)
   accessHours        String
   powerType          PowerType
@@ -219,8 +241,6 @@ model Listing {
   depositStandard    Int
   depositHighRisk    Int
   cleaningFee        Int
-  landlordApproval   String             @default("unknown")
-  insuranceStatus    String             @default("unknown")
   fireSafety         String             @default("Fire extinguishers on site")
   electricalSupply   String             @default("Declared by host")
   hostId             String?
@@ -481,4 +501,60 @@ model RateLimitBucket {
 
   @@unique([keyHash, action, windowStartedAt])
   @@index([expiresAt])
+}
+
+model Notification {
+  id            String              @id @default(cuid())
+  userId        String
+  type          String
+  title         String
+  body          String
+  channel       NotificationChannel @default(IN_APP)
+  status        NotificationStatus  @default(PENDING)
+  dedupeKey     String?             @unique
+  attemptCount  Int                 @default(0)
+  lastErrorCode String?
+  availableAt   DateTime            @default(now())
+  sentAt        DateTime?
+  readAt        DateTime?
+  createdAt     DateTime            @default(now())
+  user          User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, status, createdAt])
+  @@index([channel, status, availableAt])
+}
+
+model ModerationReport {
+  id             String                 @id @default(cuid())
+  reporterId     String
+  reportedUserId String?
+  reviewerId     String?
+  contextType    String
+  contextId      String
+  messageId      String?
+  reason         String
+  detail         String?
+  status         ModerationReportStatus @default(OPEN)
+  resolution     String?
+  reviewedAt     DateTime?
+  createdAt      DateTime               @default(now())
+  reporter       User                   @relation("ModerationReporter", fields: [reporterId], references: [id], onDelete: Cascade)
+  reportedUser   User?                  @relation("ModerationReportedUser", fields: [reportedUserId], references: [id], onDelete: SetNull)
+  reviewer       User?                  @relation("ModerationReviewer", fields: [reviewerId], references: [id], onDelete: SetNull)
+
+  @@index([status, createdAt])
+  @@index([reportedUserId, createdAt])
+  @@index([contextType, contextId])
+}
+
+model AuditCheckpoint {
+  id             String   @id @default(cuid())
+  fromAt         DateTime
+  throughAt      DateTime
+  eventCount     Int
+  previousDigest String?
+  digest         String   @unique
+  createdAt      DateTime @default(now())
+
+  @@index([throughAt])
 }

@@ -33,7 +33,7 @@ export async function GET() {
       spaceType: true,
       status: true,
       title: true,
-        zoning: true
+        factoryType: true
       }
     });
     await tx.adminExportEvent.create({ data: { actorId: admin.id, exportType: "listings", rowCount: rows.length } });
@@ -49,7 +49,7 @@ export async function GET() {
     { key: "location", header: "Location" },
     { key: "sizeSqft", header: "Size sqft" },
     { key: "spaceType", header: "Space type" },
-    { key: "zoning", header: "Factory type" },
+    { key: "factoryType", header: "Factory type" },
     { key: "powerType", header: "Power" },
     { key: "loadingAccessJson", header: "Loading access" },
     { key: "accessHours", header: "Access hours" },

@@ -22,18 +22,18 @@ export const launchReadinessItems: LaunchReadinessItem[] = [
   },
   {
     title: "Email and notification delivery",
-    detail: "Send login details, chat alerts, booking approvals, and generated contracts to the account email.",
-    status: "NEXT"
+    detail: "In-app notices, a retryable email outbox, delivery state, and operations alerts are implemented; connect and verify the sender domain.",
+    status: "BUILT"
   },
   {
     title: "Production uploads",
-    detail: "Private durable Blob support is implemented. Connect the store and explicitly approve pilot scanning risk before enabling it.",
-    status: "NEXT"
+    detail: "Private Blob support, public listing-photo proxying, validation, retention, and a fail-closed malware-scanner adapter are implemented; connect the external services.",
+    status: "BUILT"
   },
   {
     title: "Mobile-first PWA",
-    detail: "Add installable mobile web shell, camera-first upload polish, and notification prompts before native apps.",
-    status: "NEXT"
+    detail: "The responsive web app now publishes installable manifest, icon, service worker, loading, and recovery states.",
+    status: "BUILT"
   },
   {
     title: "Legal templates and dispute rules",

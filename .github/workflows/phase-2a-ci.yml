@@ -61,6 +61,7 @@ jobs:
       - run: npm run prisma:generate
       - run: npm test
       - run: npm run test:auth
+      - run: npm audit --audit-level=high
       - run: npm run prisma:generate:prod
       - name: Build pilot artifact
         env:
@@ -82,11 +83,15 @@ jobs:
           BACKUP_OWNER_EMAIL: backup@example.com
           CRON_SECRET: ci-cron-secret
           ERROR_MONITORING_PROJECT_URL: https://monitoring.example/co-build
+          OPS_ALERT_WEBHOOK_URL: https://alerts.example/co-build
           UPTIME_MONITOR_URL: https://monitor.example/co-build
           INCIDENT_RESPONSE_URL: https://docs.example/co-build/incidents
           RESTORE_DRILL_COMPLETED_AT: 2026-08-08T00:00:00.000Z
           DATA_RETENTION_UPLOAD_DAYS: "365"
           DATA_RETENTION_ACCOUNT_DAYS: "2555"
+          RETENTION_EXECUTION_ENABLED: "true"
+          RESEND_API_KEY: re_ci_placeholder
+          TRANSACTIONAL_EMAIL_FROM: "Co-Build <notifications@example.com>"
           LEGAL_REVIEW_APPROVED_VERSION: pilot-2026-08-07-r2
           PREFLIGHT_ALLOW_NON_POOLER_DATABASE: "true"
         run: npm run vercel-build

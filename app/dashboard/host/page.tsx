@@ -10,6 +10,7 @@ import { BookingChat } from "@/components/booking-chat";
 import { ListingChat } from "@/components/listing-chat";
 import { StatusBadge } from "@/components/status-badge";
 import { PrivacyRequestPanel } from "@/components/privacy-request-panel";
+import { NotificationCenter } from "@/components/notification-center";
 import { dealConfirmationStatus, formatCurrency, PLATFORM_SUBSCRIPTION_MONTHLY } from "@/src/lib/fabrication";
 import { prisma } from "@/src/lib/db";
 import { requirePageRole } from "@/src/lib/page-authorization";
@@ -18,7 +19,7 @@ export const dynamic = "force-dynamic";
 
 export default async function HostDashboardPage() {
   const host = await requirePageRole("HOST");
-  const [listings, bookings, additionalRequests, privacyRequests] = await Promise.all([
+  const [listings, bookings, additionalRequests, privacyRequests, notifications] = await Promise.all([
     prisma.listing.findMany({
       where: { hostId: host.id },
       include: {
@@ -29,7 +30,8 @@ export default async function HostDashboardPage() {
           orderBy: { updatedAt: "desc" }
         }
       },
-      orderBy: { createdAt: "desc" }
+      orderBy: { createdAt: "desc" },
+      take: 50
     }),
     prisma.booking.findMany({
       where: { listing: { hostId: host.id } },
@@ -39,14 +41,17 @@ export default async function HostDashboardPage() {
         addons: { include: { equipmentAddon: true } },
         messages: { include: { sender: true }, orderBy: { createdAt: "asc" } }
       },
-      orderBy: { createdAt: "desc" }
+      orderBy: { createdAt: "desc" },
+      take: 50
     }),
     prisma.additionalRequirement.findMany({
       where: { booking: { listing: { hostId: host.id } } },
       include: { user: true, booking: { include: { listing: true } } },
-      orderBy: { createdAt: "desc" }
+      orderBy: { createdAt: "desc" },
+      take: 50
     }),
-    prisma.privacyRequest.findMany({ where: { userId: host.id }, orderBy: { createdAt: "desc" }, take: 10 })
+    prisma.privacyRequest.findMany({ where: { userId: host.id }, orderBy: { createdAt: "desc" }, take: 10 }),
+    prisma.notification.findMany({ where: { userId: host.id, channel: "IN_APP" }, orderBy: { createdAt: "desc" }, take: 20 })
   ]);
   const listingActionLabel = listings.length > 1 ? "Additional listing" : "New listing";
 
@@ -72,6 +77,7 @@ export default async function HostDashboardPage() {
         periodEndAt={host.platformSubscriptionPeriodEnd}
         labelPrefix="Host"
       />
+      <NotificationCenter notifications={notifications} />
 
       <section className="mb-8 grid gap-4 md:grid-cols-3">
         <Metric label="Host listings" value={String(listings.length)} />
@@ -127,6 +133,7 @@ export default async function HostDashboardPage() {
               </div>
             </article>
           ))}
+          {!bookings.length ? <div className="border border-dashed border-neutral-300 bg-white p-5 font-bold text-steel">No booking requests yet. Approved listings will receive requests here.</div> : null}
         </div>
       </section>
 
@@ -137,7 +144,7 @@ export default async function HostDashboardPage() {
             <article key={listing.id} className="border border-neutral-300 bg-white p-5">
               <div className="mb-3 flex flex-wrap gap-2">
                 <StatusBadge status={listing.status} />
-                <span className="status-pill">{listing.zoning}</span>
+                <span className="status-pill">{listing.factoryType}</span>
               </div>
               <h3 className="text-xl font-black">{listing.title}</h3>
               <p className="text-sm font-bold text-steel">{listing.address}</p>
@@ -160,6 +167,7 @@ export default async function HostDashboardPage() {
               </p>
             </article>
           ))}
+          {!listings.length ? <div className="border border-dashed border-neutral-300 bg-white p-5"><h3 className="font-black">No listings yet</h3><p className="mt-2 font-bold text-steel">Create your first space listing to begin administrator review.</p><a className="button-primary mt-4" href="/dashboard/host/listings/new">Create listing</a></div> : null}
         </div>
       </section>
       <PrivacyRequestPanel requests={privacyRequests} />

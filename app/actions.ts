@@ -1,6 +1,6 @@
 "use server";
 
-import { auth, currentUser } from "@clerk/nextjs/server";
+import { auth, clerkClient, currentUser } from "@clerk/nextjs/server";
 import { cookies } from "next/headers";
 import { forbidden, notFound, redirect, unauthorized } from "next/navigation";
 import { revalidatePath } from "next/cache";
@@ -36,6 +36,7 @@ import { CONTACT_POLICY_MESSAGE, containsRestrictedContactDetail } from "@/src/l
 import { prisma } from "@/src/lib/db";
 import { LEGAL_DOCUMENT_VERSION } from "@/src/lib/legal-documents";
 import { nextPaymentState } from "@/src/lib/payment-workflow";
+import { queueAdminNotifications, queueUserNotification } from "@/src/lib/notifications";
 import { enforceRateLimit } from "@/src/lib/rate-limit";
 import { toListing } from "@/src/lib/repository";
 import { commonSafetyRules } from "@/src/lib/seed-data";
@@ -106,6 +107,7 @@ export async function createBookingAction(formData: FormData) {
     await tx.approvalEvent.create({
       data: { actorId: renter.id, bookingId: booking.id, target: "booking_request", decision: "APPROVED", note: "Authenticated renter submitted booking request and accepted safety rules." }
     });
+    if (listing.hostId) await queueUserNotification(tx, { userId: listing.hostId, type: "BOOKING_REQUEST", title: "New booking request", body: `${listing.title} has a new booking request awaiting your review.`, dedupeKey: `booking:${booking.id}:host-request`, email: true });
   }, { isolationLevel: "Serializable" });
 
   revalidateDashboards();
@@ -123,9 +125,9 @@ export async function updateBookingStatusAction(formData: FormData) {
 
   const nextStatus = advanceBookingStatus(booking.status, action, booking.riskLevel);
   if (nextStatus === booking.status) throw new Error("This booking transition is not allowed.");
-  await prisma.$transaction([
-    prisma.booking.update({ where: { id: bookingId }, data: { status: nextStatus } }),
-    prisma.approvalEvent.create({
+  await prisma.$transaction(async (tx) => {
+    await tx.booking.update({ where: { id: bookingId }, data: { status: nextStatus } });
+    await tx.approvalEvent.create({
       data: {
         actorId: actor.id,
         bookingId,
@@ -133,8 +135,9 @@ export async function updateBookingStatusAction(formData: FormData) {
         decision: nextStatus.includes("REJECTED") ? "REJECTED" : "APPROVED",
         note: `${action.replaceAll("_", " ").toLowerCase()} changed booking to ${nextStatus}.`
       }
-    })
-  ]);
+    });
+    await queueUserNotification(tx, { userId: booking.userId, type: "BOOKING_STATUS", title: "Booking status updated", body: `Your booking is now ${nextStatus.replaceAll("_", " ").toLowerCase()}.`, dedupeKey: `booking:${bookingId}:status:${nextStatus}`, email: true });
+  });
   revalidateDashboards();
 }
 
@@ -180,6 +183,7 @@ export async function confirmPaymentAction(formData: FormData) {
     });
     await tx.booking.update({ where: { id: bookingId }, data: { status: nextStatus } });
     await tx.approvalEvent.create({ data: { actorId: renter.id, bookingId, target: "payment_submission", decision: "APPROVED", note: "Authenticated renter submitted company-account payment proof for admin reconciliation." } });
+    await queueAdminNotifications(tx, { type: "PAYMENT_REVIEW", title: "Payment proof needs review", body: `Booking ${bookingId} has a submitted company-account payment reference.`, dedupeKey: `booking:${bookingId}:payment-review`, email: true });
   });
   revalidateDashboards();
 }
@@ -191,13 +195,15 @@ export async function reviewBookingPaymentAction(formData: FormData) {
   if (decision !== "verify" && decision !== "reject") throw new Error("Invalid payment decision.");
   const payment = await prisma.paymentRecord.findUnique({ where: { id: paymentId }, include: { booking: true } });
   if (!payment?.booking || payment.kind !== "BOOKING_TOTAL" || payment.status !== "SUBMITTED") notFound();
-  const bookingStatus = nextPaymentState(payment.booking.status as "PAYMENT_SUBMITTED", decision === "verify" ? "ADMIN_VERIFY" : "ADMIN_REJECT");
+  const paidBooking = payment.booking;
+  const bookingStatus = nextPaymentState(paidBooking.status as "PAYMENT_SUBMITTED", decision === "verify" ? "ADMIN_VERIFY" : "ADMIN_REJECT");
   const now = new Date();
-  await prisma.$transaction([
-    prisma.paymentRecord.update({ where: { id: payment.id }, data: { status: decision === "verify" ? "VERIFIED" : "REJECTED", reviewerId: admin.id, reviewedAt: now, reviewNote: optionalString(formData, "reviewNote") || null } }),
-    prisma.booking.update({ where: { id: payment.booking.id }, data: { status: bookingStatus } }),
-    prisma.approvalEvent.create({ data: { actorId: admin.id, bookingId: payment.booking.id, target: "payment_reconciliation", decision: decision === "verify" ? "APPROVED" : "REJECTED", note: `Admin ${decision === "verify" ? "verified" : "rejected"} company-account payment reference.` } })
-  ]);
+  await prisma.$transaction(async (tx) => {
+    await tx.paymentRecord.update({ where: { id: payment.id }, data: { status: decision === "verify" ? "VERIFIED" : "REJECTED", reviewerId: admin.id, reviewedAt: now, reviewNote: optionalString(formData, "reviewNote") || null } });
+    await tx.booking.update({ where: { id: paidBooking.id }, data: { status: bookingStatus } });
+    await tx.approvalEvent.create({ data: { actorId: admin.id, bookingId: paidBooking.id, target: "payment_reconciliation", decision: decision === "verify" ? "APPROVED" : "REJECTED", note: `Admin ${decision === "verify" ? "verified" : "rejected"} company-account payment reference.` } });
+    await queueUserNotification(tx, { userId: payment.payerId, type: "PAYMENT_RESULT", title: decision === "verify" ? "Payment verified" : "Payment proof rejected", body: decision === "verify" ? "Your booking payment was verified." : "Your payment proof was rejected. Review the admin note and submit a valid reference.", dedupeKey: `payment:${payment.id}:result`, email: true });
+  });
   revalidateDashboards();
 }
 
@@ -284,6 +290,7 @@ export async function submitPlatformSubscriptionPaymentAction(formData: FormData
     await tx.paymentRecord.create({ data: { payerId: user.id, kind: "SUBSCRIPTION", amount: PLATFORM_SUBSCRIPTION_MONTHLY, reference: paymentReference, idempotencyKey: `subscription:${user.id}:${paymentReference.toLowerCase()}` } });
     await tx.user.update({ where: { id: user.id }, data: { platformSubscriptionStatus: "PENDING_ADMIN", platformSubscriptionReference: paymentReference, platformSubscriptionPaidAt: null, platformSubscriptionPeriodStart: null, platformSubscriptionPeriodEnd: null, platformSubscriptionNextBilling: null } });
     await tx.approvalEvent.create({ data: { actorId: user.id, target: "platform_subscription_submission", decision: "APPROVED", note: "Authenticated account submitted a recurring subscription payment reference for admin review." } });
+    await queueAdminNotifications(tx, { type: "SUBSCRIPTION_REVIEW", title: "Subscription payment needs review", body: `${user.role.toLowerCase()} subscription payment reference is awaiting reconciliation.`, dedupeKey: `subscription:${user.id}:${paymentReference.toLowerCase()}:review`, email: true });
   });
   revalidateDashboards();
   redirect(user.role === "HOST" ? "/dashboard/host?subscription=submitted" : "/dashboard/user?subscription=submitted");
@@ -306,6 +313,7 @@ export async function approvePlatformSubscriptionAction(formData: FormData) {
       : { platformSubscriptionStatus: "UNPAID", platformSubscriptionPaidAt: null, platformSubscriptionPeriodStart: null, platformSubscriptionPeriodEnd: null, platformSubscriptionNextBilling: null }
     });
     await tx.approvalEvent.create({ data: { actorId: admin.id, target: "platform_subscription", decision: decision === "verify" ? "APPROVED" : "REJECTED", note: decision === "verify" ? `Admin activated recurring ${user.role.toLowerCase()} subscription at ${formatCurrency(period.monthlyAmount)}/month. Next renewal: ${period.nextBillingAt.toISOString().slice(0, 10)}.` : "Admin rejected the submitted subscription payment reference." } });
+    await queueUserNotification(tx, { userId, type: "SUBSCRIPTION_RESULT", title: decision === "verify" ? "Subscription activated" : "Subscription proof rejected", body: decision === "verify" ? `Your subscription is active until ${period.periodEndAt.toISOString().slice(0, 10)}.` : "Your subscription payment proof was rejected.", dedupeKey: `subscription:${payment.id}:result`, email: true });
   });
   revalidateDashboards();
 }
@@ -332,7 +340,7 @@ export async function acceptBookingAgreementAction(formData: FormData) {
   const bookingId = requireString(formData, "bookingId");
   const actor = await requireBookingParticipant(bookingId);
   if (actor.role !== "RENTER" && actor.role !== "HOST") forbidden();
-  await enforceRateLimit({ action: "agreement:accept", identity: actor.id, limit: 10, windowSeconds: 60 * 60 });
+  await enforceRateLimit({ action: `agreement:accept:${bookingId}`, identity: actor.id, limit: 3, windowSeconds: 60 * 60 });
   const document = await loadBookingDocument(bookingId);
   if (!document) notFound();
   const isRenter = document.booking.userId === actor.id;
@@ -349,6 +357,7 @@ export async function acceptBookingAgreementAction(formData: FormData) {
   });
   revalidateDashboards();
   revalidatePath(`/dashboard/bookings/${bookingId}/agreement`);
+  redirect(`/dashboard/bookings/${bookingId}/agreement`);
 }
 
 export async function submitPrivacyRequestAction(formData: FormData) {
@@ -360,6 +369,7 @@ export async function submitPrivacyRequestAction(formData: FormData) {
   await prisma.$transaction(async (tx) => {
     const request = await tx.privacyRequest.create({ data: { userId: user.id, type, detail } });
     await tx.approvalEvent.create({ data: { actorId: user.id, target: `privacy_request:${request.id}`, decision: "APPROVED", note: `Authenticated user submitted a ${type.toLowerCase()} privacy request.` } });
+    await queueAdminNotifications(tx, { type: "PRIVACY_REQUEST", title: "Privacy request submitted", body: `A ${type.toLowerCase()} request requires administrator review.`, dedupeKey: `privacy:${request.id}:review`, email: true });
   });
   revalidateDashboards();
 }
@@ -369,10 +379,42 @@ export async function resolvePrivacyRequestAction(formData: FormData) {
   const requestId = requireString(formData, "requestId");
   const status = requireString(formData, "status") as "COMPLETED" | "REJECTED";
   if (status !== "COMPLETED" && status !== "REJECTED") throw new Error("Invalid privacy request decision.");
-  await prisma.$transaction([
-    prisma.privacyRequest.update({ where: { id: requestId }, data: { status, resolution: requireString(formData, "resolution").slice(0, 2000), completedAt: new Date() } }),
-    prisma.approvalEvent.create({ data: { actorId: admin.id, target: `privacy_request:${requestId}`, decision: status === "COMPLETED" ? "APPROVED" : "REJECTED", note: `Admin closed privacy request as ${status}.` } })
+  const privacyRequest = await prisma.privacyRequest.findUnique({ where: { id: requestId }, select: { userId: true, type: true } });
+  if (!privacyRequest) notFound();
+  if (privacyRequest.type === "DELETION" && status === "COMPLETED") throw new Error("Use the verified account deletion action for deletion requests.");
+  await prisma.$transaction(async (tx) => {
+    await tx.privacyRequest.update({ where: { id: requestId }, data: { status, resolution: requireString(formData, "resolution").slice(0, 2000), completedAt: new Date() } });
+    await tx.approvalEvent.create({ data: { actorId: admin.id, target: `privacy_request:${requestId}`, decision: status === "COMPLETED" ? "APPROVED" : "REJECTED", note: `Admin closed privacy request as ${status}.` } });
+    await queueUserNotification(tx, { userId: privacyRequest.userId, type: "PRIVACY_RESULT", title: "Privacy request updated", body: `Your privacy request was ${status.toLowerCase()}.`, dedupeKey: `privacy:${requestId}:result`, email: true });
+  });
+  revalidateDashboards();
+}
+
+export async function executeAccountDeletionAction(formData: FormData) {
+  const admin = await requireAdmin();
+  const requestId = requireString(formData, "requestId");
+  const request = await prisma.privacyRequest.findUnique({ where: { id: requestId }, include: { user: true } });
+  if (!request || request.type !== "DELETION" || !["SUBMITTED", "IN_REVIEW"].includes(request.status)) notFound();
+  if (request.user.role === "ADMIN") throw new Error("Administrator deletion requires a separate break-glass procedure.");
+  const activeStatuses = [...ACTIVE_BOOKING_STATUSES];
+  const [renterObligations, hostObligations] = await Promise.all([
+    prisma.booking.count({ where: { userId: request.userId, status: { in: activeStatuses } } }),
+    prisma.booking.count({ where: { listing: { hostId: request.userId }, status: { in: activeStatuses } } })
   ]);
+  if (renterObligations || hostObligations) throw new Error("Account deletion is blocked while active booking, payment, deposit, or dispute obligations remain.");
+
+  const providerId = request.user.authProviderId?.startsWith("clerk:") ? request.user.authProviderId.slice("clerk:".length) : null;
+  if (getAppMode() !== "demo") {
+    if (!providerId) throw new Error("Managed authentication identity is missing; investigate before deleting the database account.");
+    const client = await clerkClient();
+    await client.users.deleteUser(providerId);
+  }
+  const anonymizedEmail = `deleted+${request.userId}@deleted.invalid`;
+  await prisma.$transaction(async (tx) => {
+    await tx.user.update({ where: { id: request.userId }, data: { authProviderId: null, fullName: "Deleted account", mobile: "", email: anonymizedEmail, companyName: "Deleted", uen: null, workType: null, verificationStatus: "REJECTED", platformSubscriptionStatus: "UNPAID", platformSubscriptionReference: null, platformSubscriptionPaidAt: null, platformSubscriptionPeriodStart: null, platformSubscriptionPeriodEnd: null, platformSubscriptionNextBilling: null, suspended: true } });
+    await tx.privacyRequest.update({ where: { id: requestId }, data: { status: "COMPLETED", resolution: "Managed identity deleted and marketplace profile anonymized after active-obligation check.", completedAt: new Date() } });
+    await tx.approvalEvent.create({ data: { actorId: admin.id, target: `account_deletion:${requestId}`, decision: "APPROVED", note: "Administrator completed a verified deletion request and anonymized the marketplace account." } });
+  });
   revalidateDashboards();
 }
 
@@ -380,8 +422,14 @@ export async function sendBookingMessageAction(formData: FormData) {
   const bookingId = requireString(formData, "bookingId");
   const sender = await requireBookingParticipant(bookingId);
   await enforceRateLimit({ action: "chat:booking", identity: sender.id, limit: 30, windowSeconds: 60 });
-  const body = validatedMessage(formData);
-  await prisma.bookingMessage.create({ data: { bookingId, senderId: sender.id, body } });
+  const body = await validatedMessageForActor(formData, sender.id, "BOOKING", bookingId);
+  const booking = await prisma.booking.findUnique({ where: { id: bookingId }, select: { userId: true, listing: { select: { hostId: true, title: true } } } });
+  if (!booking) notFound();
+  await prisma.$transaction(async (tx) => {
+    const message = await tx.bookingMessage.create({ data: { bookingId, senderId: sender.id, body } });
+    const recipients = [booking.userId, booking.listing.hostId].filter((id): id is string => Boolean(id && id !== sender.id));
+    for (const userId of recipients) await queueUserNotification(tx, { userId, type: "BOOKING_MESSAGE", title: "New booking message", body: `${booking.listing.title} has a new message in Co-Build chat.`, dedupeKey: `booking-message:${message.id}`, email: true });
+  });
   revalidateDashboards();
 }
 
@@ -389,7 +437,7 @@ export async function startListingConversationAction(formData: FormData) {
   const renter = await requireRole("RENTER");
   await enforceRateLimit({ action: "chat:listing", identity: renter.id, limit: 20, windowSeconds: 60 });
   const listingId = requireString(formData, "listingId");
-  const body = validatedMessage(formData);
+  const body = await validatedMessageForActor(formData, renter.id, "LISTING", listingId);
   const listing = await prisma.listing.findFirst({ where: { id: listingId, status: "APPROVED", host: { is: { role: "HOST", suspended: false, verificationStatus: "APPROVED", platformSubscriptionStatus: "ACTIVE" } } }, select: { id: true, slug: true, hostId: true } });
   if (!listing?.hostId) notFound();
   await prisma.$transaction(async (tx) => {
@@ -398,7 +446,8 @@ export async function startListingConversationAction(formData: FormData) {
       update: { hostId: listing.hostId! },
       create: { listingId, renterId: renter.id, hostId: listing.hostId! }
     });
-    await tx.conversationMessage.create({ data: { conversationId: conversation.id, senderId: renter.id, body } });
+    const message = await tx.conversationMessage.create({ data: { conversationId: conversation.id, senderId: renter.id, body } });
+    await queueUserNotification(tx, { userId: listing.hostId!, type: "LISTING_MESSAGE", title: "New listing enquiry", body: "A renter sent a question through the private listing chat.", dedupeKey: `conversation-message:${message.id}`, email: true });
   });
   revalidatePath(`/listings/${listing.slug}`);
   revalidatePath("/dashboard/host");
@@ -408,8 +457,14 @@ export async function sendConversationMessageAction(formData: FormData) {
   const conversationId = requireString(formData, "conversationId");
   const sender = await requireConversationParticipant(conversationId);
   await enforceRateLimit({ action: "chat:conversation", identity: sender.id, limit: 30, windowSeconds: 60 });
-  const body = validatedMessage(formData);
-  await prisma.conversationMessage.create({ data: { conversationId, senderId: sender.id, body } });
+  const body = await validatedMessageForActor(formData, sender.id, "CONVERSATION", conversationId);
+  const conversation = await prisma.conversation.findUnique({ where: { id: conversationId }, select: { renterId: true, hostId: true } });
+  if (!conversation) notFound();
+  await prisma.$transaction(async (tx) => {
+    const message = await tx.conversationMessage.create({ data: { conversationId, senderId: sender.id, body } });
+    const recipientId = sender.id === conversation.renterId ? conversation.hostId : conversation.renterId;
+    await queueUserNotification(tx, { userId: recipientId, type: "LISTING_MESSAGE", title: "New listing chat message", body: "You received a new message in a private Co-Build listing conversation.", dedupeKey: `conversation-message:${message.id}`, email: true });
+  });
   revalidatePath("/dashboard/host");
   revalidatePath("/dashboard/user");
 }
@@ -417,12 +472,15 @@ export async function sendConversationMessageAction(formData: FormData) {
 export async function createAdditionalRequirementAction(formData: FormData) {
   const renter = await requireRole("RENTER");
   const bookingId = requireString(formData, "bookingId");
-  const booking = await prisma.booking.findUnique({ where: { id: bookingId }, select: { userId: true } });
+  const booking = await prisma.booking.findUnique({ where: { id: bookingId }, select: { userId: true, listing: { select: { hostId: true } } } });
   if (!booking) notFound();
   if (booking.userId !== renter.id) forbidden();
   const detail = requireString(formData, "additionalDetail");
   assertNoRestrictedContact(detail);
-  await prisma.additionalRequirement.create({ data: { bookingId, userId: renter.id, detail } });
+  await prisma.$transaction(async (tx) => {
+    const request = await tx.additionalRequirement.create({ data: { bookingId, userId: renter.id, detail } });
+    if (booking.listing.hostId) await queueUserNotification(tx, { userId: booking.listing.hostId, type: "ADDITIONAL_REQUIREMENT", title: "Additional requirement submitted", body: "A renter submitted an additional requirement for your approval and quotation.", dedupeKey: `additional:${request.id}:host-review`, email: true });
+  });
   revalidateDashboards();
   redirect("/dashboard/user?additional=submitted");
 }
@@ -439,7 +497,8 @@ export async function approveAdditionalRequirementAction(formData: FormData) {
   const contractText = buildAdditionalRequirementContract({ bookingId: request.booking.id, listingTitle: request.booking.listing.title, renterName: request.user.fullName, hostName: request.booking.listing.host?.fullName ?? "Host", requirementDetail: request.detail, quotedRate });
   await prisma.$transaction([
     prisma.additionalRequirement.update({ where: { id: requestId }, data: { status: nextStatus, quotedRate, contractText, emailedTo: null, emailedAt: null } }),
-    prisma.approvalEvent.create({ data: { actorId: host.id, bookingId: request.bookingId, target: "additional_requirement", decision: "APPROVED", note: `Host approved additional requirement at ${formatCurrency(quotedRate)}.` } })
+    prisma.approvalEvent.create({ data: { actorId: host.id, bookingId: request.bookingId, target: "additional_requirement", decision: "APPROVED", note: `Host approved additional requirement at ${formatCurrency(quotedRate)}.` } }),
+    prisma.notification.create({ data: { userId: request.userId, type: "ADDITIONAL_REQUIREMENT_RESULT", title: "Additional requirement quoted", body: `The host quoted ${formatCurrency(quotedRate)}. Review the add-on before submitting payment.`, channel: "IN_APP", dedupeKey: `additional:${requestId}:quote:in-app` } })
   ]);
   revalidateDashboards();
   redirect("/dashboard/host?additional=approved");
@@ -452,10 +511,11 @@ export async function rejectAdditionalRequirementAction(formData: FormData) {
   const host = await requireListingOwner(request.booking.listingId);
   const nextStatus = advanceAdditionalRequirementStatus(request.status, "HOST_REJECT");
   if (nextStatus === request.status) throw new Error("Additional requirement is not pending host approval.");
-  await prisma.$transaction([
-    prisma.additionalRequirement.update({ where: { id: requestId }, data: { status: nextStatus } }),
-    prisma.approvalEvent.create({ data: { actorId: host.id, bookingId: request.bookingId, target: "additional_requirement", decision: "REJECTED", note: "Host rejected additional requirement request." } })
-  ]);
+  await prisma.$transaction(async (tx) => {
+    await tx.additionalRequirement.update({ where: { id: requestId }, data: { status: nextStatus } });
+    await tx.approvalEvent.create({ data: { actorId: host.id, bookingId: request.bookingId, target: "additional_requirement", decision: "REJECTED", note: "Host rejected additional requirement request." } });
+    await queueUserNotification(tx, { userId: request.booking.userId, type: "ADDITIONAL_REQUIREMENT_RESULT", title: "Additional requirement declined", body: "The host declined your additional requirement. Continue the discussion in booking chat if needed.", dedupeKey: `additional:${requestId}:rejected`, email: true });
+  });
   revalidateDashboards();
 }
 
@@ -485,11 +545,12 @@ export async function reviewAdditionalRequirementPaymentAction(formData: FormDat
   const payment = await prisma.paymentRecord.findUnique({ where: { id: paymentId }, include: { additionalRequirement: true } });
   if (!payment?.additionalRequirement || payment.kind !== "ADDITIONAL_REQUIREMENT" || payment.status !== "SUBMITTED") notFound();
   const nextStatus = decision === "verify" ? "PAID_CONFIRMED" : "APPROVED_FOR_PAYMENT";
-  await prisma.$transaction([
-    prisma.paymentRecord.update({ where: { id: payment.id }, data: { status: decision === "verify" ? "VERIFIED" : "REJECTED", reviewerId: admin.id, reviewedAt: new Date() } }),
-    prisma.additionalRequirement.update({ where: { id: payment.additionalRequirement.id }, data: { status: nextStatus, paidAt: decision === "verify" ? new Date() : null } }),
-    prisma.approvalEvent.create({ data: { actorId: admin.id, bookingId: payment.additionalRequirement.bookingId, target: "additional_requirement_payment_reconciliation", decision: decision === "verify" ? "APPROVED" : "REJECTED", note: `Admin ${decision === "verify" ? "verified" : "rejected"} additional requirement payment.` } })
-  ]);
+  await prisma.$transaction(async (tx) => {
+    await tx.paymentRecord.update({ where: { id: payment.id }, data: { status: decision === "verify" ? "VERIFIED" : "REJECTED", reviewerId: admin.id, reviewedAt: new Date() } });
+    await tx.additionalRequirement.update({ where: { id: payment.additionalRequirement!.id }, data: { status: nextStatus, paidAt: decision === "verify" ? new Date() : null } });
+    await tx.approvalEvent.create({ data: { actorId: admin.id, bookingId: payment.additionalRequirement!.bookingId, target: "additional_requirement_payment_reconciliation", decision: decision === "verify" ? "APPROVED" : "REJECTED", note: `Admin ${decision === "verify" ? "verified" : "rejected"} additional requirement payment.` } });
+    await queueUserNotification(tx, { userId: payment.payerId, type: "ADDITIONAL_PAYMENT_RESULT", title: decision === "verify" ? "Add-on payment verified" : "Add-on payment rejected", body: decision === "verify" ? "Your additional requirement payment was verified." : "Your add-on payment reference was rejected.", dedupeKey: `additional-payment:${payment.id}:result`, email: true });
+  });
   revalidateDashboards();
 }
 
@@ -515,7 +576,7 @@ export async function createListingAction(formData: FormData) {
     const listing = await tx.listing.create({
       data: {
         slug, title, address: requireString(formData, "address"), location: requireString(formData, "location"), sizeSqft, spaceType,
-        zoning: zoningFromFactoryTypes(factoryTypes), status: "PENDING_ADMIN", accessHours: requireString(formData, "accessHours"),
+        factoryType: zoningFromFactoryTypes(factoryTypes), status: "PENDING_ADMIN", accessHours: requireString(formData, "accessHours"),
         powerType: requireString(formData, "powerType") as PowerType,
         loadingAccessJson: JSON.stringify(splitList(requireString(formData, "loadingAccess"))), amenitiesJson: JSON.stringify(amenities),
         permittedWorkJson: JSON.stringify(splitList(requireString(formData, "permittedWork"))), prohibitedWorkJson: JSON.stringify(splitList(requireString(formData, "restrictedWork"))),
@@ -523,7 +584,7 @@ export async function createListingAction(formData: FormData) {
         photoUrlsJson: JSON.stringify([fallbackListingImage(spaceType)]), floorPlanUrl: fallbackFloorPlan(spaceType),
         priceDay: numberField(formData, "priceDay"), priceSevenDays: numberField(formData, "priceSevenDays"), priceThirtyDays: numberField(formData, "priceThirtyDays"), priceSixtyDays: numberField(formData, "priceSixtyDays"),
         depositStandard: numberField(formData, "depositStandard"), depositHighRisk: Number(formData.get("depositHighRisk") || 0), cleaningFee: numberField(formData, "cleaningFee"),
-        landlordApproval: "Not collected", insuranceStatus: "Not collected", fireSafety: requireString(formData, "fireSafety"), electricalSupply: requireString(formData, "electricalSupply"), hostId: host.id,
+        fireSafety: requireString(formData, "fireSafety"), electricalSupply: requireString(formData, "electricalSupply"), hostId: host.id,
         equipmentAddons: { create: equipmentSlugs.map((value) => ({ equipmentAddon: { connect: { slug: value } } })) }
       }
     });
@@ -536,6 +597,7 @@ export async function createListingAction(formData: FormData) {
       if (result.count !== 1) throw new Error(`${type.toLowerCase().replace("_", " ")} is unavailable or does not belong to this host.`);
     }
     await tx.approvalEvent.create({ data: { actorId: host.id, listingId: listing.id, target: "listing_submission", decision: "APPROVED", note: "Authenticated host submitted listing for admin review." } });
+    await queueAdminNotifications(tx, { type: "LISTING_REVIEW", title: "Listing needs approval", body: `${title} was submitted for administrator review.`, dedupeKey: `listing:${listing.id}:admin-review`, email: true });
   });
   revalidateDashboards();
   redirect("/dashboard/host?listing=submitted");
@@ -546,10 +608,13 @@ export async function updateListingStatusAction(formData: FormData) {
   const listingId = requireString(formData, "listingId");
   const status = requireString(formData, "status") as "APPROVED" | "REJECTED" | "SUSPENDED";
   if (!["APPROVED", "REJECTED", "SUSPENDED"].includes(status)) throw new Error("Invalid listing status.");
-  await prisma.$transaction([
-    prisma.listing.update({ where: { id: listingId }, data: { status } }),
-    prisma.approvalEvent.create({ data: { actorId: admin.id, listingId, target: "listing", decision: status === "APPROVED" ? "APPROVED" : status === "SUSPENDED" ? "SUSPENDED" : "REJECTED", note: `Admin changed listing status to ${status}.` } })
-  ]);
+  const listing = await prisma.listing.findUnique({ where: { id: listingId }, select: { hostId: true, title: true } });
+  if (!listing) notFound();
+  await prisma.$transaction(async (tx) => {
+    await tx.listing.update({ where: { id: listingId }, data: { status } });
+    await tx.approvalEvent.create({ data: { actorId: admin.id, listingId, target: "listing", decision: status === "APPROVED" ? "APPROVED" : status === "SUSPENDED" ? "SUSPENDED" : "REJECTED", note: `Admin changed listing status to ${status}.` } });
+    if (listing.hostId) await queueUserNotification(tx, { userId: listing.hostId, type: "LISTING_STATUS", title: "Listing status updated", body: `${listing.title} is now ${status.toLowerCase()}.`, dedupeKey: `listing:${listingId}:status:${status}`, email: true });
+  });
   revalidatePath("/search"); revalidatePath("/dashboard/admin");
 }
 
@@ -624,9 +689,80 @@ export async function updateDepositStatusAction(formData: FormData) {
   revalidateDashboards();
 }
 
-function validatedMessage(formData: FormData): string {
+export async function markNotificationReadAction(formData: FormData) {
+  const user = await requireUser();
+  const notificationId = requireString(formData, "notificationId");
+  await prisma.notification.updateMany({
+    where: { id: notificationId, userId: user.id, channel: "IN_APP" },
+    data: { status: "READ", readAt: new Date() }
+  });
+  revalidateDashboards();
+}
+
+export async function reportMessageAction(formData: FormData) {
+  const actor = await requireUser();
+  await enforceRateLimit({ action: "moderation:report", identity: actor.id, limit: 8, windowSeconds: 24 * 60 * 60 });
+  const messageKind = requireString(formData, "messageKind");
+  const messageId = requireString(formData, "messageId");
+  const reason = requireString(formData, "reason");
+  if (!("CONTACT_SHARING HARASSMENT UNSAFE_REQUEST SPAM OTHER".split(" ")).includes(reason)) throw new Error("Invalid report reason.");
+
+  let contextType: "BOOKING" | "CONVERSATION";
+  let contextId: string;
+  let reportedUserId: string;
+  if (messageKind === "BOOKING") {
+    const message = await prisma.bookingMessage.findUnique({ where: { id: messageId }, select: { senderId: true, bookingId: true } });
+    if (!message) notFound();
+    await requireBookingParticipant(message.bookingId);
+    contextType = "BOOKING";
+    contextId = message.bookingId;
+    reportedUserId = message.senderId;
+  } else if (messageKind === "CONVERSATION") {
+    const message = await prisma.conversationMessage.findUnique({ where: { id: messageId }, select: { senderId: true, conversationId: true } });
+    if (!message) notFound();
+    await requireConversationParticipant(message.conversationId);
+    contextType = "CONVERSATION";
+    contextId = message.conversationId;
+    reportedUserId = message.senderId;
+  } else {
+    throw new Error("Invalid message type.");
+  }
+  if (reportedUserId === actor.id) throw new Error("You cannot report your own message.");
+
+  await prisma.$transaction(async (tx) => {
+    const report = await tx.moderationReport.create({ data: { reporterId: actor.id, reportedUserId, contextType, contextId, messageId, reason, detail: optionalString(formData, "detail").slice(0, 1000) || null } });
+    await tx.approvalEvent.create({ data: { actorId: actor.id, target: `moderation_report:${report.id}`, decision: "REJECTED", note: `Authenticated participant reported a ${contextType.toLowerCase()} message for ${reason.toLowerCase().replaceAll("_", " ")}.` } });
+    await queueAdminNotifications(tx, { type: "MODERATION_REPORT", title: "Chat report requires review", body: `A ${reason.toLowerCase().replaceAll("_", " ")} report was submitted.`, dedupeKey: `moderation:${report.id}:admin`, email: true });
+  });
+  revalidateDashboards();
+}
+
+export async function reviewModerationReportAction(formData: FormData) {
+  const admin = await requireAdmin();
+  const reportId = requireString(formData, "reportId");
+  const status = requireString(formData, "status") as "RESOLVED" | "DISMISSED";
+  if (status !== "RESOLVED" && status !== "DISMISSED") throw new Error("Invalid moderation decision.");
+  const report = await prisma.moderationReport.findUnique({ where: { id: reportId }, select: { reporterId: true } });
+  if (!report) notFound();
+  const resolution = requireString(formData, "resolution").slice(0, 1000);
+  await prisma.$transaction(async (tx) => {
+    await tx.moderationReport.update({ where: { id: reportId }, data: { status, resolution, reviewerId: admin.id, reviewedAt: new Date() } });
+    await tx.approvalEvent.create({ data: { actorId: admin.id, target: `moderation_report:${reportId}`, decision: status === "RESOLVED" ? "APPROVED" : "REJECTED", note: `Admin closed moderation report as ${status}.` } });
+    await queueUserNotification(tx, { userId: report.reporterId, type: "MODERATION_RESULT", title: "Chat report reviewed", body: `Your report was ${status.toLowerCase()}.`, dedupeKey: `moderation:${reportId}:result`, email: true });
+  });
+  revalidatePath("/dashboard/admin");
+}
+
+async function validatedMessageForActor(formData: FormData, actorId: string, contextType: string, contextId: string): Promise<string> {
   const body = requireString(formData, "message").slice(0, 1000);
-  if (containsRestrictedContactDetail(body)) throw new Error(CONTACT_POLICY_MESSAGE);
+  if (containsRestrictedContactDetail(body)) {
+    await prisma.$transaction(async (tx) => {
+      const report = await tx.moderationReport.create({ data: { reporterId: actorId, reportedUserId: actorId, contextType, contextId, reason: "CONTACT_SHARING_ATTEMPT", detail: "Restricted contact detail was blocked before the message was stored." } });
+      await tx.approvalEvent.create({ data: { actorId, target: `contact_policy_violation:${report.id}`, decision: "REJECTED", note: "A contact-sharing attempt was blocked. The submitted message body was not retained." } });
+      await queueAdminNotifications(tx, { type: "CONTACT_POLICY", title: "Contact-sharing attempt blocked", body: "A user attempted to submit restricted contact details. The message was blocked and not stored.", dedupeKey: `contact-policy:${report.id}:admin` });
+    });
+    throw new Error(CONTACT_POLICY_MESSAGE);
+  }
   return body;
 }
 

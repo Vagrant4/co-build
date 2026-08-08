@@ -22,11 +22,15 @@ function readyPilotEnvironment(): NodeJS.ProcessEnv {
     BACKUP_OWNER_EMAIL: "backup@example.com",
     CRON_SECRET: "test-cron-secret",
     ERROR_MONITORING_PROJECT_URL: "https://monitoring.example/co-build",
+    OPS_ALERT_WEBHOOK_URL: "https://alerts.example/co-build",
     UPTIME_MONITOR_URL: "https://monitor.example/check",
     INCIDENT_RESPONSE_URL: "https://docs.example/incidents",
     RESTORE_DRILL_COMPLETED_AT: "2026-08-08T00:00:00.000Z",
     DATA_RETENTION_UPLOAD_DAYS: "365",
     DATA_RETENTION_ACCOUNT_DAYS: "2555",
+    RETENTION_EXECUTION_ENABLED: "true",
+    RESEND_API_KEY: "re_test_value",
+    TRANSACTIONAL_EMAIL_FROM: "Co-Build <notifications@example.com>",
     REAL_UPLOADS_ENABLED: "true",
     BLOB_READ_WRITE_TOKEN: "blob-token",
     ALLOW_UNSCANNED_UPLOADS: "true",
@@ -37,16 +41,19 @@ function readyPilotEnvironment(): NodeJS.ProcessEnv {
 describe("pilot release gate", () => {
   it("fails closed when operational configuration is absent", () => {
     const issues = pilotReadinessIssues({ NODE_ENV: "test", APP_MODE: "pilot" } as NodeJS.ProcessEnv);
-    expect(issues.map((issue) => issue.key)).toEqual(expect.arrayContaining(["DATABASE_URL", "CLERK_SECRET_KEY", "BLOB_READ_WRITE_TOKEN", "LEGAL_REVIEW_APPROVED_VERSION", "RESTORE_DRILL_COMPLETED_AT"]));
+    expect(issues.map((issue) => issue.key)).toEqual(expect.arrayContaining(["DATABASE_URL", "CLERK_SECRET_KEY", "BLOB_READ_WRITE_TOKEN", "LEGAL_REVIEW_APPROVED_VERSION", "RESTORE_DRILL_COMPLETED_AT", "RESEND_API_KEY"]));
   });
 
   it("passes an explicitly configured pilot environment", () => {
     expect(pilotReadinessIssues(readyPilotEnvironment())).toEqual([]);
   });
 
-  it("keeps production blocked until malware scanning is implemented", () => {
+  it("keeps production blocked until malware scanning is configured", () => {
     const environment = readyPilotEnvironment();
     environment.APP_MODE = "production";
     expect(pilotReadinessIssues(environment)).toEqual(expect.arrayContaining([expect.objectContaining({ key: "UPLOAD_MALWARE_SCANNER" })]));
+    environment.MALWARE_SCANNER_URL = "https://scanner.example/scan";
+    environment.MALWARE_SCANNER_TOKEN = "scanner-token";
+    expect(pilotReadinessIssues(environment)).toEqual([]);
   });
 });

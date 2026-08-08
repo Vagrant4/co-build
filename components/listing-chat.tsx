@@ -1,6 +1,7 @@
 import { MessageSquare, Send } from "lucide-react";
 import { sendConversationMessageAction, startListingConversationAction } from "@/app/actions";
 import { CONTACT_POLICY_MESSAGE } from "@/src/lib/contact-policy";
+import { MessageReportForm } from "@/components/message-report-form";
 
 export type ListingChatMessage = {
   id: string;
@@ -115,6 +116,7 @@ function MessageList({
                 <time className={isMine ? "text-neutral-300" : "text-steel"}>{formatChatTime(message.createdAt)}</time>
               </div>
               <p className={isMine ? "mt-1 text-sm font-bold text-neutral-100" : "mt-1 text-sm font-bold text-steel"}>{message.body}</p>
+              {!isMine ? <MessageReportForm messageId={message.id} messageKind="CONVERSATION" dark={isMine} /> : null}
             </article>
           );
         })

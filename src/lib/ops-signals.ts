@@ -5,6 +5,9 @@ export function buildOpsWarnings(input: {
   missingMetadata: number;
   uploadBytes: number;
   uploadsConfigured: boolean;
+  failedNotifications?: number;
+  openModerationReports?: number;
+  auditValid?: boolean;
 }): string[] {
   const warnings: string[] = [];
   if (input.activeSubscriptions >= 100) warnings.push("Paid subscribers are at or above 100; review database tier, pooling, backups, and monitoring now.");
@@ -14,5 +17,8 @@ export function buildOpsWarnings(input: {
   if (input.stalePending) warnings.push(`${input.stalePending} upload reservations are stale and need cleanup.`);
   if (input.missingMetadata) warnings.push(`${input.missingMetadata} available uploads are missing integrity metadata.`);
   if (!input.uploadsConfigured) warnings.push("Real uploads are disabled or private Blob storage is not configured.");
+  if (input.failedNotifications) warnings.push(`${input.failedNotifications} email notifications exhausted or are awaiting retry.`);
+  if (input.openModerationReports) warnings.push(`${input.openModerationReports} moderation reports require review.`);
+  if (input.auditValid === false) warnings.push("Audit checkpoint verification failed; stop sensitive operations and investigate.");
   return warnings;
 }
