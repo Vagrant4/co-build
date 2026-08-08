@@ -141,6 +141,7 @@ jobs:
             --script > migration-drill-diff.sql
           if grep -Ev '^[[:space:]]*(--.*)?$' migration-drill-diff.sql | grep -q .; then
             echo "::error::Disposable migration drill did not reach the reviewed Prisma schema."
+            cat migration-drill-diff.sql
             exit 1
           fi
 
