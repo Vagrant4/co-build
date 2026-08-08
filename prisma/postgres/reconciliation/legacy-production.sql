@@ -105,8 +105,8 @@ ADD COLUMN     "startAt" TIMESTAMP(3);
 
 -- AlterTable
 ALTER TABLE "Listing" DROP COLUMN "insuranceStatus",
-DROP COLUMN "landlordApproval",
-RENAME COLUMN "zoning" TO "factoryType";
+DROP COLUMN "landlordApproval";
+ALTER TABLE "Listing" RENAME COLUMN "zoning" TO "factoryType";
 
 -- Preserve legacy upload paths and infer ownership from the related booking.
 ALTER TABLE "Upload" RENAME COLUMN "localPath" TO "legacyLocalPath";
