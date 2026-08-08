@@ -37,6 +37,7 @@ jobs:
           set -euo pipefail
           mkdir -p backup
           docker run --rm \
+            --user "$(id -u):$(id -g)" \
             -v "$PWD/backup:/backup" \
             postgres:17-alpine \
             pg_dump --format=custom --no-owner --no-acl --file=/backup/co-build.dump "$DATABASE_DIRECT_URL"
