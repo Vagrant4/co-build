@@ -69,7 +69,7 @@ jobs:
       - run: npx prisma validate --schema prisma/postgres/schema.prisma
       - run: npm run prisma:generate:prod
 
-      - name: Resolve legacy baseline only after exact schema comparison
+      - name: Reconcile reviewed legacy production schema
         shell: bash
         run: |
           set -euo pipefail
@@ -81,45 +81,81 @@ jobs:
             exit 0
           fi
 
-          baseline_name="co_build_baseline_compare"
-          baseline_url="$(python3 - "$baseline_name" <<'PY'
+          drill_name="co_build_migration_drill"
+          drill_url="$(python3 - "$drill_name" <<'PY'
           import os, sys
           from urllib.parse import urlsplit, urlunsplit
           source = urlsplit(os.environ['DIRECT_URL'])
           print(urlunsplit((source.scheme, source.netloc, '/' + sys.argv[1], source.query, source.fragment)))
           PY
           )"
-          echo "::add-mask::$baseline_url"
+          echo "::add-mask::$drill_url"
           cleanup() {
             docker run --rm postgres:17-alpine \
               psql "$DIRECT_URL" --set ON_ERROR_STOP=1 \
-              --command "DROP DATABASE IF EXISTS $baseline_name WITH (FORCE)" >/dev/null
+              --command "DROP DATABASE IF EXISTS $drill_name WITH (FORCE)" >/dev/null
           }
           trap cleanup EXIT
 
+          npx prisma migrate diff \
+            --from-url "$DIRECT_URL" \
+            --to-schema-datamodel prisma/postgres/schema.prisma \
+            --script > live-production-diff.sql
+          sed -i 's/\r$//' live-production-diff.sql prisma/postgres/legacy-production-to-target.sql
+          cmp --silent live-production-diff.sql prisma/postgres/legacy-production-to-target.sql || {
+            echo "::error::Production schema changed after the reconciliation review. No migration was applied."
+            exit 1
+          }
+
           cleanup
+          docker run --rm \
+            -v "$PWD:/workspace" \
+            postgres:17-alpine \
+            pg_dump --format=custom --no-owner --no-acl \
+            --file /workspace/migration-drill.dump "$DIRECT_URL"
           docker run --rm postgres:17-alpine \
             psql "$DIRECT_URL" --set ON_ERROR_STOP=1 \
-            --command "CREATE DATABASE $baseline_name" >/dev/null
+            --command "CREATE DATABASE $drill_name" >/dev/null
           docker run --rm \
             -v "$PWD:/workspace:ro" \
             postgres:17-alpine \
-            psql "$baseline_url" --set ON_ERROR_STOP=1 \
-            --file /workspace/prisma/postgres/migrations/20260728090000_baseline/migration.sql >/dev/null
+            pg_restore --no-owner --no-acl --exit-on-error \
+            --dbname "$drill_url" /workspace/migration-drill.dump
+          docker run --rm \
+            -v "$PWD:/workspace:ro" \
+            postgres:17-alpine \
+            psql "$drill_url" --set ON_ERROR_STOP=1 \
+            --file /workspace/prisma/postgres/reconciliation/legacy-production.sql
 
           npx prisma migrate diff \
-            --from-url "$DIRECT_URL" \
-            --to-url "$baseline_url" \
-            --script > baseline-diff.sql
-          if grep -Ev '^[[:space:]]*(--.*)?$' baseline-diff.sql | grep -q .; then
-            statement_count="$(grep -Ec ';[[:space:]]*$' baseline-diff.sql || true)"
-            echo "::error::Production schema differs from the reviewed historical baseline ($statement_count statements). Baseline was not resolved."
+            --from-url "$drill_url" \
+            --to-schema-datamodel prisma/postgres/schema.prisma \
+            --script > migration-drill-diff.sql
+          if grep -Ev '^[[:space:]]*(--.*)?$' migration-drill-diff.sql | grep -q .; then
+            echo "::error::Disposable migration drill did not reach the reviewed Prisma schema."
             exit 1
           fi
 
-          npx prisma migrate resolve \
-            --schema prisma/postgres/schema.prisma \
-            --applied 20260728090000_baseline
+          docker run --rm \
+            -v "$PWD:/workspace:ro" \
+            postgres:17-alpine \
+            psql "$DIRECT_URL" --set ON_ERROR_STOP=1 \
+            --file /workspace/prisma/postgres/reconciliation/legacy-production.sql
+
+          npx prisma migrate diff \
+            --from-url "$DIRECT_URL" \
+            --to-schema-datamodel prisma/postgres/schema.prisma \
+            --script > production-post-migration-diff.sql
+          if grep -Ev '^[[:space:]]*(--.*)?$' production-post-migration-diff.sql | grep -q .; then
+            echo "::error::Production reconciliation did not reach the reviewed Prisma schema."
+            exit 1
+          fi
+
+          for migration in prisma/postgres/migrations/*/; do
+            npx prisma migrate resolve \
+              --schema prisma/postgres/schema.prisma \
+              --applied "$(basename "$migration")"
+          done
 
       - name: Apply reviewed migrations
         run: npm run db:deploy:prod
