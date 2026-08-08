@@ -1,0 +1,81 @@
+name: Nightly encrypted database backup
+
+on:
+  schedule:
+    # 02:00 Asia/Singapore. GitHub schedules use UTC.
+    - cron: "0 18 * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: co-build-production-backup
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      DATABASE_DIRECT_URL: ${{ secrets.DATABASE_DIRECT_URL }}
+      BACKUP_ENCRYPTION_PASSPHRASE: ${{ secrets.BACKUP_ENCRYPTION_PASSPHRASE }}
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Fail closed when backup secrets are missing
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$DATABASE_DIRECT_URL" || { echo "::error::DATABASE_DIRECT_URL is not configured"; exit 1; }
+          test -n "$BACKUP_ENCRYPTION_PASSPHRASE" || { echo "::error::BACKUP_ENCRYPTION_PASSPHRASE is not configured"; exit 1; }
+          test "${#BACKUP_ENCRYPTION_PASSPHRASE}" -ge 32 || { echo "::error::Backup passphrase must be at least 32 characters"; exit 1; }
+
+      - name: Export and validate PostgreSQL backup
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p backup
+          docker run --rm \
+            -e DATABASE_DIRECT_URL \
+            -v "$PWD/backup:/backup" \
+            postgres:17-alpine \
+            sh -ec 'pg_dump --format=custom --no-owner --no-acl --file=/backup/co-build.dump "$DATABASE_DIRECT_URL" && pg_restore --list /backup/co-build.dump >/dev/null'
+
+      - name: Encrypt backup and remove plaintext
+        id: encrypt
+        shell: bash
+        run: |
+          set -euo pipefail
+          timestamp="$(date -u +'%Y-%m-%dT%H-%M-%SZ')"
+          encrypted="backup/co-build-${timestamp}.dump.enc"
+          openssl enc -aes-256-cbc -salt -pbkdf2 -iter 250000 \
+            -in backup/co-build.dump \
+            -out "$encrypted" \
+            -pass env:BACKUP_ENCRYPTION_PASSPHRASE
+          shred -u backup/co-build.dump
+          sha256sum "$encrypted" > "${encrypted}.sha256"
+          echo "artifact_name=co-build-db-${timestamp}" >> "$GITHUB_OUTPUT"
+          echo "encrypted_file=$encrypted" >> "$GITHUB_OUTPUT"
+
+      - name: Upload encrypted backup
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.encrypt.outputs.artifact_name }}
+          path: |
+            ${{ steps.encrypt.outputs.encrypted_file }}
+            ${{ steps.encrypt.outputs.encrypted_file }}.sha256
+          if-no-files-found: error
+          retention-days: 14
+          compression-level: 0
+
+      - name: Record non-sensitive backup evidence
+        shell: bash
+        run: |
+          {
+            echo "### Database backup"
+            echo "- Status: encrypted export validated and uploaded"
+            echo "- Retention: 14 days"
+            echo "- Encryption: AES-256-CBC with PBKDF2"
+            echo "- Completed (UTC): $(date -u +'%Y-%m-%dT%H:%M:%SZ')"
+          } >> "$GITHUB_STEP_SUMMARY"

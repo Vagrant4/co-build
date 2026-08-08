@@ -31,12 +31,17 @@ Co-Build remains fail-closed until the external owner controls in this document 
 
 ## Backup And Restore Drill
 
-1. Create a disposable Neon database whose name includes `restore` or `drill`.
-2. Install PostgreSQL client tools (`pg_dump`, `pg_restore`, and `psql`) on the operator machine.
-3. Set `DIRECT_URL`, `RESTORE_DATABASE_URL`, and `CONFIRM_RESTORE_DRILL=RESTORE_TO_DISPOSABLE_TARGET` locally. Do not paste credentials into tickets or chat.
-4. Run `npm run db:restore-drill`.
-5. Confirm the reported migration count and test a read-only login/query against the disposable database.
-6. Delete the disposable target after evidence is retained. Set `RESTORE_DRILL_COMPLETED_AT` only after success.
+1. Confirm the `Nightly encrypted database backup` GitHub Actions workflow succeeded within the last 24 hours.
+2. Keep `DATABASE_DIRECT_URL` and `BACKUP_ENCRYPTION_PASSPHRASE` only in GitHub Actions repository secrets. The passphrase must be unique, at least 32 characters, and stored in the company password manager.
+3. The workflow validates a PostgreSQL custom-format dump, encrypts it, removes the plaintext file, and retains the encrypted artifact for 14 days.
+4. Download one encrypted artifact for a quarterly restore drill. Verify its `.sha256` file before decrypting it in a controlled operator environment.
+5. Create a disposable Neon database whose name includes `restore` or `drill`.
+6. Install PostgreSQL client tools (`pg_dump`, `pg_restore`, and `psql`) on the operator machine.
+7. Set `DIRECT_URL`, `RESTORE_DATABASE_URL`, and `CONFIRM_RESTORE_DRILL=RESTORE_TO_DISPOSABLE_TARGET` locally. Do not paste credentials or the backup passphrase into tickets or chat.
+8. Run `npm run db:restore-drill` and confirm the reported migration count plus a read-only application query.
+9. Delete the disposable target after evidence is retained. Set `RESTORE_DRILL_COMPLETED_AT` only after success.
+
+The GitHub artifact is an additional pilot safeguard, not a replacement for a managed backup plan. Upgrade Neon recovery retention before the six-hour history window or 14-day artifact retention no longer meets the business recovery requirement.
 
 ## Privacy And Retention
 
