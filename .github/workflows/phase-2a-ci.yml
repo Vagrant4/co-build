@@ -98,6 +98,7 @@ jobs:
           RESEND_API_KEY: re_ci_placeholder
           TRANSACTIONAL_EMAIL_FROM: "Co-Build <notifications@example.com>"
           LEGAL_REVIEW_APPROVED_VERSION: pilot-2026-08-07-r2
+          LEGAL_PILOT_OWNER_ACKNOWLEDGED: true
           PREFLIGHT_ALLOW_NON_POOLER_DATABASE: "true"
         run: npm run vercel-build
       - run: npx playwright install --with-deps chromium

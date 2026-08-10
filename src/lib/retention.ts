@@ -1,4 +1,4 @@
-import { LEGAL_DOCUMENT_VERSION } from "./legal-documents";
+import { legalGateIssue } from "./legal-gate";
 import { prisma } from "./db";
 import { privateStorage } from "./storage";
 
@@ -7,7 +7,8 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 export function retentionExecutionIssues(environment: NodeJS.ProcessEnv = process.env): string[] {
   const issues: string[] = [];
   if (environment.RETENTION_EXECUTION_ENABLED !== "true") issues.push("RETENTION_EXECUTION_ENABLED must be true.");
-  if (environment.LEGAL_REVIEW_APPROVED_VERSION !== LEGAL_DOCUMENT_VERSION) issues.push(`Legal version ${LEGAL_DOCUMENT_VERSION} must be approved.`);
+  const legalIssue = legalGateIssue(environment);
+  if (legalIssue) issues.push(legalIssue);
   const days = Number(environment.DATA_RETENTION_UPLOAD_DAYS);
   if (!Number.isSafeInteger(days) || days <= 0) issues.push("DATA_RETENTION_UPLOAD_DAYS must be a positive whole number.");
   return issues;

@@ -27,7 +27,7 @@ This implementation does not make Co-Build production-ready. It establishes a fa
 1. Configure Clerk production keys and allowed Co-Build URLs.
 2. Apply PostgreSQL migrations to a separate Neon branch, confirm pooled and direct URLs, enable backups, and complete a restore drill.
 3. Connect a Private Vercel Blob store. For an invite-only pilot, explicitly record temporary unscanned-file risk acceptance; production remains blocked until malware scanning is implemented and tested.
-4. Obtain Singapore legal review of `pilot-2026-08-07-r2`, then set `LEGAL_REVIEW_APPROVED_VERSION` to that exact value only if approved.
+4. For an invite-only pilot, explicitly acknowledge that `pilot-2026-08-07-r2` remains an unreviewed draft by setting `LEGAL_PILOT_OWNER_ACKNOWLEDGED=true`. Public production still requires Singapore legal review and the exact `LEGAL_REVIEW_APPROVED_VERSION`.
 5. Configure a real error-monitoring project connected to Vercel logs (Sentry or equivalent), uptime monitor, incident runbook URL, and named privacy/security/operations/backup owners.
 6. Rehearse company-account payment matching, rejected proof, duplicate reference, refund, deposit dispute, and monthly subscription renewal procedures.
 7. Connect and verify the configured transactional email sender and operations-alert webhook before relying on external notifications. In-app notices remain authoritative when delivery is unavailable.

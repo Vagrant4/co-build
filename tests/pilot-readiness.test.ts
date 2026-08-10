@@ -39,14 +39,14 @@ function readyPilotEnvironment(): NodeJS.ProcessEnv {
     REAL_UPLOADS_ENABLED: "true",
     BLOB_READ_WRITE_TOKEN: "blob-token",
     ALLOW_UNSCANNED_UPLOADS: "true",
-    LEGAL_REVIEW_APPROVED_VERSION: LEGAL_DOCUMENT_VERSION
+    LEGAL_PILOT_OWNER_ACKNOWLEDGED: "true"
   };
 }
 
 describe("pilot release gate", () => {
   it("fails closed when operational configuration is absent", () => {
     const issues = pilotReadinessIssues({ NODE_ENV: "test", APP_MODE: "pilot" } as NodeJS.ProcessEnv);
-    expect(issues.map((issue) => issue.key)).toEqual(expect.arrayContaining(["DATABASE_URL", "CLERK_SECRET_KEY", "BLOB_READ_WRITE_TOKEN", "LEGAL_REVIEW_APPROVED_VERSION", "RESTORE_DRILL_COMPLETED_AT", "RESEND_API_KEY"]));
+    expect(issues.map((issue) => issue.key)).toEqual(expect.arrayContaining(["DATABASE_URL", "CLERK_SECRET_KEY", "BLOB_READ_WRITE_TOKEN", "LEGAL_PILOT_OWNER_ACKNOWLEDGED", "RESTORE_DRILL_COMPLETED_AT", "RESEND_API_KEY"]));
   });
 
   it("passes an explicitly configured pilot environment", () => {
@@ -56,6 +56,7 @@ describe("pilot release gate", () => {
   it("keeps production blocked until malware scanning is configured", () => {
     const environment = readyPilotEnvironment();
     environment.APP_MODE = "production";
+    environment.LEGAL_REVIEW_APPROVED_VERSION = LEGAL_DOCUMENT_VERSION;
     expect(pilotReadinessIssues(environment)).toEqual(expect.arrayContaining([expect.objectContaining({ key: "UPLOAD_MALWARE_SCANNER" })]));
     environment.MALWARE_SCANNER_URL = "https://scanner.example/scan";
     environment.MALWARE_SCANNER_TOKEN = "scanner-token";
