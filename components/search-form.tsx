@@ -30,15 +30,13 @@ export function SearchForm({ compact = false }: { compact?: boolean }) {
             ))}
           </select>
         </label>
-        <label className="search-form__duration">
-          <span className="label">Duration</span>
-          <select className="field" name="durationDays" defaultValue="1">
-            <option value="1">1 day</option>
-            <option value="7">7 days</option>
-            <option value="30">30 days</option>
-            <option value="60">60 days</option>
-            <option value="CUSTOM">Custom</option>
-          </select>
+        <label className="search-form__check-in">
+          <span className="label">Check in</span>
+          <input className="field search-form__date" name="checkIn" type="date" aria-label="Requested check-in date" />
+        </label>
+        <label className="search-form__check-out">
+          <span className="label">Check out</span>
+          <input className="field search-form__date" name="checkOut" type="date" aria-label="Requested check-out date" />
         </label>
         <label className="search-form__power">
           <span className="label">Power</span>
@@ -56,7 +54,6 @@ export function SearchForm({ compact = false }: { compact?: boolean }) {
       <details className="search-form__advanced">
         <summary className="search-form__advanced-summary">
           <span>Equipment add-ons</span>
-          <span className="search-form__advanced-copy">Optional tools and other requirements</span>
         </summary>
         <fieldset className="search-form__equipment">
           <legend className="label">Select equipment</legend>

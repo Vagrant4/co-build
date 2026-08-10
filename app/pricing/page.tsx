@@ -5,7 +5,7 @@ export default function PricingPage() {
   return (
     <main className="section-shell py-10">
       <p className="text-sm font-black uppercase text-hazard">Pricing</p>
-      <h1 className="mt-2 text-4xl font-black">Fabrication space rates</h1>
+      <h1 className="mt-2 text-4xl font-black">Business space rates</h1>
       <p className="mt-3 max-w-3xl font-bold text-steel">
         MVP pricing is Singapore-dollar based and combines rental, deposit, cleaning fee, equipment add-ons, and a
         recurring platform subscription.
