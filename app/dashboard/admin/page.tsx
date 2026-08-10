@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { CheckCircle2, DollarSign, Download, ShieldAlert, SlidersHorizontal, UserX, XCircle } from "lucide-react";
+import { CheckCircle2, ClipboardCheck, DollarSign, Download, ShieldAlert, SlidersHorizontal, UserX, XCircle } from "lucide-react";
 import {
   approvePlatformSubscriptionAction,
   executeAccountDeletionAction,
@@ -53,9 +53,14 @@ export default async function AdminDashboardPage({ searchParams }: PageProps) {
             This is recurring monthly subscription revenue; deals are confirmed on-platform, and admin takes no deal commission.
           </p>
         </div>
-        <Link className="button-secondary shrink-0" href="/dashboard/admin/export">
-          <Download size={18} /> Export data
-        </Link>
+        <div className="flex flex-wrap gap-2">
+          <Link className="button-primary shrink-0" href="/dashboard/admin/launch-setup">
+            <ClipboardCheck size={18} /> Manual launch setup
+          </Link>
+          <Link className="button-secondary shrink-0" href="/dashboard/admin/export">
+            <Download size={18} /> Export data
+          </Link>
+        </div>
       </div>
 
       <section className="mb-8 grid gap-4 md:grid-cols-4">

@@ -17,7 +17,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
 
   const content = (
     <html lang="en">
-      <body>
+      <body className="spaceoncall-theme">
         <ServiceWorkerRegistration />
         {mode === "demo" && (
           <div className="demo-banner" role="status">
@@ -29,7 +29,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <footer className="border-t border-neutral-300 bg-ink py-8 text-white">
           <div className="section-shell flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
             <div>
-              <Logo variant="compact" className="text-white" accentClassName="text-safety" />
+              <Logo variant="compact" className="text-white" accentClassName="text-hazard" />
               <p className="text-sm text-neutral-300">Find and rent business space on demand.</p>
             </div>
             <div className="flex flex-wrap gap-3 text-sm font-bold text-neutral-200">

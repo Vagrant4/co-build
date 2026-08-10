@@ -42,51 +42,44 @@ export function Logo({
         aria-hidden="true"
         focusable="false"
       >
-        <rect
+        <path
           className="co-build-logo__frame"
-          x="6"
-          y="6"
-          width="36"
-          height="36"
-          rx="3"
-          fill="white"
-          stroke="currentColor"
-          strokeWidth="3"
-        />
-        <path
-          className={cx("co-build-logo__accent", accentClassName)}
-          d="M10 10h28v7H10z"
-          fill="currentColor"
-        />
-        <path d="M14 21h20M14 28h20M20 14v24M28 14v24" stroke="currentColor" strokeWidth="1.8" opacity="0.36" />
-        <path
-          className="co-build-logo__beam"
-          d="M13 36 35 14"
+          d="M16 5h6M26 5h6l11 11v6M43 27v5L32 43h-6M22 43h-6L5 32v-5M5 22v-6L16 5"
           fill="none"
           stroke="currentColor"
           strokeLinecap="square"
-          strokeWidth="4"
+          strokeLinejoin="miter"
+          strokeWidth="5"
         />
-        <path d="M13 36 35 14" fill="none" stroke="white" strokeLinecap="square" strokeWidth="1.2" />
         <path
-          className={cx("co-build-logo__accent", accentClassName)}
-          d="M31 34c3.2-3.1 5.2-5.6 5.2-8.1a5.2 5.2 0 0 0-10.4 0c0 2.5 2 5 5.2 8.1Z"
-          fill="currentColor"
+          className={cx("co-build-logo__symbol co-build-logo__accent", accentClassName)}
+          d="M31 17h-8a4.5 4.5 0 0 0 0 9h3a4.5 4.5 0 0 1 0 9h-9"
+          fill="none"
+          stroke="currentColor"
+          strokeLinecap="square"
+          strokeLinejoin="round"
+          strokeWidth="5.5"
         />
-        <circle cx="31" cy="25.9" r="1.8" fill="white" />
+        <path
+          className={cx("co-build-logo__symbol co-build-logo__accent", accentClassName)}
+          d="M24 10v32"
+          fill="none"
+          stroke="currentColor"
+          strokeLinecap="square"
+          strokeWidth="3"
+        />
       </svg>
 
       {showWordmark ? (
         <span
           className={cx(
-            "co-build-logo__wordmark relative inline-flex flex-col text-xl font-black leading-none",
+            "co-build-logo__wordmark relative inline-flex text-xl font-black leading-none",
             wordmarkClassName
           )}
         >
           <span>
             Space<span className={cx("co-build-logo__accent", accentClassName)}>OnCall</span>
           </span>
-          <span className={cx("co-build-logo__underline", accentClassName)} aria-hidden="true" />
         </span>
       ) : (
         <span className="sr-only">SpaceOnCall</span>
