@@ -61,9 +61,9 @@ const setupSteps = [
   },
   {
     number: "07",
-    title: "Obtain Singapore legal approval",
-    detail: "Ask Singapore counsel to review the terms, privacy notice, host-renter agreement, cancellation terms, liability wording, and document version.",
-    input: "Written approval for legal version pilot-2026-08-07-r2",
+    title: "Acknowledge pilot legal draft status",
+    detail: "The invite-only pilot may use clearly labelled, unreviewed draft documents after owner acknowledgement. Public production still requires Singapore legal review.",
+    input: "Owner acknowledgement for the pilot draft exception",
     href: "/legal",
     label: "Review legal documents",
     icon: FileCheck2
@@ -122,9 +122,9 @@ export default async function LaunchSetupPage() {
       </section>
 
       <section className="mt-6 border border-neutral-300 bg-ink p-5 text-white">
-        <h2 className="text-xl font-black text-hazard">Do not switch to pilot yet</h2>
+        <h2 className="text-xl font-black text-hazard">Pilot is not public production</h2>
         <p className="mt-2 max-w-4xl font-bold text-neutral-200">
-          Keep Production in demo mode until all eight steps are complete, the production-foundation code is merged, migrations are applied, and a real host-renter-admin rehearsal passes.
+          Complete all eight pilot steps, apply migrations, and pass a real host-renter-admin rehearsal. Legal documents remain unreviewed drafts until Singapore counsel approves them for public production.
         </p>
       </section>
     </main>
