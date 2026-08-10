@@ -32,7 +32,7 @@ export function Logo({
         variant === "full" ? "gap-3" : "gap-2",
         className
       )}
-      aria-label="Co-Build"
+      aria-label="SpaceOnCall"
       data-logo-variant={variant}
     >
       <svg
@@ -84,12 +84,12 @@ export function Logo({
           )}
         >
           <span>
-            Co-<span className={cx("co-build-logo__accent", accentClassName)}>Build</span>
+            Space<span className={cx("co-build-logo__accent", accentClassName)}>OnCall</span>
           </span>
           <span className={cx("co-build-logo__underline", accentClassName)} aria-hidden="true" />
         </span>
       ) : (
-        <span className="sr-only">Co-Build</span>
+        <span className="sr-only">SpaceOnCall</span>
       )}
     </span>
   );

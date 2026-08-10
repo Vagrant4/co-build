@@ -121,7 +121,7 @@ export default async function HomePage() {
               </a>
             </div>
           </div>
-          <aside className="hero-proof-panel" aria-label="Co-Build marketplace summary">
+          <aside className="hero-proof-panel" aria-label="SpaceOnCall marketplace summary">
             <div className="hero-proof-panel__header">
               <ShieldCheck size={22} aria-hidden="true" />
               <div>
@@ -154,7 +154,7 @@ export default async function HomePage() {
         <div className="section-shell grid gap-3 md:grid-cols-3">
           {[
             { icon: MapPinned, label: "Search by real requirement", value: "Location, sqft, work type, loading, equipment" },
-            { icon: ShieldCheck, label: "Controlled communication", value: "Renter and host chat stays inside Co-Build" },
+            { icon: ShieldCheck, label: "Controlled communication", value: "Renter and host chat stays inside SpaceOnCall" },
             { icon: CalendarDays, label: "Short-notice durations", value: "1 day, 7 days, 30 days, 60 days, or custom request" }
           ].map(({ icon: Icon, label, value }) => (
             <div key={label} className="market-strip__item">
@@ -175,7 +175,7 @@ export default async function HomePage() {
               <p className="text-sm font-black uppercase text-hazard">One connected workflow</p>
               <h2 className="text-3xl font-black md:text-5xl">From first question to documented handover.</h2>
               <p className="mt-3 max-w-3xl text-lg text-steel">
-                Co-Build keeps the practical parts of a short-notice rental visible to renter, host, and admin.
+                SpaceOnCall keeps the practical parts of an on-demand rental visible to renter, host, and admin.
               </p>
             </div>
             <a className="button-dark" href="/create-account">

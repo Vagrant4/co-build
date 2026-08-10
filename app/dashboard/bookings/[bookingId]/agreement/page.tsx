@@ -62,7 +62,7 @@ export default async function BookingAgreementPage({ params }: PageProps) {
               <p className="text-xs font-black uppercase">{LEGAL_DOCUMENT_REVIEW_STATUS}</p>
             </div>
             <p className="mt-3 text-sm font-bold text-steel">
-              This space agreement is between the renter and host. Co-Build prepares the record for their review and acknowledgement and is not a party to their space booking.
+              This space agreement is between the renter and host. SpaceOnCall prepares the record for their review and acknowledgement and is not a party to their space booking.
             </p>
             <p className="mt-4 text-xs font-black uppercase text-steel">Version {LEGAL_DOCUMENT_VERSION}</p>
             <p className="mt-2 break-all font-mono text-[11px] font-bold text-steel">SHA-256 {documentHash}</p>

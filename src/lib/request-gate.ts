@@ -13,7 +13,7 @@ function statusResponse(status: 401 | 403 | 404): Response {
     : status === 403
       ? "Your account cannot access this page."
       : "The requested resource is not available.";
-  return new Response(`<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${title} | Co-Build</title></head><body><main><h1>${title}</h1><p>${detail}</p><a href="/">Return to Co-Build</a></main></body></html>`, {
+  return new Response(`<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${title} | SpaceOnCall</title></head><body><main><h1>${title}</h1><p>${detail}</p><a href="/">Return to SpaceOnCall</a></main></body></html>`, {
     status,
     headers: { "content-type": "text/html; charset=utf-8", "cache-control": "no-store" }
   });

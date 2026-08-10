@@ -28,7 +28,7 @@ export function BookingChat({
   placeholder: string;
 }) {
   return (
-    <section data-booking-chat aria-label="Keep all communication inside Co-Build chat" className="grid gap-3 border border-neutral-300 bg-white p-3">
+    <section data-booking-chat aria-label="Keep all communication inside SpaceOnCall chat" className="grid gap-3 border border-neutral-300 bg-white p-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <p className="flex items-center gap-2 text-sm font-black uppercase text-steel">
           <MessageSquare size={17} className="text-hazard" /> {title}

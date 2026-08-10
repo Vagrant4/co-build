@@ -11,7 +11,7 @@ export default function ContactPage() {
         </p>
         <div className="mt-6 space-y-3">
           <p className="flex items-center gap-2 font-black">
-            <Mail className="text-hazard" size={20} /> ops@fabbay.sg
+            <Mail className="text-hazard" size={20} /> support@spaceoncall.com
           </p>
           <p className="flex items-center gap-2 font-black">
             <Phone className="text-hazard" size={20} /> +65 9000 0000

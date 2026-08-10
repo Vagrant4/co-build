@@ -79,7 +79,7 @@ describe("pilot legal documents", () => {
     expect(document).toContain("CONTRACTING PARTIES AND PLATFORM ROLE");
     expect(document).toContain("between the host and renter identified in this record");
     expect(document).toContain("acknowledgement and record purposes");
-    expect(document).toContain("Co-Build is not a party to the space booking agreement");
+    expect(document).toContain("SpaceOnCall is not a party to the space booking agreement");
     expect(document).toContain("DISPUTES AND PLATFORM LIABILITY");
     expect(document).toContain("To the fullest extent permitted by applicable law");
     expect(document).toContain("cannot lawfully be excluded or limited");

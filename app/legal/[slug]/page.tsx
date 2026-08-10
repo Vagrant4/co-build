@@ -11,7 +11,7 @@ export function generateStaticParams() {
 
 export async function generateMetadata({ params }: PageProps) {
   const document = getLegalDocument((await params).slug);
-  return document ? { title: `${document.shortTitle} | Co-Build` } : {};
+  return document ? { title: `${document.shortTitle} | SpaceOnCall` } : {};
 }
 
 export default async function LegalDocumentPage({ params }: PageProps) {

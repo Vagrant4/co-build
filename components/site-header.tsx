@@ -39,7 +39,7 @@ export function SiteHeader({ appMode }: { appMode: "demo" | "pilot" | "productio
   return (
     <header className="site-header">
       <div className="section-shell site-header__inner">
-        <a href="/" className="site-header__brand group" aria-label="Co-Build home">
+        <a href="/" className="site-header__brand group" aria-label="SpaceOnCall home">
           <Logo variant="compact" className="transition-colors duration-150 group-hover:text-hazard" />
           <span className="hidden border-l border-neutral-300 pl-3 text-xs font-bold leading-tight text-steel xl:block">
             Workspace, power,

@@ -428,7 +428,7 @@ export async function sendBookingMessageAction(formData: FormData) {
   await prisma.$transaction(async (tx) => {
     const message = await tx.bookingMessage.create({ data: { bookingId, senderId: sender.id, body } });
     const recipients = [booking.userId, booking.listing.hostId].filter((id): id is string => Boolean(id && id !== sender.id));
-    for (const userId of recipients) await queueUserNotification(tx, { userId, type: "BOOKING_MESSAGE", title: "New booking message", body: `${booking.listing.title} has a new message in Co-Build chat.`, dedupeKey: `booking-message:${message.id}`, email: true });
+    for (const userId of recipients) await queueUserNotification(tx, { userId, type: "BOOKING_MESSAGE", title: "New booking message", body: `${booking.listing.title} has a new message in SpaceOnCall chat.`, dedupeKey: `booking-message:${message.id}`, email: true });
   });
   revalidateDashboards();
 }
@@ -463,7 +463,7 @@ export async function sendConversationMessageAction(formData: FormData) {
   await prisma.$transaction(async (tx) => {
     const message = await tx.conversationMessage.create({ data: { conversationId, senderId: sender.id, body } });
     const recipientId = sender.id === conversation.renterId ? conversation.hostId : conversation.renterId;
-    await queueUserNotification(tx, { userId: recipientId, type: "LISTING_MESSAGE", title: "New listing chat message", body: "You received a new message in a private Co-Build listing conversation.", dedupeKey: `conversation-message:${message.id}`, email: true });
+    await queueUserNotification(tx, { userId: recipientId, type: "LISTING_MESSAGE", title: "New listing chat message", body: "You received a new message in a private SpaceOnCall listing conversation.", dedupeKey: `conversation-message:${message.id}`, email: true });
   });
   revalidatePath("/dashboard/host");
   revalidatePath("/dashboard/user");
