@@ -20,7 +20,7 @@ export default function PricingPage() {
         <div className="card p-5 premium-panel">
           <p className="text-sm font-black uppercase text-hazard">Payment method</p>
           <h2 className="mt-2 text-2xl font-black">Company-account payment</h2>
-          <p className="mt-2 font-bold text-steel">Renter and host subscriptions are paid to the company account, then activated from the admin dashboard after payment reference review.</p>
+          <p className="mt-2 font-bold text-steel">Renter and host subscriptions can renew automatically through Stripe. Company bank transfer remains available for administrator review.</p>
         </div>
         <div className="card p-5 premium-panel">
           <p className="text-sm font-black uppercase text-hazard">Deal fees</p>

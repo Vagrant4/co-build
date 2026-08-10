@@ -1,5 +1,6 @@
 import { getAppMode } from "./app-mode";
 import { legalGateIssue } from "./legal-gate";
+import { stripeBillingConfigurationIssues } from "./stripe-billing";
 
 export type ReadinessIssue = { key: string; message: string };
 
@@ -60,6 +61,9 @@ export function pilotReadinessIssues(environment: NodeJS.ProcessEnv = process.en
   validatePositiveInteger(environment, "DATA_RETENTION_UPLOAD_DAYS", issues);
   validatePositiveInteger(environment, "DATA_RETENTION_ACCOUNT_DAYS", issues);
   if (environment.RETENTION_EXECUTION_ENABLED !== "true") issues.push({ key: "RETENTION_EXECUTION_ENABLED", message: "Approved retention execution must be enabled for pilot and production." });
+  for (const key of stripeBillingConfigurationIssues(environment)) {
+    issues.push({ key, message: `${key} must be configured when Stripe Billing is enabled.` });
+  }
   const databaseUrl = environment.DATABASE_URL || "";
   if (databaseUrl && !databaseUrl.includes("-pooler") && !(environment.CI === "true" && environment.PREFLIGHT_ALLOW_NON_POOLER_DATABASE === "true")) {
     issues.push({ key: "DATABASE_URL", message: "DATABASE_URL must use the Neon pooled endpoint." });

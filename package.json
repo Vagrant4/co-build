@@ -41,7 +41,8 @@
     "pdf-lib": "^1.17.1",
     "react": "latest",
     "react-dom": "latest",
-    "sharp": "0.35.3"
+    "sharp": "0.35.3",
+    "stripe": "^18.5.0"
   },
   "devDependencies": {
     "@emnapi/core": "1.11.2",

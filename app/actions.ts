@@ -284,11 +284,14 @@ export async function updateOwnProfileAction(formData: FormData) {
 export async function submitPlatformSubscriptionPaymentAction(formData: FormData) {
   const user = await requireUser();
   if (user.role !== "RENTER" && user.role !== "HOST") forbidden();
+  if (user.platformSubscriptionProvider === "STRIPE" && user.stripeSubscriptionId && user.platformSubscriptionStatus === "ACTIVE") {
+    throw new Error("Manage your active recurring subscription through Stripe Billing.");
+  }
   await enforceRateLimit({ action: "payment:subscription-submit", identity: user.id, limit: 4, windowSeconds: 60 * 60 });
   const paymentReference = optionalString(formData, "paymentReference") || buildCompanyAccountPaymentReference(user.email);
   await prisma.$transaction(async (tx) => {
     await tx.paymentRecord.create({ data: { payerId: user.id, kind: "SUBSCRIPTION", amount: PLATFORM_SUBSCRIPTION_MONTHLY, reference: paymentReference, idempotencyKey: `subscription:${user.id}:${paymentReference.toLowerCase()}` } });
-    await tx.user.update({ where: { id: user.id }, data: { platformSubscriptionStatus: "PENDING_ADMIN", platformSubscriptionReference: paymentReference, platformSubscriptionPaidAt: null, platformSubscriptionPeriodStart: null, platformSubscriptionPeriodEnd: null, platformSubscriptionNextBilling: null } });
+    await tx.user.update({ where: { id: user.id }, data: { platformSubscriptionProvider: "BANK_TRANSFER", platformSubscriptionStatus: "PENDING_ADMIN", platformSubscriptionReference: paymentReference, platformSubscriptionPaidAt: null, platformSubscriptionPeriodStart: null, platformSubscriptionPeriodEnd: null, platformSubscriptionNextBilling: null } });
     await tx.approvalEvent.create({ data: { actorId: user.id, target: "platform_subscription_submission", decision: "APPROVED", note: "Authenticated account submitted a recurring subscription payment reference for admin review." } });
     await queueAdminNotifications(tx, { type: "SUBSCRIPTION_REVIEW", title: "Subscription payment needs review", body: `${user.role.toLowerCase()} subscription payment reference is awaiting reconciliation.`, dedupeKey: `subscription:${user.id}:${paymentReference.toLowerCase()}:review`, email: true });
   });
@@ -303,14 +306,15 @@ export async function approvePlatformSubscriptionAction(formData: FormData) {
   if (decision !== "verify" && decision !== "reject") throw new Error("Invalid subscription payment decision.");
   const user = await prisma.user.findUnique({ where: { id: userId } });
   if (!user || (user.role !== "RENTER" && user.role !== "HOST")) notFound();
+  if (user.platformSubscriptionProvider === "STRIPE") throw new Error("Stripe subscription status can be changed only by a verified Stripe webhook.");
   const payment = await prisma.paymentRecord.findFirst({ where: { payerId: userId, kind: "SUBSCRIPTION", status: "SUBMITTED" }, orderBy: { submittedAt: "desc" } });
   if (!payment) throw new Error("No submitted subscription payment is available to verify.");
   const period = buildRecurringSubscriptionPeriod(new Date());
   await prisma.$transaction(async (tx) => {
     await tx.paymentRecord.update({ where: { id: payment.id }, data: { status: decision === "verify" ? "VERIFIED" : "REJECTED", reviewerId: admin.id, reviewedAt: new Date() } });
     await tx.user.update({ where: { id: userId }, data: decision === "verify"
-      ? { platformSubscriptionStatus: "ACTIVE", platformSubscriptionPaidAt: period.periodStartAt, platformSubscriptionPeriodStart: period.periodStartAt, platformSubscriptionPeriodEnd: period.periodEndAt, platformSubscriptionNextBilling: period.nextBillingAt }
-      : { platformSubscriptionStatus: "UNPAID", platformSubscriptionPaidAt: null, platformSubscriptionPeriodStart: null, platformSubscriptionPeriodEnd: null, platformSubscriptionNextBilling: null }
+      ? { platformSubscriptionProvider: "BANK_TRANSFER" as const, platformSubscriptionStatus: "ACTIVE" as const, platformSubscriptionPaidAt: period.periodStartAt, platformSubscriptionPeriodStart: period.periodStartAt, platformSubscriptionPeriodEnd: period.periodEndAt, platformSubscriptionNextBilling: period.nextBillingAt }
+      : { platformSubscriptionProvider: "BANK_TRANSFER" as const, platformSubscriptionStatus: "UNPAID" as const, platformSubscriptionPaidAt: null, platformSubscriptionPeriodStart: null, platformSubscriptionPeriodEnd: null, platformSubscriptionNextBilling: null }
     });
     await tx.approvalEvent.create({ data: { actorId: admin.id, target: "platform_subscription", decision: decision === "verify" ? "APPROVED" : "REJECTED", note: decision === "verify" ? `Admin activated recurring ${user.role.toLowerCase()} subscription at ${formatCurrency(period.monthlyAmount)}/month. Next renewal: ${period.nextBillingAt.toISOString().slice(0, 10)}.` : "Admin rejected the submitted subscription payment reference." } });
     await queueUserNotification(tx, { userId, type: "SUBSCRIPTION_RESULT", title: decision === "verify" ? "Subscription activated" : "Subscription proof rejected", body: decision === "verify" ? `Your subscription is active until ${period.periodEndAt.toISOString().slice(0, 10)}.` : "Your subscription payment proof was rejected.", dedupeKey: `subscription:${payment.id}:result`, email: true });
@@ -411,7 +415,7 @@ export async function executeAccountDeletionAction(formData: FormData) {
   }
   const anonymizedEmail = `deleted+${request.userId}@deleted.invalid`;
   await prisma.$transaction(async (tx) => {
-    await tx.user.update({ where: { id: request.userId }, data: { authProviderId: null, fullName: "Deleted account", mobile: "", email: anonymizedEmail, companyName: "Deleted", uen: null, workType: null, verificationStatus: "REJECTED", platformSubscriptionStatus: "UNPAID", platformSubscriptionReference: null, platformSubscriptionPaidAt: null, platformSubscriptionPeriodStart: null, platformSubscriptionPeriodEnd: null, platformSubscriptionNextBilling: null, suspended: true } });
+    await tx.user.update({ where: { id: request.userId }, data: { authProviderId: null, fullName: "Deleted account", mobile: "", email: anonymizedEmail, companyName: "Deleted", uen: null, workType: null, verificationStatus: "REJECTED", platformSubscriptionProvider: null, platformSubscriptionStatus: "UNPAID", platformSubscriptionReference: null, platformSubscriptionPaidAt: null, platformSubscriptionPeriodStart: null, platformSubscriptionPeriodEnd: null, platformSubscriptionNextBilling: null, stripeCustomerId: null, stripeSubscriptionId: null, suspended: true } });
     await tx.privacyRequest.update({ where: { id: requestId }, data: { status: "COMPLETED", resolution: "Managed identity deleted and marketplace profile anonymized after active-obligation check.", completedAt: new Date() } });
     await tx.approvalEvent.create({ data: { actorId: admin.id, target: `account_deletion:${requestId}`, decision: "APPROVED", note: "Administrator completed a verified deletion request and anonymized the marketplace account." } });
   });

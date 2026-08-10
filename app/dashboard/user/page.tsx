@@ -4,7 +4,6 @@ import {
   confirmAdditionalRequirementPaymentAction,
   confirmPaymentAction,
   createAdditionalRequirementAction,
-  submitPlatformSubscriptionPaymentAction,
   uploadBookingPhotoAction
 } from "@/app/actions";
 import { PrivateUploadField } from "@/components/private-upload-field";
@@ -12,10 +11,12 @@ import { BookingChat } from "@/components/booking-chat";
 import { StatusBadge } from "@/components/status-badge";
 import { PrivacyRequestPanel } from "@/components/privacy-request-panel";
 import { NotificationCenter } from "@/components/notification-center";
-import { dealConfirmationStatus, formatCurrency, PLATFORM_SUBSCRIPTION_MONTHLY } from "@/src/lib/fabrication";
+import { PlatformSubscriptionPanel } from "@/components/platform-subscription-panel";
+import { dealConfirmationStatus, formatCurrency } from "@/src/lib/fabrication";
 import { prisma } from "@/src/lib/db";
 import { requirePageRole } from "@/src/lib/page-authorization";
 import { getAppMode } from "@/src/lib/app-mode";
+import { isStripeBillingConfigured } from "@/src/lib/stripe-billing";
 
 export const dynamic = "force-dynamic";
 
@@ -48,10 +49,13 @@ export default async function UserDashboardPage() {
         title="Renter platform subscription"
         email={user.email}
         status={user.platformSubscriptionStatus}
+        provider={user.platformSubscriptionProvider}
         reference={user.platformSubscriptionReference}
         nextBillingAt={user.platformSubscriptionNextBilling}
         periodEndAt={user.platformSubscriptionPeriodEnd}
         labelPrefix="Renter"
+        stripeAvailable={isStripeBillingConfigured()}
+        stripeCustomerId={user.stripeCustomerId}
       />
       <NotificationCenter notifications={notifications} />
       <div className="grid gap-5">
@@ -132,58 +136,6 @@ export default async function UserDashboardPage() {
       </div>
       <PrivacyRequestPanel requests={privacyRequests} />
     </main>
-  );
-}
-
-function PlatformSubscriptionPanel({
-  title,
-  email,
-  status,
-  reference,
-  nextBillingAt,
-  periodEndAt,
-  labelPrefix
-}: {
-  title: string;
-  email: string;
-  status: string;
-  reference: string | null;
-  nextBillingAt: Date | null;
-  periodEndAt: Date | null;
-  labelPrefix: string;
-}) {
-  const nextRenewal = nextBillingAt ?? periodEndAt;
-
-  return (
-    <section className="card mb-6 grid gap-4 p-5 premium-panel lg:grid-cols-[1fr_360px]">
-      <div>
-        <div className="mb-2 flex flex-wrap gap-2">
-          <StatusBadge status={status} />
-          <span className="status-pill">{formatCurrency(PLATFORM_SUBSCRIPTION_MONTHLY)}/month</span>
-          <span className="status-pill">Recurring company-account plan</span>
-        </div>
-        <h2 className="text-2xl font-black">{title}</h2>
-        <p className="mt-2 font-bold text-steel">
-          User and host each pay admin {formatCurrency(PLATFORM_SUBSCRIPTION_MONTHLY)}/month for platform access to the company account.
-          Admin activates the recurring subscription after payment proof; deals are confirmed on-platform with no commission.
-        </p>
-        <p className="mt-2 text-sm font-black">
-          Next renewal: {nextRenewal ? formatDate(nextRenewal) : "starts after admin activates your recurring subscription"}
-        </p>
-        <p className="mt-2 text-sm font-black">Login email: {email}</p>
-        {reference && <p className="mt-2 text-sm font-bold text-steel">Latest payment reference: {reference}</p>}
-      </div>
-      <form action={submitPlatformSubscriptionPaymentAction} className="payment-card grid content-between gap-3 border border-neutral-200 bg-white p-4">
-        <input type="hidden" name="paymentReference" value={`company_account_${labelPrefix.toLowerCase()}_${Date.now()}`} />
-        <div>
-          <p className="label">{labelPrefix} company-account payment</p>
-          <p className="text-sm font-bold text-steel">Submit the recurring S$5/month payment reference. Admin activates after checking the company account.</p>
-        </div>
-        <button className="button-primary" type="submit">
-          Submit payment reference
-        </button>
-      </form>
-    </section>
   );
 }
 
