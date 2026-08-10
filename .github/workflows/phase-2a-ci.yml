@@ -88,6 +88,7 @@ jobs:
           SENTRY_PROJECT: ci-example-project
           SENTRY_AUTH_TOKEN: ci-sentry-token-placeholder
           OPS_ALERT_WEBHOOK_URL: https://alerts.example/co-build
+          OPS_ALERT_WEBHOOK_TOKEN: ci-ops-alert-webhook-token-placeholder
           UPTIME_MONITOR_URL: https://monitor.example/co-build
           INCIDENT_RESPONSE_URL: https://docs.example/co-build/incidents
           RESTORE_DRILL_COMPLETED_AT: 2026-08-08T00:00:00.000Z
