@@ -83,6 +83,10 @@ jobs:
           BACKUP_OWNER_EMAIL: backup@example.com
           CRON_SECRET: ci-cron-secret
           ERROR_MONITORING_PROJECT_URL: https://monitoring.example/co-build
+          NEXT_PUBLIC_SENTRY_DSN: https://public@example.ingest.sentry.io/1
+          SENTRY_ORG: ci-example-org
+          SENTRY_PROJECT: ci-example-project
+          SENTRY_AUTH_TOKEN: ci-sentry-token-placeholder
           OPS_ALERT_WEBHOOK_URL: https://alerts.example/co-build
           UPTIME_MONITOR_URL: https://monitor.example/co-build
           INCIDENT_RESPONSE_URL: https://docs.example/co-build/incidents
