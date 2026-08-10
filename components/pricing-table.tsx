@@ -7,10 +7,10 @@ const rows = [
 
 export function PricingTable() {
   return (
-    <div className="border border-neutral-300 bg-white">
+    <div className="pricing-table border border-neutral-300 bg-white">
       <div className="grid gap-3 p-3 md:hidden">
         {rows.map(([size, stated, dayRate, monthly, deposit]) => (
-          <article key={size} className="payment-card border border-neutral-200 bg-white p-4">
+          <article key={size} className="payment-card pricing-table__mobile-card border border-neutral-200 bg-white p-4">
             <h3 className="text-lg font-black">{size}</h3>
             <dl className="mt-3 grid gap-2 text-sm">
               <div>

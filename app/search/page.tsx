@@ -19,9 +19,9 @@ export default async function SearchPage({ searchParams }: PageProps) {
       <section className="page-hero">
         <div className="section-shell">
           <p className="text-sm font-black uppercase text-safety">Search results</p>
-          <h1 className="mt-2 text-4xl font-black text-white md:text-6xl">Find a fabrication bay</h1>
+          <h1 className="mt-2 text-4xl font-black text-white md:text-6xl">Find business space</h1>
           <p className="mt-3 max-w-3xl text-lg font-bold text-neutral-300">
-            Filter by location, required size, duration, work type, power availability, equipment, loading access, and
+            Filter by location, required size, requested check-in and check-out dates, work type, power availability, equipment, loading access, and
             factory type.
           </p>
         </div>
@@ -59,7 +59,7 @@ export default async function SearchPage({ searchParams }: PageProps) {
       <div className="mb-4 flex items-center justify-between">
         <p className="font-black">{listings.length} spaces available</p>
         <a className="text-sm font-black text-hazard" href="/dashboard/host/listings/new">
-          List a workshop space
+          List a business space
         </a>
       </div>
       <div className="grid gap-5 lg:grid-cols-3">

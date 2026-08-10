@@ -15,6 +15,7 @@ import {
   Wrench
 } from "lucide-react";
 import { ListingCard } from "@/components/listing-card";
+import { HeroSpaceCarousel } from "@/components/hero-space-carousel";
 import { PricingTable } from "@/components/pricing-table";
 import { SearchForm } from "@/components/search-form";
 import { getApprovedListings } from "@/src/lib/repository";
@@ -92,24 +93,92 @@ export default async function HomePage() {
       body: "Pricing, safety acceptance, payment proof, contract, and handover photos stay together."
     }
   ];
+  const spaceShowcase = [
+    {
+      title: "Fabrication bays",
+      detail: "Power, benches and loading access",
+      image: "/assets/spaceoncall-fabrication-bay.webp",
+      href: "/search?workType=Light+fabrication"
+    },
+    {
+      title: "Commercial kitchens",
+      detail: "Food production and preparation space",
+      image: "/assets/spaceoncall-commercial-kitchen.webp",
+      href: "/search"
+    },
+    {
+      title: "Pop-up retail",
+      detail: "Flexible customer-facing space",
+      image: "/assets/spaceoncall-popup-retail.webp",
+      href: "/search"
+    },
+    {
+      title: "Warehouse and cargo",
+      detail: "Storage, fulfilment and loading",
+      image: "/assets/spaceoncall-warehouse.webp",
+      href: "/search?workType=Storage+%2B+work+area"
+    }
+  ];
+  const hostListingTemplates = [
+    {
+      title: "Tuas fabrication bay with loading access",
+      location: "Tuas South, Singapore",
+      size: "1,200 sqft",
+      type: "B2",
+      utilities: "Three-phase power / roller shutter",
+      access: "Daily, 7am-10pm",
+      rate: "S$320/day",
+      image: "/assets/spaceoncall-fabrication-bay.webp"
+    },
+    {
+      title: "Ready-to-use food production kitchen",
+      location: "Bedok North, Singapore",
+      size: "850 sqft",
+      type: "Food production",
+      utilities: "Extraction / sinks / cold storage",
+      access: "24/7 controlled access",
+      rate: "S$280/day",
+      image: "/assets/spaceoncall-commercial-kitchen.webp"
+    },
+    {
+      title: "Flexible neighbourhood pop-up unit",
+      location: "Kallang, Singapore",
+      size: "620 sqft",
+      type: "Retail",
+      utilities: "Track lighting / glass frontage",
+      access: "Daily, 9am-10pm",
+      rate: "S$190/day",
+      image: "/assets/spaceoncall-popup-retail.webp"
+    },
+    {
+      title: "Small-business warehouse and fulfilment bay",
+      location: "Woodlands, Singapore",
+      size: "4,800 sqft",
+      type: "B1",
+      utilities: "Loading bays / storage racks",
+      access: "Weekdays, 6am-11pm",
+      rate: "S$540/day",
+      image: "/assets/spaceoncall-warehouse.webp"
+    }
+  ];
 
   return (
-    <main>
+    <main className="industrial-home">
       <section className="hero-stage">
-        <img src="/assets/hero-fabrication-bay.png" alt="Empty industrial project workspace" className="hero-stage__image" />
+        <HeroSpaceCarousel />
         <div className="hero-stage__overlay" />
         <div className="section-shell hero-stage__inner">
           <div className="hero-stage__copy">
             <div className="signal-kicker signal-kicker--dark">
-              <HardHat size={18} /> Singapore short-term fabrication bays
+              <HardHat size={18} /> On-demand business space / Singapore
             </div>
             <div>
               <h1 className="max-w-4xl text-5xl font-black leading-[0.96] text-white md:text-7xl">
-                Rent a fabrication bay for 1 day, 30 days, or 60 days.
+                Space for business. Ready when you are.
               </h1>
               <p className="mt-5 max-w-2xl text-xl font-bold text-neutral-200">
-                Workspace, power, loading access, tools, and optional equipment add-ons for contractors, makers,
-                hardware teams, signage shops, furniture builders, and e-commerce operators.
+                Book verified workshops, production bays and operating space by the day or month. Compare power,
+                access, equipment and permitted use before you commit.
               </p>
             </div>
             <div className="flex flex-wrap gap-3">
@@ -123,10 +192,10 @@ export default async function HomePage() {
           </div>
           <aside className="hero-proof-panel" aria-label="SpaceOnCall marketplace summary">
             <div className="hero-proof-panel__header">
-              <ShieldCheck size={22} aria-hidden="true" />
+              <Bolt size={22} aria-hidden="true" />
               <div>
-                <p className="text-xs font-black uppercase text-hazard">Controlled from enquiry to handover</p>
-                <p className="mt-1 text-lg font-bold text-white">Short-term space without informal deal gaps.</p>
+                <p className="text-xs font-black uppercase text-hazard">Live operating view</p>
+                <p className="mt-1 text-lg font-bold text-white">Every requirement visible before the deal.</p>
               </div>
             </div>
             <div className="hero-proof-panel__stats">
@@ -168,6 +237,86 @@ export default async function HomePage() {
         </div>
       </section>
 
+      <section id="spaces" className="space-showcase" aria-labelledby="space-showcase-title">
+        <div className="section-shell">
+          <div className="space-showcase__heading">
+            <div>
+              <p className="text-sm font-black uppercase text-hazard">Space network</p>
+              <h2 id="space-showcase-title" className="mt-2 text-3xl font-black text-white md:text-5xl">
+                Built for work, trade and movement.
+              </h2>
+            </div>
+            <a className="button-secondary button-secondary--on-dark" href="/search">
+              Explore all spaces <ArrowRight size={18} />
+            </a>
+          </div>
+          <div className="space-showcase__grid">
+            {spaceShowcase.map((space, index) => (
+              <a key={space.title} href={space.href} className="space-showcase__card">
+                <img src={space.image} alt="" />
+                <span className="space-showcase__shade" />
+                <span className="space-showcase__index">0{index + 1}</span>
+                <span className="space-showcase__copy">
+                  <strong>{space.title}</strong>
+                  <span>{space.detail}</span>
+                </span>
+                <ArrowRight className="space-showcase__arrow" size={21} aria-hidden="true" />
+              </a>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <section id="host-templates" className="host-template-section" aria-labelledby="host-template-title">
+        <div className="section-shell">
+          <div className="section-heading">
+            <div>
+              <p className="text-sm font-black uppercase text-hazard">Sample host listings</p>
+              <h2 id="host-template-title" className="text-3xl font-black text-white md:text-5xl">
+                Show renters the operating facts.
+              </h2>
+              <p className="mt-3 max-w-3xl text-lg text-steel">
+                Example templates demonstrate the photo quality, specifications and pricing a complete host listing should provide.
+              </p>
+            </div>
+            <a className="button-primary" href="/dashboard/host/listings/new">
+              Create host listing <Factory size={18} />
+            </a>
+          </div>
+          <div className="host-template-grid">
+            {hostListingTemplates.map((template) => (
+              <article key={template.title} className="host-template-card">
+                <div className="host-template-card__media">
+                  <img src={template.image} alt="" />
+                  <span className="host-template-card__badge">Sample template</span>
+                </div>
+                <div className="host-template-card__body">
+                  <div>
+                    <p className="host-template-card__location"><MapPinned size={15} /> {template.location}</p>
+                    <h3>{template.title}</h3>
+                  </div>
+                  <dl className="host-template-card__specs">
+                    <div><dt>Available area</dt><dd>{template.size}</dd></div>
+                    <div><dt>Space type</dt><dd>{template.type}</dd></div>
+                    <div><dt>Facilities</dt><dd>{template.utilities}</dd></div>
+                    <div><dt>Access</dt><dd>{template.access}</dd></div>
+                  </dl>
+                  <div className="host-template-card__footer">
+                    <div><span>Example rate</span><strong>{template.rate}</strong></div>
+                    <a href="/dashboard/host/listings/new" aria-label={`Create a listing like ${template.title}`}>
+                      Use structure <ArrowRight size={17} />
+                    </a>
+                  </div>
+                </div>
+              </article>
+            ))}
+          </div>
+          <p className="host-template-note">
+            Sample information only. Hosts must enter accurate property details, permitted use, availability and pricing before review.
+          </p>
+        </div>
+      </section>
+
       <section id="workflow" className="workflow-section py-16">
         <div className="section-shell">
           <div className="section-heading">
@@ -195,7 +344,7 @@ export default async function HomePage() {
         </div>
       </section>
 
-      <section className="section-shell py-16">
+      <section className="section-shell industrial-home__inventory py-16">
         <div className="section-heading">
           <div>
             <p className="text-sm font-black uppercase text-hazard">Live inventory</p>
