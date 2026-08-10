@@ -7,8 +7,8 @@ on:
   pull_request:
   workflow_dispatch:
     inputs:
-      run_blob_smoke:
-        description: Run private Blob smoke test (requires repository secret)
+      run_email_check:
+        description: Verify the configured transactional email sender domain
         required: false
         type: boolean
         default: false
@@ -99,11 +99,12 @@ jobs:
       - run: npm run db:seed
       - run: npm run test:e2e
 
-  private-blob-smoke:
-    if: github.event_name == 'workflow_dispatch' && inputs.run_blob_smoke
+  transactional-email-check:
+    if: github.event_name == 'workflow_dispatch' && inputs.run_email_check
     runs-on: ubuntu-latest
     env:
-      BLOB_READ_WRITE_TOKEN: ${{ secrets.BLOB_READ_WRITE_TOKEN }}
+      RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+      TRANSACTIONAL_EMAIL_FROM: ${{ vars.TRANSACTIONAL_EMAIL_FROM }}
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v5
@@ -111,4 +112,4 @@ jobs:
           node-version: 24
           cache: npm
       - run: npm ci
-      - run: npx tsx scripts/blob-smoke.ts
+      - run: npm run email:verify-provider

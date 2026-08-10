@@ -4,9 +4,9 @@
 
 1. Open the Co-Build Vercel project and choose **Storage**.
 2. Create a Blob store with access set to **Private**. Do not choose Public.
-3. Connect the store to Preview first. Vercel supplies `BLOB_READ_WRITE_TOKEN`; do not copy it into chat, Git, screenshots, or logs.
+3. Connect the store to Preview first. Prefer Vercel's OIDC-connected Blob credentials. Do not copy a Blob token into chat, Git, screenshots, CI, or logs.
 4. Set `REAL_UPLOADS_ENABLED=false`, `MAX_UPLOAD_BYTES=15728640`, and `ALLOW_UNSCANNED_UPLOADS=false` in Preview.
-5. Deploy and run the private Blob smoke workflow manually with the protected GitHub secret.
+5. Deploy and confirm `/api/cron/maintenance` passes its private write/read/delete smoke check. The operation runs inside Vercel and does not require duplicating the Blob credential in GitHub.
 6. Test a renter upload, authorized renter/host/admin download, unrelated-user denial, and deletion.
 7. Decide how malware scanning will be handled. Until a privacy-appropriate scanner is configured, files stay `scanStatus=PENDING` and downloads are blocked unless the owner explicitly sets `ALLOW_UNSCANNED_UPLOADS=true` and records that pilot risk acceptance.
 8. Only after those checks, set `REAL_UPLOADS_ENABLED=true` for the approved environment.
