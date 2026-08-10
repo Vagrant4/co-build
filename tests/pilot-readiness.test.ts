@@ -27,6 +27,7 @@ function readyPilotEnvironment(): NodeJS.ProcessEnv {
     SENTRY_PROJECT: "spaceoncall",
     SENTRY_AUTH_TOKEN: "sentry-token",
     OPS_ALERT_WEBHOOK_URL: "https://alerts.example/co-build",
+    OPS_ALERT_WEBHOOK_TOKEN: "test-alert-secret",
     UPTIME_MONITOR_URL: "https://monitor.example/check",
     INCIDENT_RESPONSE_URL: "https://docs.example/incidents",
     RESTORE_DRILL_COMPLETED_AT: "2026-08-08T00:00:00.000Z",
