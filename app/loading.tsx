@@ -8,7 +8,7 @@ export default function Loading() {
         <div className="mx-auto mt-8 h-2 w-full max-w-sm overflow-hidden bg-neutral-200">
           <div className="h-full w-1/2 animate-pulse bg-hazard" />
         </div>
-        <p className="mt-4 font-black text-steel">Loading your Co-Build workspace...</p>
+        <p className="mt-4 font-black text-steel">Loading SpaceOnCall...</p>
       </div>
     </main>
   );

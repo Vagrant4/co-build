@@ -2,8 +2,8 @@ import type { MetadataRoute } from "next";
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "Co-Build Business Space Rental",
-    short_name: "Co-Build",
+    name: "SpaceOnCall Business Space Rental",
+    short_name: "SpaceOnCall",
     description: "Search, discuss, book, and manage short-term business workspaces.",
     start_url: "/",
     display: "standalone",

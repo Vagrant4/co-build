@@ -8,7 +8,7 @@ function read(path: string) {
   return readFileSync(join(root, path), "utf8");
 }
 
-describe("Co-Build logo", () => {
+describe("SpaceOnCall logo", () => {
   it("uses a reusable inline SVG logo component with responsive variants", () => {
     const logoPath = join(root, "components", "logo.tsx");
 
@@ -19,6 +19,7 @@ describe("Co-Build logo", () => {
     expect(source).toContain("<svg");
     expect(source).toContain("currentColor");
     expect(source).toContain("co-build-logo__accent");
+    expect(source).toContain("SpaceOnCall");
     expect(source).toContain("variant?:");
   });
 

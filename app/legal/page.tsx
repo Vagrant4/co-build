@@ -3,8 +3,8 @@ import { ArrowRight, Download, FileCheck2, ShieldCheck } from "lucide-react";
 import { LEGAL_DOCUMENT_REVIEW_STATUS, LEGAL_DOCUMENT_VERSION, legalDocuments } from "@/src/lib/legal-documents";
 
 export const metadata = {
-  title: "Legal Centre | Co-Build",
-  description: "Co-Build pilot policies, safety rules, and agreement templates."
+  title: "Legal Centre | SpaceOnCall",
+  description: "SpaceOnCall pilot policies, safety rules, and agreement templates."
 };
 
 export default function LegalCentrePage() {

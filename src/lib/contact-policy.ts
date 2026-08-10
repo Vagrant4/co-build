@@ -1,5 +1,5 @@
 export const CONTACT_POLICY_MESSAGE =
-  "Keep all communication inside Co-Build chat. Do not share mobile numbers, email addresses, WhatsApp/Telegram handles, or other direct contact details.";
+  "Keep all communication inside SpaceOnCall chat. Do not share mobile numbers, email addresses, WhatsApp/Telegram handles, or other direct contact details.";
 
 const emailPattern = /\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/i;
 const phonePattern = /(?:\+?\d[\s().-]*){7,}/;

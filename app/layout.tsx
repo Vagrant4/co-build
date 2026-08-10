@@ -7,8 +7,8 @@ import { assertAuthenticationConfigured, getAppMode } from "@/src/lib/app-mode";
 import { ServiceWorkerRegistration } from "@/components/service-worker-registration";
 
 export const metadata: Metadata = {
-  title: "Co-Build | Short-term fabrication space rental",
-  description: "Rent short-term fabrication workspace by location, floor area, power, loading access, equipment, and permitted work in Singapore."
+  title: "SpaceOnCall | Business space on demand",
+  description: "Find and rent business space on demand by location, floor area, facilities, access, and permitted use in Singapore."
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
@@ -30,7 +30,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <div className="section-shell flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
             <div>
               <Logo variant="compact" className="text-white" accentClassName="text-safety" />
-              <p className="text-sm text-neutral-300">Short-notice fabrication workspace with practical controls.</p>
+              <p className="text-sm text-neutral-300">Find and rent business space on demand.</p>
             </div>
             <div className="flex flex-wrap gap-3 text-sm font-bold text-neutral-200">
               <a href="/pricing">Pricing</a>

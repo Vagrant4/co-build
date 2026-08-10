@@ -16,7 +16,7 @@ const LINE_HEIGHT = 14;
 export async function renderTextDocumentPdf(input: TextDocumentPdfInput): Promise<Uint8Array> {
   const pdf = await PDFDocument.create();
   pdf.setTitle(input.title);
-  pdf.setAuthor("Co-Build");
+  pdf.setAuthor("SpaceOnCall");
   pdf.setSubject(`${input.status} / ${input.version}`);
   const regular = await pdf.embedFont(StandardFonts.Helvetica);
   const bold = await pdf.embedFont(StandardFonts.HelveticaBold);
@@ -72,7 +72,7 @@ function addPage(
   const page = pdf.addPage([PAGE_WIDTH, PAGE_HEIGHT]);
   pages.push(page);
   page.drawRectangle({ x: 0, y: PAGE_HEIGHT - 10, width: PAGE_WIDTH, height: 10, color: rgb(1, 0.43, 0) });
-  page.drawText("CO-BUILD", { x: MARGIN, y: PAGE_HEIGHT - 48, size: 16, font: bold, color: rgb(0.06, 0.07, 0.08) });
+  page.drawText("SPACEONCALL", { x: MARGIN, y: PAGE_HEIGHT - 48, size: 16, font: bold, color: rgb(0.06, 0.07, 0.08) });
   page.drawText(toPdfText(input.title), { x: MARGIN, y: PAGE_HEIGHT - 74, size: 12, font: bold, color: rgb(0.06, 0.07, 0.08) });
   page.drawText(toPdfText(input.status), { x: MARGIN, y: PAGE_HEIGHT - 94, size: 8.5, font: bold, color: rgb(0.78, 0.24, 0.03) });
   page.drawLine({ start: { x: MARGIN, y: PAGE_HEIGHT - 108 }, end: { x: PAGE_WIDTH - MARGIN, y: PAGE_HEIGHT - 108 }, thickness: 0.8, color: rgb(0.75, 0.76, 0.77) });

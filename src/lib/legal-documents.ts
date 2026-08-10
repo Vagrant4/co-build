@@ -30,29 +30,29 @@ export type LegalDocument = {
 };
 
 const draftNotice =
-  "This pilot template is not legal advice and is not an executed agreement. Co-Build must obtain Singapore legal review before relying on it for a public launch.";
+  "This pilot template is not legal advice and is not an executed agreement. SpaceOnCall must obtain Singapore legal review before relying on it for a public launch.";
 
 export const legalDocuments: LegalDocument[] = [
   {
     slug: "marketplace-terms",
-    title: "Co-Build Marketplace Terms",
+    title: "SpaceOnCall Marketplace Terms",
     shortTitle: "Marketplace terms",
     audience: "All platform users",
-    summary: "Core rules for using Co-Build to discover, discuss, and confirm short-term business space bookings.",
+    summary: "Core rules for using SpaceOnCall to discover, discuss, and confirm short-term business space bookings.",
     version: LEGAL_DOCUMENT_VERSION,
     sections: [
       {
         heading: "Platform role",
         paragraphs: [
-          "Co-Build provides listing, messaging, document, and deal-confirmation tools. The host and renter contract directly for each space booking. Co-Build is not a party to the space booking agreement and is not the landlord, tenant, licensor, licensee, operator, employer, insurer, agent, broker, or safety supervisor for a listed space.",
-          "Co-Build prepares booking records from information and confirmations submitted by the host and renter for their review, acknowledgement, and record purposes. Co-Build charges a recurring platform subscription and no deal commission during the pilot."
+          "SpaceOnCall provides listing, messaging, document, and deal-confirmation tools. The host and renter contract directly for each space booking. SpaceOnCall is not a party to the space booking agreement and is not the landlord, tenant, licensor, licensee, operator, employer, insurer, agent, broker, or safety supervisor for a listed space.",
+          "SpaceOnCall prepares booking records from information and confirmations submitted by the host and renter for their review, acknowledgement, and record purposes. SpaceOnCall charges a recurring platform subscription and no deal commission during the pilot."
         ]
       },
       {
         heading: "Account and conduct",
         paragraphs: [
           "Users must provide accurate account information, keep access credentials secure, and use the platform only for lawful business purposes.",
-          "Contact details must not be posted in listing or booking chat. Parties should keep pre-booking communication on Co-Build so approvals and agreed facts remain traceable."
+          "Contact details must not be posted in listing or booking chat. Parties should keep pre-booking communication on SpaceOnCall so approvals and agreed facts remain traceable."
         ]
       },
       {
@@ -72,15 +72,15 @@ export const legalDocuments: LegalDocument[] = [
       {
         heading: "User disputes and platform liability",
         paragraphs: [
-          "A dispute about the space, access, work, equipment, payment, deposit, damage, cancellation, or performance is between the host and renter. Co-Build may preserve records, enforce platform rules, or facilitate communication, but does not adjudicate legal liability or guarantee either party's performance.",
-          "To the fullest extent permitted by applicable law, Co-Build is not liable for loss arising solely from a host's or renter's act, omission, breach, dispute, space, equipment, or work. Nothing in these terms excludes or limits Co-Build's liability or legal obligations where they cannot lawfully be excluded or limited."
+          "A dispute about the space, access, work, equipment, payment, deposit, damage, cancellation, or performance is between the host and renter. SpaceOnCall may preserve records, enforce platform rules, or facilitate communication, but does not adjudicate legal liability or guarantee either party's performance.",
+          "To the fullest extent permitted by applicable law, SpaceOnCall is not liable for loss arising solely from a host's or renter's act, omission, breach, dispute, space, equipment, or work. Nothing in these terms excludes or limits SpaceOnCall's liability or legal obligations where they cannot lawfully be excluded or limited."
         ]
       }
     ]
   },
   {
     slug: "privacy-notice",
-    title: "Co-Build Privacy Notice",
+    title: "SpaceOnCall Privacy Notice",
     shortTitle: "Privacy notice",
     audience: "Renters, hosts, and account applicants",
     summary: "How pilot account, booking, chat, verification, and upload data is handled.",
@@ -89,7 +89,7 @@ export const legalDocuments: LegalDocument[] = [
       {
         heading: "Data collected and purpose",
         paragraphs: [
-          "Co-Build may collect identity, company, account, listing, booking, subscription-reference, chat, verification, and site-condition upload data to operate and secure the marketplace.",
+          "SpaceOnCall may collect identity, company, account, listing, booking, subscription-reference, chat, verification, and site-condition upload data to operate and secure the marketplace.",
           "Data should be collected only for notified operational, compliance, fraud-prevention, support, and legal purposes."
         ]
       },
@@ -103,7 +103,7 @@ export const legalDocuments: LegalDocument[] = [
       {
         heading: "Retention and security",
         paragraphs: [
-          "Co-Build must define and enforce a retention schedule. Personal data should be deleted or anonymized when it is no longer needed for business or legal purposes.",
+          "SpaceOnCall must define and enforce a retention schedule. Personal data should be deleted or anonymized when it is no longer needed for business or legal purposes.",
           "Reasonable access controls, private durable storage, audit records, backups, incident response, and secure disposal should protect data throughout its lifecycle."
         ]
       },
@@ -111,7 +111,7 @@ export const legalDocuments: LegalDocument[] = [
         heading: "Individual requests and incidents",
         paragraphs: [
           "Users may request to access or correct their personal data, subject to applicable exceptions and identity checks.",
-          "Co-Build must appoint a data protection officer, publish a working privacy contact, assess suspected incidents, and notify affected individuals and the regulator when a data breach is legally notifiable."
+          "SpaceOnCall must appoint a data protection officer, publish a working privacy contact, assess suspected incidents, and notify affected individuals and the regulator when a data breach is legally notifiable."
         ]
       }
     ]
@@ -173,7 +173,7 @@ export const legalDocuments: LegalDocument[] = [
         heading: "Refund review",
         paragraphs: [
           "Refund decisions should consider the listing policy, cancellation timing, documented site access, payment evidence, direct costs, and any safety or compliance suspension.",
-          "Co-Build records the dispute and supporting evidence but does not make an automatic legal determination of liability during the pilot."
+          "SpaceOnCall records the dispute and supporting evidence but does not make an automatic legal determination of liability during the pilot."
         ]
       }
     ]
@@ -203,7 +203,7 @@ export const legalDocuments: LegalDocument[] = [
       {
         heading: "Dispute handling",
         paragraphs: [
-          "Parties should first use the booking chat and platform dispute record. Co-Build may preserve relevant records and restrict unsafe accounts while reviewing operational facts.",
+          "Parties should first use the booking chat and platform dispute record. SpaceOnCall may preserve relevant records and restrict unsafe accounts while reviewing operational facts.",
           "Unresolved legal disputes remain between the contracting parties and may require mediation, legal advice, or the appropriate Singapore forum."
         ]
       }
@@ -221,7 +221,7 @@ export const legalDocuments: LegalDocument[] = [
         heading: "Recurring subscription",
         paragraphs: [
           "The pilot subscription is S$5 per month for each active renter or host account unless a different published plan applies.",
-          "Subscription access renews monthly after Co-Build verifies the payment reference. Co-Build does not charge either side a commission on the booking value."
+          "Subscription access renews monthly after SpaceOnCall verifies the payment reference. SpaceOnCall does not charge either side a commission on the booking value."
         ]
       },
       {
@@ -252,7 +252,7 @@ export const legalDocuments: LegalDocument[] = [
         heading: "Authority and approved use",
         paragraphs: [
           "The host must have authority to offer the space and must verify the premises' approved use, occupancy conditions, lease or licence restrictions, and any required permissions.",
-          "A listing must not imply that Co-Build has verified title, planning use, licensing, or fitness for a specific activity unless expressly confirmed."
+          "A listing must not imply that SpaceOnCall has verified title, planning use, licensing, or fitness for a specific activity unless expressly confirmed."
         ]
       },
       {
@@ -418,9 +418,9 @@ export function buildBookingDocument(input: BookingDocumentInput): string {
     `Location: ${input.listingAddress}`,
     "",
     "CONTRACTING PARTIES AND PLATFORM ROLE",
-    "The space booking arrangement recorded here is made directly between the host and renter identified in this record. Separate Co-Build marketplace terms govern each party's use of the platform.",
-    "Co-Build provides the marketplace and prepares this record from information and confirmations submitted by the host and renter for their review, acknowledgement and record purposes.",
-    "Co-Build is not a party to the space booking agreement and is not the landlord, tenant, licensor, licensee, operator, agent, broker, insurer, safety supervisor, or guarantor of the space or either party's performance.",
+    "The space booking arrangement recorded here is made directly between the host and renter identified in this record. Separate SpaceOnCall marketplace terms govern each party's use of the platform.",
+    "SpaceOnCall provides the marketplace and prepares this record from information and confirmations submitted by the host and renter for their review, acknowledgement and record purposes.",
+    "SpaceOnCall is not a party to the space booking agreement and is not the landlord, tenant, licensor, licensee, operator, agent, broker, insurer, safety supervisor, or guarantor of the space or either party's performance.",
     "The host and renter remain responsible for checking the accuracy, authority, approved use, licences, suitability, safety, insurance, payment, tax, stamp duty, and performance of their arrangement.",
     "",
     "BOOKING SCOPE",
@@ -448,12 +448,12 @@ export function buildBookingDocument(input: BookingDocumentInput): string {
     input.cancellationPolicy,
     "",
     "DISPUTES AND PLATFORM LIABILITY",
-    "Any dispute about the space, access, work, equipment, payment, deposit, damage, cancellation, or performance is between the host and renter. The parties should first preserve evidence and use the Co-Build booking chat, then seek mediation or independent legal advice where appropriate.",
-    "Co-Build may preserve platform records, enforce platform rules, or facilitate communication, but is not required to adjudicate the dispute, determine legal liability, reimburse either party, or guarantee performance.",
-    "To the fullest extent permitted by applicable law, Co-Build is not liable for loss arising solely from a host's or renter's act, omission, breach, dispute, space, equipment, or work. Nothing in this notice excludes or limits Co-Build's own liability or legal obligations where they cannot lawfully be excluded or limited.",
+    "Any dispute about the space, access, work, equipment, payment, deposit, damage, cancellation, or performance is between the host and renter. The parties should first preserve evidence and use the SpaceOnCall booking chat, then seek mediation or independent legal advice where appropriate.",
+    "SpaceOnCall may preserve platform records, enforce platform rules, or facilitate communication, but is not required to adjudicate the dispute, determine legal liability, reimburse either party, or guarantee performance.",
+    "To the fullest extent permitted by applicable law, SpaceOnCall is not liable for loss arising solely from a host's or renter's act, omission, breach, dispute, space, equipment, or work. Nothing in this notice excludes or limits SpaceOnCall's own liability or legal obligations where they cannot lawfully be excluded or limited.",
     "",
     "STATUS NOTICE",
-    "This private record summarizes facts stored on Co-Build. It contains no direct contact details and is not legal advice. It does not replace a lawyer-approved and properly executed agreement where one is required."
+    "This private record summarizes facts stored on SpaceOnCall. It contains no direct contact details and is not legal advice. It does not replace a lawyer-approved and properly executed agreement where one is required."
   ].join("\n");
 }
 
