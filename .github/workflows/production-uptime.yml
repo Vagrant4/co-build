@@ -14,8 +14,8 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  HEALTH_URL: https://co-build-sg.vercel.app/api/health
-  INCIDENT_TITLE: "[automated] Co-Build production health check failed"
+  HEALTH_URL: https://spaceoncall.com/api/health
+  INCIDENT_TITLE: "[automated] SpaceOnCall production health check failed"
 
 jobs:
   health:
