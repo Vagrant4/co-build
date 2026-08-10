@@ -20,6 +20,7 @@
     "test:e2e": "playwright test",
     "ops:report": "tsx scripts/ops-report.ts",
     "ops:health-check": "tsx scripts/production-health-check.ts",
+    "email:verify-provider": "tsx scripts/verify-email-provider.ts",
     "uploads:cleanup": "tsx scripts/cleanup-orphan-uploads.ts",
     "rate-limits:cleanup": "tsx scripts/cleanup-rate-limits.ts",
     "privacy:retention-report": "tsx scripts/retention-report.ts",

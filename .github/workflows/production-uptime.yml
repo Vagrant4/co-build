@@ -1,0 +1,108 @@
+name: Production uptime monitor
+
+on:
+  schedule:
+    - cron: "*/15 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: production-uptime-monitor
+  cancel-in-progress: true
+
+env:
+  HEALTH_URL: https://co-build-sg.vercel.app/api/health
+  INCIDENT_TITLE: "[automated] Co-Build production health check failed"
+
+jobs:
+  health:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Check production health with retries
+        id: health
+        shell: bash
+        run: |
+          set +e
+          success=false
+          for attempt in 1 2 3; do
+            response_file="health-${attempt}.json"
+            status=$(curl --silent --show-error --location \
+              --connect-timeout 5 --max-time 12 \
+              --output "$response_file" --write-out "%{http_code}" \
+              "$HEALTH_URL")
+            body=$(tr -d '\r\n' < "$response_file" | head -c 500)
+            echo "attempt=$attempt http_status=$status body=$body"
+            if [ "$status" = "200" ] && grep -q '"status":"ok"' "$response_file"; then
+              success=true
+              break
+            fi
+            sleep $((attempt * 5))
+          done
+          echo "success=$success" >> "$GITHUB_OUTPUT"
+          if [ "$success" != "true" ]; then
+            exit 1
+          fi
+
+      - name: Open or update incident issue
+        if: failure() && steps.health.outcome == 'failure'
+        uses: actions/github-script@v8
+        with:
+          script: |
+            const title = process.env.INCIDENT_TITLE;
+            const { data: issues } = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: "open",
+              per_page: 100,
+            });
+            const existing = issues.find((issue) => issue.title === title && !issue.pull_request);
+            const runUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+            const body = `The public database-aware health endpoint failed three consecutive checks.\n\n- URL: ${process.env.HEALTH_URL}\n- Detected: ${new Date().toISOString()}\n- Workflow: ${runUrl}\n\nKeep pilot access closed until the endpoint and database connection recover.`;
+            if (existing) {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: existing.number,
+                body,
+              });
+            } else {
+              await github.rest.issues.create({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                title,
+                body,
+              });
+            }
+
+      - name: Close recovered incident issue
+        if: success()
+        uses: actions/github-script@v8
+        with:
+          script: |
+            const title = process.env.INCIDENT_TITLE;
+            const { data: issues } = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: "open",
+              per_page: 100,
+            });
+            const existing = issues.find((issue) => issue.title === title && !issue.pull_request);
+            if (existing) {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: existing.number,
+                body: `Health recovered at ${new Date().toISOString()}. The database-aware endpoint returned HTTP 200 with status ok.`,
+              });
+              await github.rest.issues.update({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: existing.number,
+                state: "closed",
+                state_reason: "completed",
+              });
+            }

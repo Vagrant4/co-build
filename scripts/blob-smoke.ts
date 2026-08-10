@@ -1,19 +1,12 @@
-import { del, get, put } from "@vercel/blob";
-
-const pathname = `ci-smoke/${crypto.randomUUID()}.txt`;
-const contents = Buffer.from("co-build-private-smoke");
+import { runPrivateBlobSmoke } from "../src/lib/blob-smoke";
 
 async function main() {
-  const blob = await put(pathname, contents, { access: "private", addRandomSuffix: false, contentType: "text/plain" });
-  try {
-    const stored = await get(blob.pathname, { access: "private", useCache: false });
-    if (!stored || stored.statusCode !== 200) throw new Error("Private Blob smoke read failed.");
-    const received = new Uint8Array(await new Response(stored.stream).arrayBuffer());
-    if (new TextDecoder().decode(received) !== "co-build-private-smoke") throw new Error("Private Blob smoke integrity check failed.");
-    console.log("Private Blob upload/read verification passed.");
-  } finally {
-    await del(blob.pathname);
-  }
+  const result = await runPrivateBlobSmoke();
+  if (!result.ok) throw new Error(`Private Blob smoke failed: ${result.errorCode}`);
+  console.log(JSON.stringify({ status: "ok", durationMs: result.durationMs }, null, 2));
 }
 
-main();
+main().catch((error) => {
+  console.error(error instanceof Error ? error.message : "Private Blob smoke failed.");
+  process.exitCode = 1;
+});

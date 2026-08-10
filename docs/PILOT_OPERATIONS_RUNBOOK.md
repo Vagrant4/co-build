@@ -1,6 +1,6 @@
 # Co-Build Pilot Operations Runbook
 
-Last reviewed: 2026-08-08
+Last reviewed: 2026-08-10
 
 Co-Build remains fail-closed until the external owner controls in this document are configured and evidenced. Passing CI is not a public production approval.
 
@@ -9,8 +9,9 @@ Co-Build remains fail-closed until the external owner controls in this document 
 1. Review `/dashboard/admin` for payment, privacy, moderation, listing, user, and high-risk booking queues.
 2. Verify company-account references against the bank portal before selecting **Verify paid**.
 3. Run `npm run ops:report` against the production database and retain only its aggregate, non-PII output.
-4. Confirm the scheduled `/api/cron/maintenance` run delivered notifications, cleaned stale reservations, executed approved retention, and verified audit checkpoints.
-5. Review the error-monitoring project and uptime monitor. Escalate repeated 5xx, authentication failures, storage failures, or audit-checkpoint errors.
+4. Confirm the scheduled `/api/cron/maintenance` run delivered notifications, cleaned stale reservations, executed approved retention, verified audit checkpoints, and passed its private Blob write/read/delete check.
+5. Review the `Production uptime monitor` GitHub workflow. It checks the database-aware health endpoint every 15 minutes, opens one incident issue after three failed attempts, and closes that issue after recovery.
+6. Review the error-monitoring project. Escalate repeated 5xx, authentication failures, storage failures, or audit-checkpoint errors.
 
 ## Payment Reconciliation
 
@@ -72,10 +73,11 @@ The GitHub artifact is an additional pilot safeguard, not a replacement for a ma
 1. Require green unit, authorization, production-build, PostgreSQL migration, Playwright, and dependency-audit checks.
 2. Run the pilot preflight with real Vercel environment variables.
 3. Apply migrations through `npm run db:deploy:prod` before promoting the deployment.
-4. Run a private Blob smoke test and scanner safe/unsafe fixture tests.
-5. Test real renter, host, and admin accounts without demo switching.
-6. Confirm legal version, restore evidence, owner contacts, bank instructions, monitoring, email delivery, DNS, and TLS.
-7. Release to invite-only pilot users first. Public production requires a separate owner approval.
+4. Confirm the last scheduled private Blob smoke result and run scanner safe/unsafe fixture tests.
+5. Run `npm run email:verify-provider` with the production email variables and require a verified sender domain before inviting pilot users.
+6. Test real renter, host, and admin accounts without demo switching.
+7. Confirm legal version, restore evidence, owner contacts, bank instructions, monitoring, email delivery, DNS, and TLS.
+8. Release to invite-only pilot users first. Public production requires a separate owner approval.
 
 ## Human Attestations
 
