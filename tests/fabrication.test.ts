@@ -199,6 +199,7 @@ describe("additional requirement workflow", () => {
 describe("subscription and deal confirmation model", () => {
   it("offers company-account payment methods for the recurring subscription", () => {
     expect(convenientPaymentMethods.map((method) => method.name)).toEqual([
+      "Stripe automatic card payment",
       "PayNow UEN / QR",
       "FAST bank transfer",
       "Monthly invoice"

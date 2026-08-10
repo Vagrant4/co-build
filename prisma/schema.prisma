@@ -151,6 +151,13 @@ enum PlatformSubscriptionStatus {
   UNPAID
   PENDING_ADMIN
   ACTIVE
+  PAST_DUE
+  CANCELED
+}
+
+enum PlatformSubscriptionProvider {
+  BANK_TRANSFER
+  STRIPE
 }
 
 enum NotificationChannel {
@@ -184,11 +191,14 @@ model User {
   workType                        String?
   verificationStatus              VerificationStatus         @default(PENDING)
   platformSubscriptionStatus      PlatformSubscriptionStatus @default(UNPAID)
+  platformSubscriptionProvider    PlatformSubscriptionProvider?
   platformSubscriptionReference   String?
   platformSubscriptionPaidAt      DateTime?
   platformSubscriptionPeriodStart DateTime?
   platformSubscriptionPeriodEnd   DateTime?
   platformSubscriptionNextBilling DateTime?
+  stripeCustomerId                String?                    @unique
+  stripeSubscriptionId            String?                    @unique
   suspended                       Boolean                    @default(false)
   bookings                        Booking[]
   sentMessages                    BookingMessage[]           @relation("MessageSender")
@@ -211,6 +221,15 @@ model User {
   moderationReportsReviewed      ModerationReport[]         @relation("ModerationReviewer")
   createdAt                       DateTime                   @default(now())
   updatedAt                       DateTime                   @updatedAt
+}
+
+model StripeWebhookEvent {
+  id            String   @id
+  type          String
+  livemode      Boolean
+  processedAt   DateTime @default(now())
+
+  @@index([processedAt])
 }
 
 model Listing {

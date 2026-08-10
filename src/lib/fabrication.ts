@@ -20,6 +20,12 @@ export type ConvenientPaymentMethod = {
 
 export const convenientPaymentMethods: ConvenientPaymentMethod[] = [
   {
+    name: "Stripe automatic card payment",
+    bestFor: "Automatic monthly renewal",
+    instructions: "Subscribe through Stripe Checkout. Stripe securely stores the payment method and sends verified renewal status to SpaceOnCall.",
+    paidToCompanyAccount: true
+  },
+  {
     name: "PayNow UEN / QR",
     bestFor: "Fast Singapore payment",
     instructions: "Pay the recurring S$5/month platform fee to the company account, then submit the payment reference for admin activation.",
