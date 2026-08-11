@@ -88,12 +88,12 @@ export default async function CreateAccountPage({ searchParams }: PageProps) {
                 </div>
               )}
               <label>
-                <span className="label">{isHost ? "Company name" : "Company name / personal name"}</span>
+                <span className="label">Company name / personal name</span>
                 <input
                   className="field"
                   name="companyName"
                   autoComplete="organization"
-                  placeholder={isHost ? "Registered business name" : "Enter your personal name if renting individually"}
+                  placeholder="Enter your personal name if registering individually"
                   required
                 />
               </label>
