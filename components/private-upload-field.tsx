@@ -23,6 +23,16 @@ export function PrivateUploadField({ label, name, type, accept, bookingId, listi
   async function handleFile(file: File | undefined) {
     setUploadId("");
     if (!file) return setState("idle");
+    const maximumSizeMiB = type === "FLOOR_PLAN" ? 15 : ["CHECK_IN", "CHECK_OUT", "LISTING_PHOTO"].includes(type) ? 12 : 10;
+    const maximumSize = maximumSizeMiB * 1024 * 1024;
+    if (!accept.split(",").includes(file.type)) {
+      setState("error");
+      return setMessage("Unsupported file type. Choose JPG, PNG, WebP, or PDF where permitted.");
+    }
+    if (file.size > maximumSize) {
+      setState("error");
+      return setMessage(`File is too large. Maximum size is ${maximumSizeMiB} MB.`);
+    }
     setState("uploading");
     setMessage("Reserving private upload...");
     try {
@@ -33,7 +43,7 @@ export function PrivateUploadField({ label, name, type, accept, bookingId, listi
       });
       const reservation = await reservationResponse.json() as { uploadId?: string; objectKey?: string; error?: string };
       if (!reservationResponse.ok || !reservation.uploadId || !reservation.objectKey) throw new Error(reservation.error || "Upload could not be reserved.");
-      setMessage("Uploading directly to private storage...");
+      setMessage("Uploading and checking the file. This usually takes 10-30 seconds...");
       await upload(reservation.objectKey, file, {
         access: "private",
         handleUploadUrl: "/api/uploads/authorize",
@@ -43,7 +53,7 @@ export function PrivateUploadField({ label, name, type, accept, bookingId, listi
       await waitUntilAvailable(reservation.uploadId);
       setUploadId(reservation.uploadId);
       setState("ready");
-      setMessage("Private upload ready");
+      setMessage(`${file.name} is ready`);
     } catch (error) {
       setState("error");
       setMessage(error instanceof Error ? error.message : "Private upload failed.");
@@ -55,10 +65,17 @@ export function PrivateUploadField({ label, name, type, accept, bookingId, listi
       <span>{label}</span>
       <span className="relative flex min-h-12 items-center gap-3 border border-neutral-300 bg-white px-3 py-2">
         {state === "uploading" ? <LoaderCircle className="h-5 w-5 animate-spin text-orange-600" /> : state === "ready" ? <CheckCircle2 className="h-5 w-5 text-emerald-700" /> : state === "error" ? <ShieldAlert className="h-5 w-5 text-red-700" /> : <FileUp className="h-5 w-5 text-neutral-600" />}
-        <input className="min-w-0 flex-1 text-sm" type="file" accept={accept} required={required && !uploadId} onChange={(event) => void handleFile(event.target.files?.[0])} />
+        <input
+          className="min-w-0 flex-1 text-sm"
+          type="file"
+          accept={accept}
+          required={required && !uploadId}
+          onClick={(event) => { event.currentTarget.value = ""; }}
+          onChange={(event) => void handleFile(event.target.files?.[0])}
+        />
       </span>
       <input type="hidden" name={`${name}UploadId`} value={uploadId} />
-      {message ? <span className={state === "error" ? "text-xs text-red-700" : "text-xs text-neutral-600"}>{message}</span> : null}
+      {message ? <span className={state === "error" ? "text-xs text-red-500" : "text-xs text-neutral-500"}>{message}</span> : null}
     </label>
   );
 }
