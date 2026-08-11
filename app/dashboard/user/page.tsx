@@ -9,7 +9,6 @@ import {
 import { PrivateUploadField } from "@/components/private-upload-field";
 import { BookingChat } from "@/components/booking-chat";
 import { StatusBadge } from "@/components/status-badge";
-import { PrivacyRequestPanel } from "@/components/privacy-request-panel";
 import { NotificationCenter } from "@/components/notification-center";
 import { PlatformSubscriptionPanel } from "@/components/platform-subscription-panel";
 import { dealConfirmationStatus, formatCurrency } from "@/src/lib/fabrication";
@@ -22,7 +21,7 @@ export const dynamic = "force-dynamic";
 
 export default async function UserDashboardPage() {
   const user = await requirePageRole("RENTER");
-  const [bookings, privacyRequests, notifications] = await Promise.all([prisma.booking.findMany({
+  const [bookings, notifications] = await Promise.all([prisma.booking.findMany({
       where: { userId: user.id },
       include: {
         listing: true,
@@ -34,7 +33,7 @@ export default async function UserDashboardPage() {
       },
       orderBy: { createdAt: "desc" },
       take: 50
-    }), prisma.privacyRequest.findMany({ where: { userId: user.id }, orderBy: { createdAt: "desc" }, take: 10 }), prisma.notification.findMany({ where: { userId: user.id, channel: "IN_APP" }, orderBy: { createdAt: "desc" }, take: 20 })]);
+    }), prisma.notification.findMany({ where: { userId: user.id, channel: "IN_APP" }, orderBy: { createdAt: "desc" }, take: 20 })]);
   const realPaymentProofRequired = getAppMode() !== "demo";
   const accountLabel = getAppMode() === "demo" ? "Demo renter" : "Renter account";
 
@@ -43,7 +42,7 @@ export default async function UserDashboardPage() {
       <div className="mb-6">
         <p className="text-sm font-black uppercase text-hazard">{accountLabel}</p>
         <h1 className="text-4xl font-black">User dashboard</h1>
-        <p className="mt-2 font-bold text-steel">Track approvals, company-account payment proof, and check-in/check-out photo uploads.</p>
+        <p className="mt-2 font-bold text-steel">Track approvals, subscription status, and check-in/check-out photo uploads.</p>
       </div>
       <PlatformSubscriptionPanel
         title="Renter platform subscription"
@@ -53,7 +52,6 @@ export default async function UserDashboardPage() {
         reference={user.platformSubscriptionReference}
         nextBillingAt={user.platformSubscriptionNextBilling}
         periodEndAt={user.platformSubscriptionPeriodEnd}
-        labelPrefix="Renter"
         stripeAvailable={isStripeBillingConfigured()}
         stripeCustomerId={user.stripeCustomerId}
       />
@@ -134,7 +132,6 @@ export default async function UserDashboardPage() {
         ))}
         {!bookings.length && <section className="card p-6"><h2 className="text-2xl font-black">No booking requests yet</h2><p className="mt-2 font-bold text-steel">Search approved spaces and submit your first request when you are ready.</p></section>}
       </div>
-      <PrivacyRequestPanel requests={privacyRequests} />
     </main>
   );
 }

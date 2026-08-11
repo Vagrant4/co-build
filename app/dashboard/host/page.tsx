@@ -8,7 +8,6 @@ import {
 import { BookingChat } from "@/components/booking-chat";
 import { ListingChat } from "@/components/listing-chat";
 import { StatusBadge } from "@/components/status-badge";
-import { PrivacyRequestPanel } from "@/components/privacy-request-panel";
 import { NotificationCenter } from "@/components/notification-center";
 import { PlatformSubscriptionPanel } from "@/components/platform-subscription-panel";
 import { dealConfirmationStatus, formatCurrency } from "@/src/lib/fabrication";
@@ -20,7 +19,7 @@ export const dynamic = "force-dynamic";
 
 export default async function HostDashboardPage() {
   const host = await requirePageRole("HOST");
-  const [listings, bookings, additionalRequests, privacyRequests, notifications] = await Promise.all([
+  const [listings, bookings, additionalRequests, notifications] = await Promise.all([
     prisma.listing.findMany({
       where: { hostId: host.id },
       include: {
@@ -51,7 +50,6 @@ export default async function HostDashboardPage() {
       orderBy: { createdAt: "desc" },
       take: 50
     }),
-    prisma.privacyRequest.findMany({ where: { userId: host.id }, orderBy: { createdAt: "desc" }, take: 10 }),
     prisma.notification.findMany({ where: { userId: host.id, channel: "IN_APP" }, orderBy: { createdAt: "desc" }, take: 20 })
   ]);
   const listingActionLabel = listings.length > 1 ? "Additional listing" : "New listing";
@@ -77,7 +75,6 @@ export default async function HostDashboardPage() {
         reference={host.platformSubscriptionReference}
         nextBillingAt={host.platformSubscriptionNextBilling}
         periodEndAt={host.platformSubscriptionPeriodEnd}
-        labelPrefix="Host"
         stripeAvailable={isStripeBillingConfigured()}
         stripeCustomerId={host.stripeCustomerId}
       />
@@ -174,7 +171,6 @@ export default async function HostDashboardPage() {
           {!listings.length ? <div className="border border-dashed border-neutral-300 bg-white p-5"><h3 className="font-black">No listings yet</h3><p className="mt-2 font-bold text-steel">Create your first space listing to begin administrator review.</p><a className="button-primary mt-4" href="/dashboard/host/listings/new">Create listing</a></div> : null}
         </div>
       </section>
-      <PrivacyRequestPanel requests={privacyRequests} />
     </main>
   );
 }

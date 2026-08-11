@@ -1,5 +1,4 @@
 import { CreditCard, ExternalLink } from "lucide-react";
-import { submitPlatformSubscriptionPaymentAction } from "@/app/actions";
 import { openStripeBillingPortalAction, startStripeSubscriptionAction } from "@/app/subscription-actions";
 import { StatusBadge } from "@/components/status-badge";
 import { formatCurrency, PLATFORM_SUBSCRIPTION_MONTHLY } from "@/src/lib/fabrication";
@@ -12,7 +11,6 @@ type Props = {
   reference: string | null;
   nextBillingAt: Date | null;
   periodEndAt: Date | null;
-  labelPrefix: string;
   stripeAvailable: boolean;
   stripeCustomerId: string | null;
 };
@@ -56,17 +54,8 @@ export function PlatformSubscriptionPanel(props: Props) {
             )}
           </>
         ) : (
-          <p className="text-sm font-bold text-steel">Automatic card billing is being configured. Bank transfer remains available below.</p>
+          <p className="text-sm font-bold text-steel">Automatic card billing is temporarily unavailable. Please contact support for assistance.</p>
         )}
-
-        {!isStripeCustomer && <details className="border-t border-neutral-200 pt-3">
-          <summary className="cursor-pointer text-sm font-black">Pay by company bank transfer</summary>
-          <form action={submitPlatformSubscriptionPaymentAction} className="mt-3 grid gap-3">
-            <input type="hidden" name="paymentReference" value={`company_account_${props.labelPrefix.toLowerCase()}_${Date.now()}`} />
-            <p className="text-sm font-bold text-steel">Submit a S$5 monthly transfer reference for administrator verification.</p>
-            <button className="button-secondary w-full" type="submit">Submit bank-transfer reference</button>
-          </form>
-        </details>}
       </div>
     </section>
   );
