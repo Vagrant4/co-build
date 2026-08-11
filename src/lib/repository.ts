@@ -121,16 +121,38 @@ export async function getDashboardData(options: { page?: number; pageSize?: numb
     prisma.moderationReport.findMany({ include: { reporter: true, reportedUser: true, reviewer: true }, orderBy: { createdAt: "desc" }, skip, take: pageSize })
   ]);
 
-  const [userCount, listingCount, bookingCount, activeSubscriptionCount, occupiedBookingCount] = await Promise.all([
+  const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+  const [
+    userCount, listingCount, bookingCount, activeSubscriptionCount, occupiedBookingCount,
+    hostCount, renterCount, pendingUserCount, pendingListingCount, pendingBookingCount,
+    submittedPaymentCount, newUserCount, newListingCount, newBookingCount
+  ] = await Promise.all([
     prisma.user.count(),
     prisma.listing.count(),
     prisma.booking.count(),
     prisma.user.count({ where: { role: { in: ["RENTER", "HOST"] }, platformSubscriptionStatus: "ACTIVE" } }),
-    prisma.booking.count({ where: { status: { in: ["PAID_CONFIRMED", "CHECKED_IN"] } } })
+    prisma.booking.count({ where: { status: { in: ["PAID_CONFIRMED", "CHECKED_IN"] } } }),
+    prisma.user.count({ where: { role: "HOST" } }),
+    prisma.user.count({ where: { role: "RENTER" } }),
+    prisma.user.count({ where: { role: { in: ["RENTER", "HOST"] }, verificationStatus: "PENDING" } }),
+    prisma.listing.count({ where: { status: "PENDING_ADMIN" } }),
+    prisma.booking.count({ where: { status: { in: ["PENDING_HOST", "PENDING_ADMIN_HIGH_RISK", "APPROVED_FOR_PAYMENT", "PAYMENT_SUBMITTED"] } } }),
+    prisma.paymentRecord.count({ where: { status: "SUBMITTED" } }),
+    prisma.user.count({ where: { role: { in: ["RENTER", "HOST"] }, createdAt: { gte: sevenDaysAgo } } }),
+    prisma.listing.count({ where: { createdAt: { gte: sevenDaysAgo } } }),
+    prisma.booking.count({ where: { createdAt: { gte: sevenDaysAgo } } })
   ]);
 
   const totalPages = Math.max(1, Math.ceil(Math.max(userCount, listingCount, bookingCount) / pageSize));
-  return { users, listings, bookings, uploads, approvalEvents, equipment, payments, privacyRequests, moderationReports, pagination: { page, pageSize, totalPages }, totals: { userCount, listingCount, bookingCount, activeSubscriptionCount, occupiedBookingCount } };
+  return {
+    users, listings, bookings, uploads, approvalEvents, equipment, payments, privacyRequests, moderationReports,
+    pagination: { page, pageSize, totalPages },
+    totals: {
+      userCount, listingCount, bookingCount, activeSubscriptionCount, occupiedBookingCount,
+      hostCount, renterCount, pendingUserCount, pendingListingCount, pendingBookingCount,
+      submittedPaymentCount, newUserCount, newListingCount, newBookingCount
+    }
+  };
 }
 
 export function toListing(record: ListingRecord): Listing {
