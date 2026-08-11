@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { CheckCircle2, ClipboardCheck, DollarSign, Download, ShieldAlert, SlidersHorizontal, UserX, XCircle } from "lucide-react";
+import { Activity, BarChart3, Bell, BookOpenCheck, Building2, CheckCircle2, ClipboardCheck, CreditCard, DollarSign, Download, ExternalLink, LayoutDashboard, ListChecks, ShieldAlert, SlidersHorizontal, UserRound, Users, UserX, XCircle } from "lucide-react";
 import {
   approvePlatformSubscriptionAction,
   executeAccountDeletionAction,
@@ -41,40 +41,60 @@ export default async function AdminDashboardPage({ searchParams }: PageProps) {
   const activeSubscriptionCount = totals.activeSubscriptionCount;
   const subscriptionRevenue = calculatePlatformSubscriptionRevenue(activeSubscriptionCount);
   const occupancy = totals.listingCount ? Math.round((totals.occupiedBookingCount / totals.listingCount) * 100) : 0;
+  const pendingWork = totals.pendingUserCount + totals.pendingListingCount + totals.pendingBookingCount + totals.submittedPaymentCount;
 
   return (
-    <main className="section-shell py-8">
-      <div className="mb-6 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
-        <div>
-          <p className="text-sm font-black uppercase text-hazard">{getAppMode() === "demo" ? "Demo admin" : "Administrator"}</p>
-          <h1 className="text-4xl font-black">Admin dashboard</h1>
-          <p className="mt-2 max-w-4xl font-bold text-steel">
-            Admin collects {formatCurrency(PLATFORM_SUBSCRIPTION_MONTHLY)}/month from each active renter and host through the company account.
-            This is recurring monthly subscription revenue; deals are confirmed on-platform, and admin takes no deal commission.
-          </p>
+    <main className="admin-console">
+      <aside className="admin-console__sidebar">
+        <div className="admin-console__brand"><span className="admin-console__mark">$</span><span>SpaceOnCall</span></div>
+        <p className="admin-console__eyebrow">Operations console</p>
+        <nav className="admin-console__nav" aria-label="Admin sections">
+          <AdminNav href="#overview" icon={LayoutDashboard} label="Overview" />
+          <AdminNav href="#approvals" icon={ListChecks} label="Approvals" count={totals.pendingListingCount} />
+          <AdminNav href="#accounts" icon={Users} label="Hosts & renters" count={totals.pendingUserCount} />
+          <AdminNav href="#payments" icon={CreditCard} label="Payments" count={totals.submittedPaymentCount} />
+          <AdminNav href="#safety" icon={ShieldAlert} label="Safety & bookings" count={totals.pendingBookingCount} />
+          <AdminNav href="#activity" icon={Activity} label="Activity log" />
+        </nav>
+        <div className="admin-console__utility">
+          <Link href="/dashboard/admin/launch-setup"><ClipboardCheck size={17} /> Launch setup</Link>
+          <Link href="/dashboard/admin/export"><Download size={17} /> Export centre</Link>
+          <a href="https://vercel.com/vagrantecommerce-6355s-projects/co-build/analytics" target="_blank" rel="noreferrer"><BarChart3 size={17} /> Traffic analytics</a>
         </div>
-        <div className="flex flex-wrap gap-2">
-          <Link className="button-primary shrink-0" href="/dashboard/admin/launch-setup">
-            <ClipboardCheck size={18} /> Manual launch setup
-          </Link>
-          <Link className="button-secondary shrink-0" href="/dashboard/admin/export">
-            <Download size={18} /> Export data
-          </Link>
-        </div>
-      </div>
+      </aside>
 
-      <section className="mb-8 grid gap-4 md:grid-cols-4">
-        <Metric label="Listings" value={String(totals.listingCount)} />
-        <Metric label="Bookings" value={String(totals.bookingCount)} />
-        <Metric label="Subscription revenue" value={formatCurrency(subscriptionRevenue)} />
-        <Metric label="Occupancy" value={`${occupancy}%`} />
+      <div className="admin-console__content">
+      <header className="admin-console__topbar" id="overview">
+        <div>
+          <p className="admin-console__eyebrow">{getAppMode() === "demo" ? "Demo operations" : "Live operations"}</p>
+          <h1>Overview</h1>
+        </div>
+        <div className="admin-console__admin-id">
+          <Bell size={18} aria-hidden="true" />
+          <span>{admin.email}</span>
+        </div>
+      </header>
+
+      <section className="admin-console__metrics" aria-label="Platform overview">
+        <Metric label="Hosts" value={String(totals.hostCount)} detail={`${totals.newUserCount} new accounts / 7 days`} icon={Building2} />
+        <Metric label="Renters" value={String(totals.renterCount)} detail={`${totals.activeSubscriptionCount} active subscribers`} icon={UserRound} />
+        <Metric label="Monthly recurring" value={formatCurrency(subscriptionRevenue)} detail={`${formatCurrency(PLATFORM_SUBSCRIPTION_MONTHLY)} per active account`} icon={DollarSign} />
+        <Metric label="Open tasks" value={String(pendingWork)} detail="Requires administrator action" icon={ListChecks} tone="alert" />
+      </section>
+
+      <section className="admin-console__pulse" aria-label="Traffic and marketplace activity">
+        <div><span>New accounts</span><strong>{totals.newUserCount}</strong><small>last 7 days</small></div>
+        <div><span>New listings</span><strong>{totals.newListingCount}</strong><small>last 7 days</small></div>
+        <div><span>Booking requests</span><strong>{totals.newBookingCount}</strong><small>last 7 days</small></div>
+        <div><span>Occupancy</span><strong>{occupancy}%</strong><small>{totals.bookingCount} total bookings</small></div>
+        <a href="https://vercel.com/vagrantecommerce-6355s-projects/co-build/analytics" target="_blank" rel="noreferrer">View visitor traffic <ExternalLink size={15} /></a>
       </section>
 
       <LaunchReadinessPanel />
 
       <NotificationCenter notifications={notifications} />
 
-      <DashboardSection title="Moderation and policy reports">
+      <DashboardSection id="safety" title="Moderation and policy reports">
         <div className="grid gap-4 lg:grid-cols-2">
           {moderationReports.length ? moderationReports.map((report) => (
             <article key={report.id} className="border border-neutral-300 bg-white p-4">
@@ -97,7 +117,7 @@ export default async function AdminDashboardPage({ searchParams }: PageProps) {
         </div>
       </DashboardSection>
 
-      <DashboardSection title="Platform subscriptions">
+      <DashboardSection id="subscriptions" title="Platform subscriptions">
         <div className="premium-panel mb-3 border border-neutral-300 bg-white p-4 font-bold text-steel">
           <p className="font-black text-ink">No deal commission</p>
           <p>Admin charges only {formatCurrency(PLATFORM_SUBSCRIPTION_MONTHLY)}/month to each active renter and host.</p>
@@ -138,7 +158,7 @@ export default async function AdminDashboardPage({ searchParams }: PageProps) {
         </div>
       </DashboardSection>
 
-      <DashboardSection title="Listing approvals">
+      <DashboardSection id="approvals" title="Listing approvals">
         <div className="grid gap-4">
           {listings.map((listing) => (
             <article key={listing.id} className="grid gap-4 border border-neutral-300 bg-white p-4 lg:grid-cols-[1fr_360px]">
@@ -162,7 +182,7 @@ export default async function AdminDashboardPage({ searchParams }: PageProps) {
         </div>
       </DashboardSection>
 
-      <DashboardSection title="High-risk work and booking approvals">
+      <DashboardSection id="bookings" title="High-risk work and booking approvals">
         <div className="grid gap-4">
           {bookings.map((booking) => (
             <article key={booking.id} className="grid gap-4 border border-neutral-300 bg-white p-4 lg:grid-cols-[1fr_340px]">
@@ -206,7 +226,7 @@ export default async function AdminDashboardPage({ searchParams }: PageProps) {
         </div>
       </DashboardSection>
 
-      <DashboardSection title="Users and verification">
+      <DashboardSection id="accounts" title="Hosts and renters">
         <div className="grid gap-4 md:grid-cols-3">
           {users.map((user) => (
             <article key={user.id} className="border border-neutral-300 bg-white p-4">
@@ -237,7 +257,7 @@ export default async function AdminDashboardPage({ searchParams }: PageProps) {
         </div>
       </DashboardSection>
 
-      <DashboardSection title="Payment reconciliation">
+      <DashboardSection id="payments" title="Payment reconciliation">
         <div className="grid gap-4 lg:grid-cols-2">
           {payments.length ? payments.map((payment) => (
             <article key={payment.id} className="border border-neutral-300 bg-white p-4">
@@ -335,7 +355,7 @@ export default async function AdminDashboardPage({ searchParams }: PageProps) {
         </div>
       </DashboardSection>
 
-      <DashboardSection title="Approval event log">
+      <DashboardSection id="activity" title="Approval event log">
         <div className="grid gap-2">
           {approvalEvents.map((event) => (
             <div key={event.id} className="border border-neutral-300 bg-white p-3">
@@ -351,26 +371,31 @@ export default async function AdminDashboardPage({ searchParams }: PageProps) {
         <span className="font-black text-steel">Page {pagination.page} of {pagination.totalPages}</span>
         {pagination.page < pagination.totalPages ? <Link className="button-secondary" href={`/dashboard/admin?page=${pagination.page + 1}`}>Next page</Link> : <span />}
       </nav>
+      </div>
     </main>
   );
 }
 
-function DashboardSection({ title, children }: { title: string; children: React.ReactNode }) {
+function DashboardSection({ id, title, children }: { id?: string; title: string; children: React.ReactNode }) {
   return (
-    <section className="mb-8">
+    <section className="admin-console__section" id={id}>
       <h2 className="mb-4 text-2xl font-black">{title}</h2>
       {children}
     </section>
   );
 }
 
-function Metric({ label, value }: { label: string; value: string }) {
+function Metric({ label, value, detail, icon: Icon, tone }: { label: string; value: string; detail: string; icon: React.ComponentType<{ size?: number; className?: string }>; tone?: "alert" }) {
   return (
-    <div className="border border-neutral-300 bg-white p-5">
-      <p className="text-sm font-black uppercase text-steel">{label}</p>
-      <p className="mt-1 text-3xl font-black">{value}</p>
+    <div className={`admin-console__metric${tone === "alert" ? " admin-console__metric--alert" : ""}`}>
+      <div><p>{label}</p><strong>{value}</strong><small>{detail}</small></div>
+      <Icon size={20} className="admin-console__metric-icon" />
     </div>
   );
+}
+
+function AdminNav({ href, icon: Icon, label, count }: { href: string; icon: React.ComponentType<{ size?: number }>; label: string; count?: number }) {
+  return <a href={href}><Icon size={18} /><span>{label}</span>{count ? <b>{count}</b> : null}</a>;
 }
 
 function formatDate(date: Date): string {
