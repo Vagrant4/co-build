@@ -560,7 +560,6 @@ export async function reviewAdditionalRequirementPaymentAction(formData: FormDat
 
 export async function createListingAction(formData: FormData) {
   const host = await requireRole("HOST");
-  if (!canHostOperate(host)) throw new Error("An approved, active host subscription is required before submitting a listing.");
   const title = requireString(formData, "title");
   assertNoRestrictedContact(title, requireString(formData, "amenities"), requireString(formData, "permittedWork"), requireString(formData, "restrictedWork"), optionalString(formData, "factoryTypeOther"), optionalString(formData, "equipmentOther"));
   const slug = slugify(`${title}-${Date.now()}`);
@@ -625,8 +624,11 @@ export async function updateListingStatusAction(formData: FormData) {
   const listingId = requireString(formData, "listingId");
   const status = requireString(formData, "status") as "APPROVED" | "REJECTED" | "SUSPENDED";
   if (!["APPROVED", "REJECTED", "SUSPENDED"].includes(status)) throw new Error("Invalid listing status.");
-  const listing = await prisma.listing.findUnique({ where: { id: listingId }, select: { hostId: true, title: true } });
+  const listing = await prisma.listing.findUnique({ where: { id: listingId }, select: { hostId: true, title: true, host: { select: { role: true, suspended: true, verificationStatus: true, platformSubscriptionStatus: true } } } });
   if (!listing) notFound();
+  if (status === "APPROVED" && (!listing.host || !canHostOperate(listing.host))) {
+    throw new Error("This listing cannot be published until its host is approved, active, and subscribed.");
+  }
   await prisma.$transaction(async (tx) => {
     await tx.listing.update({ where: { id: listingId }, data: { status } });
     await tx.approvalEvent.create({ data: { actorId: admin.id, listingId, target: "listing", decision: status === "APPROVED" ? "APPROVED" : status === "SUSPENDED" ? "SUSPENDED" : "REJECTED", note: `Admin changed listing status to ${status}.` } });

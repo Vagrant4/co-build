@@ -29,8 +29,8 @@ export default async function NewListingPage() {
       <form action={createListingAction} className="co-build-form grid gap-5">
         <FormSection id="location" number="1" title="Location" summary="Name the space and pin the access point renters need to find.">
           <div className="grid gap-4 md:grid-cols-2">
-            <Input name="title" label="Space name" defaultValue="Project Bay with Loading Access" />
-            <LocationMapFields defaultLocation="Kranji" defaultAddress="Kranji Industrial Estate, Singapore" />
+            <Input name="title" label="Space name" />
+            <LocationMapFields defaultLocation="" defaultAddress="" />
           </div>
         </FormSection>
 
@@ -145,11 +145,11 @@ function FormSection({
   );
 }
 
-function Input({ label, name, defaultValue, type = "text" }: { label: string; name: string; defaultValue: string; type?: string }) {
+function Input({ label, name, defaultValue = "", type = "text" }: { label: string; name: string; defaultValue?: string; type?: string }) {
   return (
     <label>
       <span className="label">{label}</span>
-      <input className="field" name={name} defaultValue={defaultValue} type={type} />
+      <input className="field" name={name} defaultValue={defaultValue} type={type} required />
     </label>
   );
 }
