@@ -574,7 +574,7 @@ export async function createListingAction(formData: FormData) {
   const declaredType = formatDeclaredType(factoryTypes, optionalString(formData, "factoryTypeOther"));
   if (declaredType) amenities.push(declaredType);
   const equipmentOther = optionalString(formData, "equipmentOther");
-  if (equipmentOther) amenities.push(`Other equipment: ${equipmentOther}`);
+  if (equipmentOther) amenities.push(...splitList(equipmentOther).map((item) => `Equipment: ${item}`));
 
   await prisma.$transaction(async (tx) => {
     const listing = await tx.listing.create({
@@ -588,7 +588,7 @@ export async function createListingAction(formData: FormData) {
         photoUrlsJson: JSON.stringify([fallbackListingImage(spaceType)]), floorPlanUrl: fallbackFloorPlan(spaceType),
         priceDay: numberField(formData, "priceDay"), priceSevenDays: numberField(formData, "priceSevenDays"), priceThirtyDays: numberField(formData, "priceThirtyDays"), priceSixtyDays: numberField(formData, "priceSixtyDays"),
         depositStandard: numberField(formData, "depositStandard"), depositHighRisk: Number(formData.get("depositHighRisk") || 0), cleaningFee: numberField(formData, "cleaningFee"),
-        fireSafety: requireString(formData, "fireSafety"), electricalSupply: requireString(formData, "electricalSupply"), hostId: host.id,
+        fireSafety: optionalString(formData, "fireSafety") || "Not provided", electricalSupply: optionalString(formData, "electricalSupply") || "Not provided", hostId: host.id,
         equipmentAddons: { create: equipmentSlugs.map((value) => ({ equipmentAddon: { connect: { slug: value } } })) }
       }
     });

@@ -2,7 +2,6 @@ import { Factory } from "lucide-react";
 import { createListingAction } from "@/app/actions";
 import { LocationMapFields } from "@/components/location-map-fields";
 import { PrivateUploadField } from "@/components/private-upload-field";
-import { getEquipmentAddons } from "@/src/lib/repository";
 import { requirePageRole } from "@/src/lib/page-authorization";
 import { workTypes } from "@/src/lib/seed-data";
 
@@ -10,7 +9,6 @@ export const dynamic = "force-dynamic";
 
 export default async function NewListingPage() {
   await requirePageRole("HOST");
-  const equipment = await getEquipmentAddons();
 
   return (
     <main className="signal-page py-8">
@@ -21,8 +19,8 @@ export default async function NewListingPage() {
           <Factory className="text-hazard" size={38} /> List fabrication space
         </h1>
         <p className="mt-2 max-w-3xl font-bold text-steel">
-          Submitted spaces start as pending admin approval. Hosts declare exact square footage, type, fire safety,
-          electrical supply, allowed work, restricted work, availability, pricing, deposits, and cleaning rules.
+          Submitted spaces start as pending admin approval. Hosts declare exact square footage, type, access,
+          allowed work, restricted work, available equipment, pricing, deposits, and cleaning rules.
         </p>
       </div>
       <form action={createListingAction} className="co-build-form grid gap-5">
@@ -33,7 +31,7 @@ export default async function NewListingPage() {
           </div>
         </FormSection>
 
-        <FormSection id="space-access" number="2" title="Space & Access" summary="Declare the working area, factory type, electrical supply, access hours, and fire safety.">
+        <FormSection id="space-access" number="2" title="Space & Access" summary="Declare the working area, factory type, and standard access hours.">
           <div className="grid gap-4 md:grid-cols-2">
             <Input name="sizeSqft" label="Available size in sqft" type="number" defaultValue="160" />
             <div role="group" aria-labelledby="listing-type-label" className="md:col-span-2">
@@ -51,19 +49,17 @@ export default async function NewListingPage() {
                 </label>
               </div>
             </div>
+            <input type="hidden" name="powerType" value="SINGLE_PHASE" />
             <label>
-              <span className="label">Electrical supply</span>
-              <input className="field" name="electricalSupply" defaultValue="Single-phase 240V with dedicated outlets" />
-            </label>
-            <label>
-              <span className="label">Power type</span>
-              <select className="field" name="powerType" defaultValue="SINGLE_PHASE">
-                <option value="SINGLE_PHASE">Single-phase</option>
-                <option value="THREE_PHASE">Three-phase</option>
+              <span className="label">Access hours</span>
+              <select className="field" name="accessHours" defaultValue="8am-8pm daily">
+                <option value="8am-6pm weekdays">8am-6pm weekdays</option>
+                <option value="8am-8pm daily">8am-8pm daily</option>
+                <option value="24-hour access">24-hour access</option>
+                <option value="Weekends only">Weekends only</option>
+                <option value="By appointment">By appointment</option>
               </select>
             </label>
-            <Input name="accessHours" label="Access hours" defaultValue="8am-8pm daily" />
-            <Input name="fireSafety" label="Fire safety equipment" defaultValue="Extinguishers and marked exit route" />
           </div>
         </FormSection>
 
@@ -76,24 +72,15 @@ export default async function NewListingPage() {
           </div>
         </FormSection>
 
-        <FormSection id="equipment" number="4" title="Equipment" summary="Select equipment renters can request as add-ons or included support.">
-          <span className="label">Equipment available</span>
-          <div className="grid gap-2 md:grid-cols-3">
-            {equipment.map((addon) => (
-              <label key={addon.slug} className="signal-checkbox flex items-center justify-between">
-                {addon.name}
-                <input type="checkbox" name="equipment" value={addon.slug} />
-              </label>
-            ))}
-            <label className="signal-checkbox flex items-center justify-between">
-              Other
-              <input type="checkbox" name="equipment" value="other" />
-            </label>
-            <label className="md:col-span-2">
-              <span className="label">State:</span>
-              <input className="field" name="equipmentOther" placeholder="State other equipment available" />
-            </label>
-          </div>
+        <FormSection id="equipment" number="4" title="Equipment" summary="State the equipment renters can use or request with this space.">
+          <label>
+            <span className="label">Available equipment</span>
+            <textarea
+              className="field min-h-32"
+              name="equipmentOther"
+              placeholder={"Enter one item per line, for example:\nWorkbench\nDrill\nMaterial storage"}
+            />
+          </label>
         </FormSection>
 
         <FormSection id="pricing" number="5" title="Pricing" summary="Show day, week, month, project, deposit, high-risk, and cleaning rates at a glance.">
