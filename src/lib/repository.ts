@@ -18,7 +18,7 @@ export async function getEquipmentAddons(): Promise<EquipmentAddon[]> {
 
 export async function getListings(filters?: ListingFilters): Promise<Listing[]> {
   const records = await prisma.listing.findMany({
-    include: { equipmentAddons: { include: { equipmentAddon: true } }, uploads: { where: { type: "LISTING_PHOTO", uploadStatus: "AVAILABLE" }, select: { id: true, type: true, uploadStatus: true, scanStatus: true }, take: 6 } },
+    include: { equipmentAddons: { include: { equipmentAddon: true } }, uploads: { where: { type: "LISTING_PHOTO", uploadStatus: "AVAILABLE" }, select: { id: true, type: true, uploadStatus: true, scanStatus: true }, take: 8 } },
     orderBy: { sizeSqft: "asc" }
   });
   const listings = records.map(toListing);
@@ -29,7 +29,7 @@ export async function getApprovedListings(filters?: ListingFilters): Promise<Lis
   if (filters?.factoryType === "OFFICE") return [];
   const records = await prisma.listing.findMany({
     where: approvedListingWhere(filters),
-    include: { equipmentAddons: { include: { equipmentAddon: true } }, uploads: { where: { type: "LISTING_PHOTO", uploadStatus: "AVAILABLE" }, select: { id: true, type: true, uploadStatus: true, scanStatus: true }, take: 6 } },
+    include: { equipmentAddons: { include: { equipmentAddon: true } }, uploads: { where: { type: "LISTING_PHOTO", uploadStatus: "AVAILABLE" }, select: { id: true, type: true, uploadStatus: true, scanStatus: true }, take: 8 } },
     orderBy: { sizeSqft: "asc" },
     take: 100
   });
@@ -75,7 +75,7 @@ export async function getPublicListingBySlug(slug: string): Promise<Listing | nu
       status: "APPROVED",
       host: { is: { role: "HOST", suspended: false, verificationStatus: "APPROVED", platformSubscriptionStatus: "ACTIVE" } }
     },
-    include: { equipmentAddons: { include: { equipmentAddon: true } }, uploads: { where: { type: "LISTING_PHOTO", uploadStatus: "AVAILABLE" }, select: { id: true, type: true, uploadStatus: true, scanStatus: true }, take: 6 } }
+    include: { equipmentAddons: { include: { equipmentAddon: true } }, uploads: { where: { type: "LISTING_PHOTO", uploadStatus: "AVAILABLE" }, select: { id: true, type: true, uploadStatus: true, scanStatus: true }, take: 8 } }
   });
   return record ? toListing(record) : null;
 }

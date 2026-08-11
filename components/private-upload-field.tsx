@@ -13,47 +13,38 @@ type Props = {
   bookingId?: string;
   listingId?: string;
   required?: boolean;
+  maxFiles?: number;
 };
 
-export function PrivateUploadField({ label, name, type, accept, bookingId, listingId, required = false }: Props) {
-  const [uploadId, setUploadId] = useState("");
+export function PrivateUploadField({ label, name, type, accept, bookingId, listingId, required = false, maxFiles = 1 }: Props) {
+  const [uploadIds, setUploadIds] = useState<string[]>([]);
   const [state, setState] = useState<"idle" | "uploading" | "ready" | "error">("idle");
   const [message, setMessage] = useState("");
 
-  async function handleFile(file: File | undefined) {
-    setUploadId("");
-    if (!file) return setState("idle");
+  async function handleFiles(files: File[]) {
+    setUploadIds([]);
+    if (files.length === 0) return setState("idle");
+    if (files.length > maxFiles) {
+      setState("error");
+      return setMessage(`Choose no more than ${maxFiles} file${maxFiles === 1 ? "" : "s"}.`);
+    }
     const maximumSizeMiB = type === "FLOOR_PLAN" ? 15 : ["CHECK_IN", "CHECK_OUT", "LISTING_PHOTO"].includes(type) ? 12 : 10;
     const maximumSize = maximumSizeMiB * 1024 * 1024;
-    if (!accept.split(",").includes(file.type)) {
+    if (files.some((file) => !accept.split(",").includes(file.type))) {
       setState("error");
       return setMessage("Unsupported file type. Choose JPG, PNG, WebP, or PDF where permitted.");
     }
-    if (file.size > maximumSize) {
+    if (files.some((file) => file.size > maximumSize)) {
       setState("error");
-      return setMessage(`File is too large. Maximum size is ${maximumSizeMiB} MB.`);
+      return setMessage(`A file is too large. Maximum size is ${maximumSizeMiB} MB per file.`);
     }
     setState("uploading");
-    setMessage("Reserving private upload...");
+    setMessage(`Uploading and checking ${files.length} file${files.length === 1 ? "" : "s"}. This usually takes 10-30 seconds...`);
     try {
-      const reservationResponse = await fetch("/api/uploads/reserve", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ type, originalName: file.name, contentType: file.type, sizeBytes: file.size, bookingId, listingId })
-      });
-      const reservation = await reservationResponse.json() as { uploadId?: string; objectKey?: string; error?: string };
-      if (!reservationResponse.ok || !reservation.uploadId || !reservation.objectKey) throw new Error(reservation.error || "Upload could not be reserved.");
-      setMessage("Uploading and checking the file. This usually takes 10-30 seconds...");
-      await upload(reservation.objectKey, file, {
-        access: "private",
-        handleUploadUrl: "/api/uploads/authorize",
-        clientPayload: JSON.stringify({ uploadId: reservation.uploadId }),
-        contentType: file.type
-      });
-      await waitUntilAvailable(reservation.uploadId);
-      setUploadId(reservation.uploadId);
+      const ids = await Promise.all(files.map((file) => uploadFile(file, { type, bookingId, listingId })));
+      setUploadIds(ids);
       setState("ready");
-      setMessage(`${file.name} is ready`);
+      setMessage(files.length === 1 ? `${files[0].name} is ready` : `${files.length} workspace photos are ready`);
     } catch (error) {
       setState("error");
       setMessage(error instanceof Error ? error.message : "Private upload failed.");
@@ -69,15 +60,34 @@ export function PrivateUploadField({ label, name, type, accept, bookingId, listi
           className="min-w-0 flex-1 text-sm"
           type="file"
           accept={accept}
-          required={required && !uploadId}
+          multiple={maxFiles > 1}
+          required={required && uploadIds.length === 0}
           onClick={(event) => { event.currentTarget.value = ""; }}
-          onChange={(event) => void handleFile(event.target.files?.[0])}
+          onChange={(event) => void handleFiles(Array.from(event.target.files ?? []))}
         />
       </span>
-      <input type="hidden" name={`${name}UploadId`} value={uploadId} />
+      {uploadIds.map((uploadId) => <input key={uploadId} type="hidden" name={`${name}UploadId`} value={uploadId} />)}
       {message ? <span className={state === "error" ? "text-xs text-red-500" : "text-xs text-neutral-500"}>{message}</span> : null}
     </label>
   );
+}
+
+async function uploadFile(file: File, context: { type: UploadType; bookingId?: string; listingId?: string }): Promise<string> {
+  const reservationResponse = await fetch("/api/uploads/reserve", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ type: context.type, originalName: file.name, contentType: file.type, sizeBytes: file.size, bookingId: context.bookingId, listingId: context.listingId })
+  });
+  const reservation = await reservationResponse.json() as { uploadId?: string; objectKey?: string; error?: string };
+  if (!reservationResponse.ok || !reservation.uploadId || !reservation.objectKey) throw new Error(reservation.error || "Upload could not be reserved.");
+  await upload(reservation.objectKey, file, {
+    access: "private",
+    handleUploadUrl: "/api/uploads/authorize",
+    clientPayload: JSON.stringify({ uploadId: reservation.uploadId }),
+    contentType: file.type
+  });
+  await waitUntilAvailable(reservation.uploadId);
+  return reservation.uploadId;
 }
 
 async function waitUntilAvailable(uploadId: string): Promise<void> {
