@@ -7,6 +7,9 @@ import { workTypes } from "@/src/lib/seed-data";
 
 export const dynamic = "force-dynamic";
 
+const accessStartTimes = Array.from({ length: 24 }, (_, hour) => `${String(hour).padStart(2, "0")}:00`);
+const accessEndTimes = Array.from({ length: 24 }, (_, index) => `${String(index + 1).padStart(2, "0")}:00`);
+
 export default async function NewListingPage() {
   await requirePageRole("HOST");
 
@@ -50,16 +53,20 @@ export default async function NewListingPage() {
               </div>
             </div>
             <input type="hidden" name="powerType" value="SINGLE_PHASE" />
-            <label>
-              <span className="label">Access hours</span>
-              <select className="field" name="accessHours" defaultValue="8am-8pm daily">
-                <option value="8am-6pm weekdays">8am-6pm weekdays</option>
-                <option value="8am-8pm daily">8am-8pm daily</option>
-                <option value="24-hour access">24-hour access</option>
-                <option value="Weekends only">Weekends only</option>
-                <option value="By appointment">By appointment</option>
-              </select>
-            </label>
+            <div className="grid gap-4 md:col-span-2 md:grid-cols-2">
+              <label>
+                <span className="label">Access start time</span>
+                <select className="field" name="accessStart" defaultValue="08:00">
+                  {accessStartTimes.map((time) => <option key={time} value={time}>{time}</option>)}
+                </select>
+              </label>
+              <label>
+                <span className="label">Access end time</span>
+                <select className="field" name="accessEnd" defaultValue="20:00">
+                  {accessEndTimes.map((time) => <option key={time} value={time}>{time}</option>)}
+                </select>
+              </label>
+            </div>
           </div>
         </FormSection>
 
