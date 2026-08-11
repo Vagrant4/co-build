@@ -27,7 +27,7 @@ export function AdminAuthPanel({ signedIn, eligibleEmail }: { signedIn: boolean;
       ) : (
       <div>
       {eligibleEmail ? <p className="admin-auth-page__hint">Authorized administrator: {eligibleEmail}</p> : null}
-      <SignIn routing="path" path="/admin/sign-in" forceRedirectUrl="/admin/sign-in" signUpUrl="/create-account" />
+      <SignIn routing="hash" forceRedirectUrl="/admin/sign-in" />
       </div>
       )}
       </ClerkLoaded>
