@@ -102,9 +102,9 @@ export default async function NewListingPage() {
           </div>
         </FormSection>
 
-        <FormSection id="photos" number="6" title="Photos" summary="Upload photos and a floor plan so renters understand the bay before requesting it.">
+        <FormSection id="photos" number="6" title="Photos" summary="Upload up to eight workspace photos and one floor plan so renters understand the space before requesting it.">
           <div className="grid gap-4 md:grid-cols-2">
-            <PrivateUploadField label="Workspace photo" name="photo" type="LISTING_PHOTO" accept="image/jpeg,image/png,image/webp" />
+            <PrivateUploadField label="Workspace photos (up to 8)" name="photo" type="LISTING_PHOTO" accept="image/jpeg,image/png,image/webp" maxFiles={8} />
             <PrivateUploadField label="Floor plan" name="floorPlan" type="FLOOR_PLAN" accept="image/jpeg,image/png,application/pdf" />
           </div>
           <div className="signal-submit mt-5 p-3">

@@ -564,8 +564,12 @@ export async function createListingAction(formData: FormData) {
   const title = requireString(formData, "title");
   assertNoRestrictedContact(title, requireString(formData, "amenities"), requireString(formData, "permittedWork"), requireString(formData, "restrictedWork"), optionalString(formData, "factoryTypeOther"), optionalString(formData, "equipmentOther"));
   const slug = slugify(`${title}-${Date.now()}`);
-  const photoUploadId = optionalString(formData, "photoUploadId");
-  const floorPlanUploadId = optionalString(formData, "floorPlanUploadId");
+  const photoUploadIds = formData.getAll("photoUploadId").map(String).filter(Boolean);
+  const floorPlanUploadIds = formData.getAll("floorPlanUploadId").map(String).filter(Boolean);
+  const submittedUploadIds = [...photoUploadIds, ...floorPlanUploadIds];
+  if (photoUploadIds.length > 8) throw new Error("A listing may include up to eight workspace photos.");
+  if (floorPlanUploadIds.length > 1) throw new Error("A listing may include only one floor plan.");
+  if (new Set(submittedUploadIds).size !== submittedUploadIds.length) throw new Error("Duplicate listing uploads are not allowed.");
   const equipmentSlugs = formData.getAll("equipment").map(String).filter((slugValue) => slugValue !== "other");
   const factoryTypes = formData.getAll("factoryType").map(String).filter((value) => ["OFFICE", "B1", "B2", "OTHER"].includes(value));
   const sizeSqft = Number(requireString(formData, "sizeSqft"));
@@ -598,8 +602,11 @@ export async function createListingAction(formData: FormData) {
         equipmentAddons: { create: equipmentSlugs.map((value) => ({ equipmentAddon: { connect: { slug: value } } })) }
       }
     });
-    for (const [uploadId, type] of [[photoUploadId, "LISTING_PHOTO"], [floorPlanUploadId, "FLOOR_PLAN"]] as const) {
-      if (!uploadId) continue;
+    const uploadsToAttach = [
+      ...photoUploadIds.map((uploadId) => [uploadId, "LISTING_PHOTO"] as const),
+      ...floorPlanUploadIds.map((uploadId) => [uploadId, "FLOOR_PLAN"] as const)
+    ];
+    for (const [uploadId, type] of uploadsToAttach) {
       const result = await tx.upload.updateMany({
         where: { id: uploadId, type, listingId: null, ownerUserId: host.id, uploadedByUserId: host.id, uploadStatus: "AVAILABLE" },
         data: { listingId: listing.id }
