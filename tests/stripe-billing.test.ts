@@ -51,6 +51,9 @@ describe("Stripe recurring billing", () => {
   it("rejects test/live webhook mode mismatches", () => {
     expect(stripeEventModeMatchesKey(false, "sk_test_example")).toBe(true);
     expect(stripeEventModeMatchesKey(true, "sk_live_example")).toBe(true);
+    expect(stripeEventModeMatchesKey(false, "rk_test_example")).toBe(true);
+    expect(stripeEventModeMatchesKey(true, "rk_live_example")).toBe(true);
     expect(stripeEventModeMatchesKey(true, "sk_test_example")).toBe(false);
+    expect(stripeEventModeMatchesKey(true, "rk_test_example")).toBe(false);
   });
 });

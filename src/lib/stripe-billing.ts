@@ -55,5 +55,6 @@ export function assertMonthlyStripePrice(price: Pick<Stripe.Price, "active" | "c
 }
 
 export function stripeEventModeMatchesKey(livemode: boolean, secretKey = process.env.STRIPE_SECRET_KEY || ""): boolean {
-  return livemode ? secretKey.startsWith("sk_live_") : secretKey.startsWith("sk_test_");
+  const mode = livemode ? "live" : "test";
+  return secretKey.startsWith(`sk_${mode}_`) || secretKey.startsWith(`rk_${mode}_`);
 }

@@ -17,7 +17,8 @@ export const workTypes = [
   "CNC work",
   "Storage + work area",
   "Spray painting, approval-only",
-  "Chemical work, approval-only"
+  "Chemical work, approval-only",
+  "Others"
 ] as const;
 
 export const humanServiceAddonSlugs = ["forklift-assistance", "operator-assistance", "cleaning-service"] as const;
