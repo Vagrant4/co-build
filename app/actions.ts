@@ -575,12 +575,18 @@ export async function createListingAction(formData: FormData) {
   if (declaredType) amenities.push(declaredType);
   const equipmentOther = optionalString(formData, "equipmentOther");
   if (equipmentOther) amenities.push(...splitList(equipmentOther).map((item) => `Equipment: ${item}`));
+  const accessStart = requireString(formData, "accessStart");
+  const accessEnd = requireString(formData, "accessEnd");
+  if (!/^([01]\d|2[0-3]):00$/.test(accessStart) || !/^([01]\d|2[0-4]):00$/.test(accessEnd) || accessStart >= accessEnd) {
+    throw new Error("Access end time must be later than the start time.");
+  }
+  const accessHours = `${accessStart}-${accessEnd}`;
 
   await prisma.$transaction(async (tx) => {
     const listing = await tx.listing.create({
       data: {
         slug, title, address: requireString(formData, "address"), location: requireString(formData, "location"), sizeSqft, spaceType,
-        factoryType: zoningFromFactoryTypes(factoryTypes), status: "PENDING_ADMIN", accessHours: requireString(formData, "accessHours"),
+        factoryType: zoningFromFactoryTypes(factoryTypes), status: "PENDING_ADMIN", accessHours,
         powerType: requireString(formData, "powerType") as PowerType,
         loadingAccessJson: JSON.stringify(splitList(requireString(formData, "loadingAccess"))), amenitiesJson: JSON.stringify(amenities),
         permittedWorkJson: JSON.stringify(splitList(requireString(formData, "permittedWork"))), prohibitedWorkJson: JSON.stringify(splitList(requireString(formData, "restrictedWork"))),
