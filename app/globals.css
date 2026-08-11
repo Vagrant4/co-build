@@ -3782,6 +3782,11 @@ body:has(.admin-auth-page) > footer {
 .admin-auth-page__identity dt { color: #858d96; font-size: 10px; font-weight: 800; text-transform: uppercase; }
 .admin-auth-page__identity dd { margin-top: 5px; font-size: 12px; font-weight: 800; }
 .admin-auth-page__panel { display: grid; place-items: center; padding: 32px; background: #17191c; }
+.admin-auth-page__panel-shell { width: min(100%, 500px); }
+.admin-auth-page__panel-header { margin-bottom: 20px; }
+.admin-auth-page__panel-header h2 { margin-top: 8px; font-size: 28px; }
+.admin-auth-page__panel-header > p:last-child { margin-top: 8px; color: #9ca3ad; font-size: 13px; font-weight: 650; line-height: 1.5; }
+.admin-auth-page__auth-shell { min-height: 320px; }
 .admin-auth-page__message { width: min(100%,460px); border: 1px solid #353a40; border-top: 3px solid #ff5a1f; background: #111315; padding: 32px; }
 .admin-auth-page__message h2 { margin-top: 10px; font-size: 30px; }
 .admin-auth-page__message > p:not(.admin-auth-page__label) { margin-top: 14px; color: #aeb5bd; font-weight: 650; line-height: 1.6; }

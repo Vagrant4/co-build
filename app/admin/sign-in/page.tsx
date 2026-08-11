@@ -38,6 +38,12 @@ export default async function AdminSignInPage() {
       </section>
 
       <section className="admin-auth-page__panel">
+        <div className="admin-auth-page__panel-shell">
+        <header className="admin-auth-page__panel-header">
+          <p className="admin-auth-page__label">Private administrator entry</p>
+          <h2>Access the operations console</h2>
+          <p>Use the pre-authorized administrator identity. Renter and host accounts are rejected.</p>
+        </header>
         {pendingAdmin ? (
           <div className="admin-auth-page__message">
             <p className="admin-auth-page__label">Identity verified</p>
@@ -50,6 +56,7 @@ export default async function AdminSignInPage() {
         ) : (
           <AdminAuthPanel signedIn={Boolean(session.userId)} />
         )}
+        </div>
       </section>
     </main>
   );
