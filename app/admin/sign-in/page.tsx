@@ -20,6 +20,12 @@ export default async function AdminSignInPage() {
   const pendingAdmin = email
     ? await prisma.user.findFirst({ where: { email, role: "ADMIN", authProviderId: null, suspended: false }, select: { email: true } })
     : null;
+  const authorizedAdmin = await prisma.user.findFirst({
+    where: { role: "ADMIN", suspended: false },
+    orderBy: { createdAt: "asc" },
+    select: { email: true }
+  });
+  const adminLoginId = process.env.ADMIN_LOGIN_ID?.trim() || "spaceoncall-admin";
 
   return (
     <main className="admin-auth-page">
@@ -42,7 +48,7 @@ export default async function AdminSignInPage() {
         <header className="admin-auth-page__panel-header">
           <p className="admin-auth-page__label">Private administrator entry</p>
           <h2>Access the operations console</h2>
-          <p>Use the pre-authorized administrator identity. Renter and host accounts are rejected.</p>
+          <p>Enter the private administrator ID and password. This page has no renter, host, or account-registration access.</p>
         </header>
         {pendingAdmin ? (
           <div className="admin-auth-page__message">
@@ -54,7 +60,19 @@ export default async function AdminSignInPage() {
             </form>
           </div>
         ) : (
-          <AdminAuthPanel signedIn={Boolean(session.userId)} />
+          authorizedAdmin ? (
+            <AdminAuthPanel
+              signedIn={Boolean(session.userId)}
+              adminLoginId={adminLoginId}
+              authenticationIdentifier={authorizedAdmin.email}
+            />
+          ) : (
+            <div className="admin-auth-page__message">
+              <p className="admin-auth-page__label">Configuration required</p>
+              <h2>No administrator is authorized</h2>
+              <p>Create the first administrator through the controlled bootstrap procedure before this console can be used.</p>
+            </div>
+          )
         )}
         </div>
       </section>
