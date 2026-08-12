@@ -3792,7 +3792,15 @@ body:has(.admin-auth-page) > footer {
 .admin-auth-page__message > p:not(.admin-auth-page__label) { margin-top: 14px; color: #aeb5bd; font-weight: 650; line-height: 1.6; }
 .admin-auth-page__button { display: flex; width: 100%; min-height: 48px; align-items: center; justify-content: center; gap: 8px; margin-top: 22px; background: #ff5a1f; padding: 10px 16px; color: white; font-weight: 900; }
 .admin-auth-page__hint { margin-bottom: 14px; color: #aeb5bd; font-size: 12px; font-weight: 700; }
-@media(max-width:800px){.admin-auth-page{grid-template-columns:1fr}.admin-auth-page__identity{min-height:420px;padding:32px}.admin-auth-page__identity dl{gap:14px}.admin-auth-page__panel{padding:24px 14px}}
+.admin-auth-page__form { width: 100%; border: 1px solid #353a40; border-top: 3px solid #ff5a1f; background: #111315; padding: 30px; box-shadow: 0 24px 70px rgba(0,0,0,.28); }
+.admin-auth-page__field + .admin-auth-page__field { margin-top: 18px; }
+.admin-auth-page__field label { display: flex; align-items: center; gap: 7px; margin-bottom: 8px; color: #c6cbd1; font-size: 11px; font-weight: 900; text-transform: uppercase; }
+.admin-auth-page__field input { width: 100%; min-height: 50px; border: 1px solid #41474e; border-radius: 2px; background: #0b0d0e; padding: 0 14px; color: #fff; font-size: 16px; font-weight: 750; outline: none; }
+.admin-auth-page__field input:focus { border-color: #ff5a1f; box-shadow: 0 0 0 3px rgba(255,90,31,.16); }
+.admin-auth-page__error { margin-top: 16px; border-left: 3px solid #ff5a1f; background: #241510; padding: 11px 12px; color: #ffb49a; font-size: 13px; font-weight: 750; line-height: 1.5; }
+.admin-auth-page__button:disabled { cursor: wait; opacity: .6; }
+.admin-auth-page__security-note { display: flex; align-items: flex-start; gap: 7px; margin-top: 18px; color: #858d96; font-size: 11px; font-weight: 700; line-height: 1.5; }
+@media(max-width:800px){.admin-auth-page{grid-template-columns:1fr}.admin-auth-page__identity{min-height:420px;padding:32px}.admin-auth-page__identity dl{gap:14px}.admin-auth-page__panel{padding:24px 14px}.admin-auth-page__form{padding:22px}}
 
 .admin-console {
   min-height: 100vh;
