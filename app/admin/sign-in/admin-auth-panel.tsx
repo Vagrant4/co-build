@@ -27,12 +27,20 @@ export function AdminAuthPanel({
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [resetStage, setResetStage] = useState<"idle" | "code-sent">("idle");
+  const [resetCode, setResetCode] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+
+  function isAuthorizedIdentifier(value: string) {
+    const normalized = value.trim().toLowerCase();
+    return normalized === adminLoginId.toLowerCase() || normalized === authenticationIdentifier.toLowerCase();
+  }
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError("");
 
-    if (!isLoaded || !signIn || !setActive || loginId.trim().toLowerCase() !== adminLoginId.toLowerCase()) {
+    if (!isLoaded || !signIn || !setActive || !isAuthorizedIdentifier(loginId)) {
       setError("The administrator ID or password is incorrect.");
       return;
     }
@@ -59,6 +67,55 @@ export function AdminAuthPanel({
     }
   }
 
+  async function startPasswordReset() {
+    setError("");
+    if (!isLoaded || !signIn || !isAuthorizedIdentifier(loginId)) {
+      setError("Enter the authorized administrator ID before requesting a reset code.");
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      await signIn.create({
+        strategy: "reset_password_email_code",
+        identifier: authenticationIdentifier
+      });
+      setPassword("");
+      setResetStage("code-sent");
+    } catch (caught) {
+      setError(safeSignInError(caught));
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  async function finishPasswordReset(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setError("");
+    if (!isLoaded || !signIn || !setActive) return;
+
+    setSubmitting(true);
+    try {
+      const result = await signIn.attemptFirstFactor({
+        strategy: "reset_password_email_code",
+        code: resetCode,
+        password: newPassword
+      });
+
+      if (result.status !== "complete" || !result.createdSessionId) {
+        setError("Additional administrator verification is required. Contact the operations owner.");
+        return;
+      }
+
+      await setActive({ session: result.createdSessionId });
+      window.location.assign("/dashboard/admin");
+    } catch (caught) {
+      setError(safeSignInError(caught));
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
   if (signedIn) {
     return (
       <div className="admin-auth-page__message">
@@ -69,6 +126,30 @@ export function AdminAuthPanel({
           <button className="admin-auth-page__button" type="button"><LogOut size={18} /> Sign out</button>
         </SignOutButton>
       </div>
+    );
+  }
+
+  if (resetStage === "code-sent") {
+    return (
+      <form className="admin-auth-page__form" onSubmit={finishPasswordReset}>
+        <p className="admin-auth-page__security-note">A reset code was sent to the authorized administrator email.</p>
+        <div className="admin-auth-page__field">
+          <label htmlFor="admin-reset-code"><KeyRound size={15} /> Reset code</label>
+          <input id="admin-reset-code" inputMode="numeric" autoComplete="one-time-code" value={resetCode} onChange={(event) => setResetCode(event.target.value)} required />
+        </div>
+        <div className="admin-auth-page__field">
+          <label htmlFor="admin-new-password"><LockKeyhole size={15} /> New password</label>
+          <input id="admin-new-password" type="password" autoComplete="new-password" value={newPassword} onChange={(event) => setNewPassword(event.target.value)} required minLength={8} />
+        </div>
+        {error ? <p className="admin-auth-page__error" role="alert">{error}</p> : null}
+        <button className="admin-auth-page__button" type="submit" disabled={submitting}>
+          {submitting ? <LoaderCircle className="animate-spin" size={18} /> : <KeyRound size={18} />}
+          {submitting ? "Resetting..." : "Reset password and sign in"}
+        </button>
+        <button className="admin-auth-page__button admin-auth-page__button--secondary" type="button" onClick={() => { setResetStage("idle"); setError(""); }}>
+          Back to sign in
+        </button>
+      </form>
     );
   }
 
@@ -103,6 +184,9 @@ export function AdminAuthPanel({
       <button className="admin-auth-page__button" type="submit" disabled={!isLoaded || submitting}>
         {submitting ? <LoaderCircle className="animate-spin" size={18} /> : <KeyRound size={18} />}
         {submitting ? "Verifying..." : "Open admin console"}
+      </button>
+      <button className="admin-auth-page__button admin-auth-page__button--secondary" type="button" onClick={startPasswordReset} disabled={!isLoaded || submitting}>
+        Send password reset code
       </button>
       <p className="admin-auth-page__security-note"><LockKeyhole size={14} /> Private access only. Credentials are verified by the managed identity service.</p>
     </form>
