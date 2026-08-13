@@ -176,6 +176,14 @@ export default async function AdminDashboardPage({ searchParams }: PageProps) {
       <DashboardSection id="approvals" title="Listing approvals">
         <div className="grid gap-4">
           {listings.map((listing) => (
+            (() => {
+              const hostReady = Boolean(
+                listing.host?.role === "HOST" &&
+                !listing.host.suspended &&
+                listing.host.verificationStatus === "APPROVED" &&
+                listing.host.platformSubscriptionStatus === "ACTIVE"
+              );
+              return (
             <article key={listing.id} className="grid gap-4 border border-neutral-300 bg-white p-4 lg:grid-cols-[1fr_360px]">
               <div>
                 <div className="mb-2 flex flex-wrap gap-2">
@@ -192,13 +200,18 @@ export default async function AdminDashboardPage({ searchParams }: PageProps) {
                   <StatusBadge status={listing.host?.platformSubscriptionStatus ?? "MISSING"} />
                   {listing.host?.suspended ? <StatusBadge status="SUSPENDED" /> : null}
                 </div>
+                {!hostReady ? (
+                  <a className="admin-console__review-link" href="#accounts">Review host account before publishing</a>
+                ) : null}
               </div>
               <div className="grid grid-cols-3 gap-2">
-                <ListingStatusButton listingId={listing.id} status="APPROVED" label="Approve" icon="approve" />
+                <ListingStatusButton listingId={listing.id} status="APPROVED" label={hostReady ? "Approve" : "Host pending"} icon="approve" disabled={!hostReady} />
                 <ListingStatusButton listingId={listing.id} status="REJECTED" label="Reject" icon="reject" />
                 <ListingStatusButton listingId={listing.id} status="SUSPENDED" label="Suspend" icon="suspend" />
               </div>
             </article>
+              );
+            })()
           ))}
         </div>
       </DashboardSection>
@@ -427,13 +440,13 @@ function formatDate(date: Date): string {
   }).format(date);
 }
 
-function ListingStatusButton({ listingId, status, label, icon }: { listingId: string; status: "APPROVED" | "REJECTED" | "SUSPENDED"; label: string; icon: "approve" | "reject" | "suspend" }) {
+function ListingStatusButton({ listingId, status, label, icon, disabled = false }: { listingId: string; status: "APPROVED" | "REJECTED" | "SUSPENDED"; label: string; icon: "approve" | "reject" | "suspend"; disabled?: boolean }) {
   const Icon = icon === "approve" ? CheckCircle2 : icon === "reject" ? XCircle : ShieldAlert;
   return (
     <form action={updateListingStatusAction}>
       <input type="hidden" name="listingId" value={listingId} />
       <input type="hidden" name="status" value={status} />
-      <button className={icon === "approve" ? "button-primary w-full" : "button-secondary w-full"} type="submit">
+      <button className={icon === "approve" ? "button-primary w-full" : "button-secondary w-full"} type="submit" disabled={disabled} title={disabled ? "Approve and activate the host account first" : undefined}>
         <Icon size={18} /> {label}
       </button>
     </form>
