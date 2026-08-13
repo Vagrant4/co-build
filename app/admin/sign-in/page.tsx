@@ -25,8 +25,6 @@ export default async function AdminSignInPage() {
     orderBy: { createdAt: "asc" },
     select: { email: true }
   });
-  const adminLoginId = process.env.ADMIN_LOGIN_ID?.trim() || "spaceoncall-admin";
-
   return (
     <main className="admin-auth-page">
       <section className="admin-auth-page__identity">
@@ -63,7 +61,6 @@ export default async function AdminSignInPage() {
           authorizedAdmin ? (
             <AdminAuthPanel
               signedIn={Boolean(session.userId)}
-              adminLoginId={adminLoginId}
               authenticationIdentifier={authorizedAdmin.email}
             />
           ) : (

@@ -15,11 +15,9 @@ function safeSignInError(error: unknown): string {
 
 export function AdminAuthPanel({
   signedIn,
-  adminLoginId,
   authenticationIdentifier
 }: {
   signedIn: boolean;
-  adminLoginId: string;
   authenticationIdentifier: string;
 }) {
   const { isLoaded, signIn, setActive } = useSignIn();
@@ -33,16 +31,11 @@ export function AdminAuthPanel({
   const [showPassword, setShowPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
 
-  function isAuthorizedIdentifier(value: string) {
-    const normalized = value.trim().toLowerCase();
-    return normalized === adminLoginId.toLowerCase() || normalized === authenticationIdentifier.toLowerCase();
-  }
-
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError("");
 
-    if (!isLoaded || !signIn || !setActive || !isAuthorizedIdentifier(loginId)) {
+    if (!isLoaded || !signIn || !setActive || !loginId.trim()) {
       setError("The administrator ID or password is incorrect.");
       return;
     }
@@ -71,8 +64,8 @@ export function AdminAuthPanel({
 
   async function startPasswordReset() {
     setError("");
-    if (!isLoaded || !signIn || !isAuthorizedIdentifier(loginId)) {
-      setError("Enter the authorized administrator ID before requesting a reset code.");
+    if (!isLoaded || !signIn || !loginId.trim()) {
+      setError("Enter the administrator ID before requesting a reset code.");
       return;
     }
 
