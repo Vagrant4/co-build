@@ -627,7 +627,7 @@ export async function updateListingStatusAction(formData: FormData) {
   const listing = await prisma.listing.findUnique({ where: { id: listingId }, select: { hostId: true, title: true, host: { select: { role: true, suspended: true, verificationStatus: true, platformSubscriptionStatus: true } } } });
   if (!listing) notFound();
   if (status === "APPROVED" && (!listing.host || !canHostOperate(listing.host))) {
-    throw new Error("This listing cannot be published until its host is approved, active, and subscribed.");
+    redirect("/dashboard/admin?approvalError=host-ineligible#approvals");
   }
   await prisma.$transaction(async (tx) => {
     await tx.listing.update({ where: { id: listingId }, data: { status } });
@@ -635,6 +635,7 @@ export async function updateListingStatusAction(formData: FormData) {
     if (listing.hostId) await queueUserNotification(tx, { userId: listing.hostId, type: "LISTING_STATUS", title: "Listing status updated", body: `${listing.title} is now ${status.toLowerCase()}.`, dedupeKey: `listing:${listingId}:status:${status}`, email: true });
   });
   revalidatePath("/search"); revalidatePath("/dashboard/admin");
+  redirect(`/dashboard/admin?listingUpdate=${status.toLowerCase()}#approvals`);
 }
 
 export async function updateUserVerificationAction(formData: FormData) {

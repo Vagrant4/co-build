@@ -3854,6 +3854,11 @@ body:has(.admin-auth-page) > footer {
 .admin-console__metric-icon { color: #7a818b; }
 .admin-console__metric--alert { border-top: 3px solid #ff5a1f; }
 .admin-console__metric--alert .admin-console__metric-icon { color: #ff5a1f; }
+.admin-console__action-message { display: flex; align-items: flex-start; gap: 12px; margin: 18px 28px 0; border: 1px solid #86b99a; background: #edf8f1; padding: 14px 16px; color: #153d23; }
+.admin-console__action-message div { display: grid; gap: 2px; }
+.admin-console__action-message span { font-size: .9rem; font-weight: 650; }
+.admin-console__action-message--error { border-color: #f0a77f; background: #fff2eb; color: #7c2d12; }
+.admin-console__host-readiness { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 12px; font-size: .78rem; font-weight: 800; }
 .admin-console__pulse { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)) auto; margin: 14px 0 26px; border: 1px solid #e0e3e7; background: #17191c; color: white; }
 .admin-console__pulse > div { padding: 15px 18px; border-right: 1px solid #34383d; }
 .admin-console__pulse span, .admin-console__pulse small { display: block; color: #aeb4bc; font-size: 11px; font-weight: 700; }
