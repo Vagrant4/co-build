@@ -3,7 +3,7 @@
 import { useState, type FormEvent } from "react";
 import { SignOutButton } from "@clerk/nextjs";
 import { useSignIn } from "@clerk/nextjs/legacy";
-import { KeyRound, LoaderCircle, LockKeyhole, LogOut, UserRound } from "lucide-react";
+import { Eye, EyeOff, KeyRound, LoaderCircle, LockKeyhole, LogOut, UserRound } from "lucide-react";
 
 type ClerkError = { errors?: Array<{ longMessage?: string; message?: string }> };
 
@@ -30,6 +30,8 @@ export function AdminAuthPanel({
   const [resetStage, setResetStage] = useState<"idle" | "code-sent">("idle");
   const [resetCode, setResetCode] = useState("");
   const [newPassword, setNewPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
 
   function isAuthorizedIdentifier(value: string) {
     const normalized = value.trim().toLowerCase();
@@ -139,7 +141,12 @@ export function AdminAuthPanel({
         </div>
         <div className="admin-auth-page__field">
           <label htmlFor="admin-new-password"><LockKeyhole size={15} /> New password</label>
-          <input id="admin-new-password" type="password" autoComplete="new-password" value={newPassword} onChange={(event) => setNewPassword(event.target.value)} required minLength={8} />
+          <div className="admin-auth-page__password-control">
+            <input id="admin-new-password" type={showNewPassword ? "text" : "password"} autoComplete="new-password" value={newPassword} onChange={(event) => setNewPassword(event.target.value)} required minLength={8} />
+            <button type="button" onClick={() => setShowNewPassword((visible) => !visible)} aria-label={showNewPassword ? "Hide new password" : "Show new password"} title={showNewPassword ? "Hide password" : "Show password"}>
+              {showNewPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+            </button>
+          </div>
         </div>
         {error ? <p className="admin-auth-page__error" role="alert">{error}</p> : null}
         <button className="admin-auth-page__button" type="submit" disabled={submitting}>
@@ -170,15 +177,20 @@ export function AdminAuthPanel({
       </div>
       <div className="admin-auth-page__field">
         <label htmlFor="admin-password"><LockKeyhole size={15} /> Password</label>
-        <input
-          id="admin-password"
-          name="password"
-          type="password"
-          autoComplete="current-password"
-          value={password}
-          onChange={(event) => setPassword(event.target.value)}
-          required
-        />
+        <div className="admin-auth-page__password-control">
+          <input
+            id="admin-password"
+            name="password"
+            type={showPassword ? "text" : "password"}
+            autoComplete="current-password"
+            value={password}
+            onChange={(event) => setPassword(event.target.value)}
+            required
+          />
+          <button type="button" onClick={() => setShowPassword((visible) => !visible)} aria-label={showPassword ? "Hide password" : "Show password"} title={showPassword ? "Hide password" : "Show password"}>
+            {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+          </button>
+        </div>
       </div>
       {error ? <p className="admin-auth-page__error" role="alert">{error}</p> : null}
       <button className="admin-auth-page__button" type="submit" disabled={!isLoaded || submitting}>
