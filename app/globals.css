@@ -3791,6 +3791,7 @@ body:has(.admin-auth-page) > footer {
 .admin-auth-page__message h2 { margin-top: 10px; font-size: 30px; }
 .admin-auth-page__message > p:not(.admin-auth-page__label) { margin-top: 14px; color: #aeb5bd; font-weight: 650; line-height: 1.6; }
 .admin-auth-page__button { display: flex; width: 100%; min-height: 48px; align-items: center; justify-content: center; gap: 8px; margin-top: 22px; background: #ff5a1f; padding: 10px 16px; color: white; font-weight: 900; }
+.admin-auth-page__button--secondary { margin-top: 10px; border: 1px solid #465057; background: transparent; color: #f4f5f5; }
 .admin-auth-page__hint { margin-bottom: 14px; color: #aeb5bd; font-size: 12px; font-weight: 700; }
 .admin-auth-page__form { width: 100%; border: 1px solid #353a40; border-top: 3px solid #ff5a1f; background: #111315; padding: 30px; box-shadow: 0 24px 70px rgba(0,0,0,.28); }
 .admin-auth-page__field + .admin-auth-page__field { margin-top: 18px; }
