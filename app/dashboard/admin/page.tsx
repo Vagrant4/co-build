@@ -26,7 +26,9 @@ import { prisma } from "@/src/lib/db";
 
 export const dynamic = "force-dynamic";
 
-type PageProps = { searchParams?: Promise<{ page?: string }> | { page?: string } };
+type PageProps = {
+  searchParams?: Promise<{ page?: string; approvalError?: string; listingUpdate?: string }> | { page?: string; approvalError?: string; listingUpdate?: string };
+};
 
 export default async function AdminDashboardPage({ searchParams }: PageProps) {
   const admin = await requirePageRole("ADMIN");
@@ -74,6 +76,19 @@ export default async function AdminDashboardPage({ searchParams }: PageProps) {
           <span>{admin.email}</span>
         </div>
       </header>
+
+      {params.approvalError === "host-ineligible" ? (
+        <div className="admin-console__action-message admin-console__action-message--error" role="alert">
+          <ShieldAlert size={20} />
+          <div><strong>Listing remains pending.</strong><span>Approve the host account, confirm it is not suspended, and activate its subscription before approving the listing.</span></div>
+        </div>
+      ) : null}
+      {params.listingUpdate ? (
+        <div className="admin-console__action-message" role="status">
+          <CheckCircle2 size={20} />
+          <div><strong>Listing updated.</strong><span>The listing is now {params.listingUpdate}.</span></div>
+        </div>
+      ) : null}
 
       <section className="admin-console__metrics" aria-label="Platform overview">
         <Metric label="Hosts" value={String(totals.hostCount)} detail={`${totals.newUserCount} new accounts / 7 days`} icon={Building2} />
@@ -171,6 +186,12 @@ export default async function AdminDashboardPage({ searchParams }: PageProps) {
                 <p className="font-bold text-steel">
                   {listing.address} · {listing.sizeSqft} sqft · {listing.powerType.replace("_", " ")}
                 </p>
+                <div className="admin-console__host-readiness">
+                  <span>Host: {listing.host?.fullName ?? "Missing host"}</span>
+                  <StatusBadge status={listing.host?.verificationStatus ?? "MISSING"} />
+                  <StatusBadge status={listing.host?.platformSubscriptionStatus ?? "MISSING"} />
+                  {listing.host?.suspended ? <StatusBadge status="SUSPENDED" /> : null}
+                </div>
               </div>
               <div className="grid grid-cols-3 gap-2">
                 <ListingStatusButton listingId={listing.id} status="APPROVED" label="Approve" icon="approve" />

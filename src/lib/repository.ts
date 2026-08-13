@@ -87,7 +87,10 @@ export async function getDashboardData(options: { page?: number; pageSize?: numb
   const [users, listings, bookings, uploads, approvalEvents, equipment, payments, privacyRequests, moderationReports] = await Promise.all([
     prisma.user.findMany({ orderBy: { createdAt: "desc" }, skip, take: pageSize }),
     prisma.listing.findMany({
-      include: { bookings: true },
+      include: {
+        bookings: true,
+        host: { select: { fullName: true, role: true, suspended: true, verificationStatus: true, platformSubscriptionStatus: true } }
+      },
       orderBy: { createdAt: "desc" },
       skip, take: pageSize
     }),
