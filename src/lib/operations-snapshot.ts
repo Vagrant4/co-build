@@ -34,7 +34,7 @@ export async function collectOperationsSnapshot(now = new Date()) {
     prisma.booking.count({ where: { status: { in: ["PENDING_HOST", "PENDING_ADMIN_HIGH_RISK", "APPROVED_FOR_PAYMENT", "PAYMENT_SUBMITTED", "PAID_CONFIRMED", "CHECKED_IN"] } } }),
     prisma.upload.aggregate({ _sum: { sizeBytes: true } }),
     prisma.upload.count({ where: { uploadStatus: "PENDING", createdAt: { lt: staleUploadBefore } } }),
-    prisma.upload.count({ where: { uploadStatus: "AVAILABLE", OR: [{ objectKey: null }, { contentType: null }, { sizeBytes: null }, { checksumSha256: null }] } }),
+    prisma.upload.count({ where: { storageProvider: "VERCEL_BLOB", uploadStatus: "AVAILABLE", OR: [{ objectKey: null }, { contentType: null }, { sizeBytes: null }, { checksumSha256: null }] } }),
     prisma.upload.count({ where: { uploadStatus: "AVAILABLE", scanStatus: { in: ["PENDING", "NOT_REQUIRED"] }, storageProvider: "VERCEL_BLOB" } }),
     prisma.notification.count({ where: { channel: "EMAIL", status: "FAILED", attemptCount: { gte: 5 } } }),
     prisma.moderationReport.count({ where: { status: { in: ["OPEN", "REVIEWING"] } } }),
