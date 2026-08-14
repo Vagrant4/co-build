@@ -1,0 +1,80 @@
+name: Public launch evidence gate
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "15 0 * * *"
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  evidence:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      GH_TOKEN: ${{ github.token }}
+      PUBLIC_URL: https://spaceoncall.com
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Verify public marketplace remains closed
+        shell: bash
+        run: |
+          set -euo pipefail
+          status="$(curl --silent --show-error --location --output paused.html --write-out '%{http_code}' "$PUBLIC_URL/")"
+          test "$status" = "503" || { echo "::error::Public root returned HTTP $status instead of 503"; exit 1; }
+          grep -q "Public access is paused" paused.html || { echo "::error::Launch pause marker is missing"; exit 1; }
+
+      - name: Verify database-aware health
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error "$PUBLIC_URL/api/health" > health.json
+          grep -q '"status":"ok"' health.json
+
+      - name: Require recent CI, backup, restore, and scanner verification evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json, os, subprocess
+          from datetime import datetime, timezone, timedelta
+
+          requirements = [
+              ("phase-2a-ci.yml", timedelta(days=2), "release CI"),
+              ("nightly-database-backup.yml", timedelta(days=2), "encrypted backup"),
+              ("database-restore-drill.yml", timedelta(days=35), "restore drill"),
+              ("clamav-scanner.yml", timedelta(days=14), "scanner build verification"),
+          ]
+          now = datetime.now(timezone.utc)
+          for workflow, maximum_age, label in requirements:
+              raw = subprocess.check_output([
+                  "gh", "run", "list", "--repo", os.environ["GITHUB_REPOSITORY"],
+                  "--workflow", workflow, "--status", "success", "--limit", "1",
+                  "--json", "updatedAt,databaseId"
+              ], text=True)
+              runs = json.loads(raw)
+              if not runs:
+                  raise SystemExit(f"No successful {label} evidence exists")
+              completed = datetime.fromisoformat(runs[0]["updatedAt"].replace("Z", "+00:00"))
+              if now - completed > maximum_age:
+                  raise SystemExit(f"Latest successful {label} evidence is stale: {completed.isoformat()}")
+              print(f"{label}: passed in run {runs[0]['databaseId']} at {completed.isoformat()}")
+          PY
+
+      - name: Record launch evidence summary
+        shell: bash
+        run: |
+          {
+            echo "### SpaceOnCall launch evidence"
+            echo "- Public marketplace lock: active"
+            echo "- Database-aware health: passed"
+            echo "- Release CI: recent success required"
+            echo "- Encrypted backup: recent success required"
+            echo "- Restore drill: recent success required"
+            echo "- Scanner service build: recent success required"
+            echo "- Public reopening: still requires provider acceptance tests and commit-bound owner approval"
+            echo "- Checked (UTC): $(date -u +'%Y-%m-%dT%H:%M:%SZ')"
+          } >> "$GITHUB_STEP_SUMMARY"
