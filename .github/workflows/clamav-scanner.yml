@@ -1,0 +1,60 @@
+name: ClamAV scanner verification
+
+on:
+  pull_request:
+    paths:
+      - "services/clamav-scanner/**"
+      - "scripts/verify-clamav-scanner.mjs"
+      - "src/lib/malware-scanner.ts"
+      - ".github/workflows/clamav-scanner.yml"
+  push:
+    branches:
+      - "codex/**"
+    paths:
+      - "services/clamav-scanner/**"
+      - "scripts/verify-clamav-scanner.mjs"
+      - "src/lib/malware-scanner.ts"
+      - ".github/workflows/clamav-scanner.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  scanner-runtime:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      SCANNER_TOKEN: ci-only-scanner-token-0123456789abcdef
+      MALWARE_SCANNER_URL: http://127.0.0.1:8080/scan
+      MALWARE_SCANNER_TOKEN: ci-only-scanner-token-0123456789abcdef
+      ALLOW_LOCAL_SCANNER_HTTP: "true"
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+      - name: Build scanner container
+        run: docker build --tag spaceoncall-clamav:ci services/clamav-scanner
+      - name: Start scanner container
+        run: docker run --detach --name spaceoncall-clamav-ci --publish 127.0.0.1:8080:8080 --env SCANNER_TOKEN spaceoncall-clamav:ci
+      - name: Wait for ClamAV signatures and health
+        shell: bash
+        run: |
+          set -euo pipefail
+          for attempt in $(seq 1 120); do
+            if curl --fail --silent --max-time 3 http://127.0.0.1:8080/health | grep -q '"status":"ok"'; then
+              exit 0
+            fi
+            sleep 2
+          done
+          docker logs spaceoncall-clamav-ci
+          exit 1
+      - name: Verify clean control and EICAR detection
+        run: node scripts/verify-clamav-scanner.mjs
+      - name: Preserve scanner diagnostics
+        if: always()
+        run: docker logs spaceoncall-clamav-ci || true
+      - name: Remove scanner container
+        if: always()
+        run: docker rm --force spaceoncall-clamav-ci || true
