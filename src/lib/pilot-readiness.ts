@@ -46,11 +46,13 @@ export function pilotReadinessIssues(environment: NodeJS.ProcessEnv = process.en
   }
   if (environment.REAL_UPLOADS_ENABLED !== "true") issues.push({ key: "REAL_UPLOADS_ENABLED", message: "Private durable uploads must be explicitly enabled." });
   if (!environment.BLOB_READ_WRITE_TOKEN?.trim()) issues.push({ key: "BLOB_READ_WRITE_TOKEN", message: "A connected private Blob store is required." });
-  const scannerConfigured = Boolean(environment.MALWARE_SCANNER_URL?.trim() && environment.MALWARE_SCANNER_TOKEN?.trim());
+  const scannerConfigured = environment.MALWARE_SCANNER_PROVIDER === "cloudmersive"
+    ? Boolean(environment.CLOUDMERSIVE_API_KEY?.trim())
+    : Boolean(environment.MALWARE_SCANNER_URL?.trim() && environment.MALWARE_SCANNER_TOKEN?.trim());
   if (mode === "pilot" && environment.ALLOW_UNSCANNED_UPLOADS !== "true" && !scannerConfigured) {
     issues.push({ key: "ALLOW_UNSCANNED_UPLOADS", message: "The pilot owner must explicitly accept the temporary unscanned-upload risk or add a scanner before enabling uploads." });
   }
-  if (mode === "production" && !scannerConfigured) issues.push({ key: "UPLOAD_MALWARE_SCANNER", message: "Production requires MALWARE_SCANNER_URL and MALWARE_SCANNER_TOKEN." });
+  if (mode === "production" && !scannerConfigured) issues.push({ key: "UPLOAD_MALWARE_SCANNER", message: "Production requires a configured malware-scanning provider." });
   const legalIssue = legalGateIssue(environment);
   if (legalIssue) issues.push({ key: mode === "pilot" ? "LEGAL_PILOT_OWNER_ACKNOWLEDGED" : "LEGAL_REVIEW_APPROVED_VERSION", message: legalIssue });
   validateUrl(environment, "NEXT_PUBLIC_APP_URL", issues, true);
