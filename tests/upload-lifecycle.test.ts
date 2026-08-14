@@ -1,7 +1,7 @@
 import type { PutBlobResult } from "@vercel/blob";
 import { describe, expect, it, vi } from "vitest";
 import type { PrivateStorageAdapter } from "../src/lib/storage";
-import { finalizeClientUpload, type PendingUploadRecord, type UploadLifecycleRepository } from "../src/lib/upload-service";
+import { finalizeClientUpload, remediateLegacyUploads, type LegacyUploadCandidate, type LegacyUploadRemediationRepository, type PendingUploadRecord, type UploadLifecycleRepository } from "../src/lib/upload-service";
 
 const onePixelPng = Uint8Array.from(Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=", "base64"));
 const pending: PendingUploadRecord = {
@@ -42,5 +42,36 @@ describe("staged upload lifecycle", () => {
     await expect(finalizeClientUpload(pending.id, blob, store, repository)).rejects.toThrow(/reservation/i);
     expect(store.delete).toHaveBeenCalledWith(pending.objectKey);
     expect(repository.markAvailable).not.toHaveBeenCalled();
+  });
+});
+
+describe("legacy upload remediation", () => {
+  const candidate: LegacyUploadCandidate = { ...pending, uploadStatus: "AVAILABLE", scanStatus: "NOT_REQUIRED", checksumSha256: null };
+
+  it("marks a legacy object safe only after validation and scanning", async () => {
+    const store = storage();
+    const repository: LegacyUploadRemediationRepository = {
+      listCandidates: vi.fn(async () => [candidate]),
+      markSafe: vi.fn(async () => undefined),
+      markRejected: vi.fn(async () => undefined)
+    };
+    const result = await remediateLegacyUploads("admin-a", 20, store, repository, vi.fn(async () => "SAFE"));
+    expect(result).toEqual({ scanned: 1, rejected: 0, remaining: 0 });
+    expect(repository.markSafe).toHaveBeenCalledOnce();
+    expect(repository.markRejected).not.toHaveBeenCalled();
+  });
+
+  it("deletes and rejects a legacy object when scanning fails", async () => {
+    const store = storage();
+    const repository: LegacyUploadRemediationRepository = {
+      listCandidates: vi.fn(async () => [candidate]),
+      markSafe: vi.fn(async () => undefined),
+      markRejected: vi.fn(async () => undefined)
+    };
+    const result = await remediateLegacyUploads("admin-a", 20, store, repository, vi.fn(async () => { throw new Error("unsafe"); }));
+    expect(result).toEqual({ scanned: 0, rejected: 1, remaining: 0 });
+    expect(store.delete).toHaveBeenCalledWith(candidate.objectKey);
+    expect(repository.markRejected).toHaveBeenCalledOnce();
+    expect(repository.markSafe).not.toHaveBeenCalled();
   });
 });

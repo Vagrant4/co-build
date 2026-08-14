@@ -7,6 +7,7 @@ import {
   reviewAdditionalRequirementPaymentAction,
   reviewBookingPaymentAction,
   reviewModerationReportAction,
+  remediateLegacyUploadsAction,
   toggleUserSuspensionAction,
   updateBookingStatusAction,
   updateDepositStatusAction,
@@ -29,7 +30,7 @@ import { collectOperationsSnapshot } from "@/src/lib/operations-snapshot";
 export const dynamic = "force-dynamic";
 
 type PageProps = {
-  searchParams?: Promise<{ page?: string; approvalError?: string; listingUpdate?: string }> | { page?: string; approvalError?: string; listingUpdate?: string };
+  searchParams?: Promise<{ page?: string; approvalError?: string; listingUpdate?: string; uploadRemediation?: string }> | { page?: string; approvalError?: string; listingUpdate?: string; uploadRemediation?: string };
 };
 
 export default async function AdminDashboardPage({ searchParams }: PageProps) {
@@ -121,8 +122,14 @@ export default async function AdminDashboardPage({ searchParams }: PageProps) {
             <ul className="mt-2 grid gap-1 text-sm font-bold text-orange-900">
               {operations.warnings.map((warning) => <li key={warning}>• {warning}</li>)}
             </ul>
+            {operations.unscannedUploads || operations.missingMetadata ? (
+              <form action={remediateLegacyUploadsAction} className="mt-3">
+                <button className="button-primary" type="submit">Validate and scan legacy uploads</button>
+              </form>
+            ) : null}
           </div>
         ) : <p className="mt-4 text-sm font-bold text-steel">No automated operating threshold is currently breached.</p>}
+        {params.uploadRemediation ? <p className="mt-3 text-sm font-black text-green-700" role="status">Legacy upload remediation completed: {params.uploadRemediation.replace("-", " safe, ")} rejected.</p> : null}
       </section>
 
       <LaunchReadinessPanel />

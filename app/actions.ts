@@ -40,6 +40,7 @@ import { queueAdminNotifications, queueUserNotification } from "@/src/lib/notifi
 import { enforceRateLimit } from "@/src/lib/rate-limit";
 import { toListing } from "@/src/lib/repository";
 import { commonSafetyRules } from "@/src/lib/seed-data";
+import { remediateLegacyUploads } from "@/src/lib/upload-service";
 
 export async function createBookingAction(formData: FormData) {
   const renter = await requireRole("RENTER");
@@ -771,6 +772,13 @@ export async function reviewModerationReportAction(formData: FormData) {
     await queueUserNotification(tx, { userId: report.reporterId, type: "MODERATION_RESULT", title: "Chat report reviewed", body: `Your report was ${status.toLowerCase()}.`, dedupeKey: `moderation:${reportId}:result`, email: true });
   });
   revalidatePath("/dashboard/admin");
+}
+
+export async function remediateLegacyUploadsAction() {
+  const admin = await requireAdmin();
+  const result = await remediateLegacyUploads(admin.id);
+  revalidatePath("/dashboard/admin");
+  redirect(`/dashboard/admin?uploadRemediation=${result.scanned}-${result.rejected}#overview`);
 }
 
 async function validatedMessageForActor(formData: FormData, actorId: string, contextType: string, contextId: string): Promise<string> {
