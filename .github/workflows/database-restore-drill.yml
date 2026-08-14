@@ -1,6 +1,9 @@
 name: Database restore drill
 
 on:
+  schedule:
+    # Monthly at 03:00 Asia/Singapore on the second calendar day.
+    - cron: "0 19 1 * *"
   workflow_dispatch:
 
 concurrency:

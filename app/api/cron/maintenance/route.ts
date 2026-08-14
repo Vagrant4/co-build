@@ -6,6 +6,7 @@ import { createAuditCheckpoint, verifyAuditCheckpoints } from "@/src/lib/audit-c
 import { executeApprovedRetention } from "@/src/lib/retention";
 import { sendOpsAlert } from "@/src/lib/ops-alerts";
 import { runPrivateBlobSmoke } from "@/src/lib/blob-smoke";
+import { collectOperationsSnapshot } from "@/src/lib/operations-snapshot";
 
 export const dynamic = "force-dynamic";
 
@@ -26,11 +27,25 @@ export async function GET(request: Request) {
     process.env.RETENTION_EXECUTION_ENABLED === "true" ? executeApprovedRetention() : Promise.resolve({ examined: 0, deletedObjects: 0, markedDeleted: 0 }),
     runPrivateBlobSmoke()
   ]);
-  const auditVerification = await verifyAuditCheckpoints();
+  const [auditVerification, operations] = await Promise.all([verifyAuditCheckpoints(), collectOperationsSnapshot(now)]);
   if (!auditVerification.valid) logEvent("error", "audit_checkpoint_verification_failed", { requestId, failedCheckpointId: auditVerification.failedCheckpointId });
   const healthy = auditVerification.valid && blobSmoke.ok;
-  const alertNeeded = !healthy || notifications.failed > 0;
-  const alert = alertNeeded ? await sendOpsAlert("maintenance_attention_required", { auditValid: auditVerification.valid, blobStorageValid: blobSmoke.ok, failedNotifications: notifications.failed, staleUploadReservations: uploads.count }) : { delivered: false, skipped: true };
+  const alertNeeded = !healthy || notifications.failed > 0 || operations.warnings.length > 0;
+  const alert = alertNeeded ? await sendOpsAlert("maintenance_attention_required", {
+    auditValid: auditVerification.valid,
+    blobStorageValid: blobSmoke.ok,
+    failedNotifications: notifications.failed,
+    staleUploadReservations: uploads.count,
+    activeSubscriptions: operations.activeSubscriptions,
+    activeBookings: operations.activeBookings,
+    recentBookings: operations.recentBookings,
+    uploadBytes: operations.uploadBytes,
+    unscannedUploads: operations.unscannedUploads,
+    pastDueSubscriptions: operations.pastDueSubscriptions,
+    openModerationReports: operations.openModerationReports,
+    warningCount: operations.warnings.length,
+    warnings: operations.warnings.join(" | ").slice(0, 500)
+  }) : { delivered: false, skipped: true };
   logEvent(healthy ? "info" : "error", "maintenance_completed", { requestId, expiredRateLimits: rateLimits.count, staleUploadReservations: uploads.count, deliveredNotifications: notifications.delivered, failedNotifications: notifications.failed, auditCheckpointCreated: checkpoint.created, auditValid: auditVerification.valid, blobStorageValid: blobSmoke.ok, blobStorageDurationMs: blobSmoke.durationMs });
-  return Response.json({ status: healthy ? "ok" : "degraded", expiredRateLimits: rateLimits.count, staleUploadReservations: uploads.count, notifications, retention, blobSmoke, alert, checkpoint: { created: checkpoint.created, eventCount: checkpoint.eventCount }, auditVerification }, { status: healthy ? 200 : 503, headers: { "Cache-Control": "no-store", "x-request-id": requestId } });
+  return Response.json({ status: healthy ? "ok" : "degraded", expiredRateLimits: rateLimits.count, staleUploadReservations: uploads.count, notifications, retention, blobSmoke, operations, alert, checkpoint: { created: checkpoint.created, eventCount: checkpoint.eventCount }, auditVerification }, { status: healthy ? 200 : 503, headers: { "Cache-Control": "no-store", "x-request-id": requestId } });
 }
