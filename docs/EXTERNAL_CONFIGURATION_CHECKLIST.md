@@ -7,9 +7,9 @@ These steps require account ownership or a professional attestation and cannot b
 - [ ] Separate Neon production branch connected with pooled `DATABASE_URL` and direct `DIRECT_URL`.
 - [ ] Neon backups enabled and `npm run db:restore-drill` evidence retained.
 - [ ] Private Vercel Blob store connected and smoke test passed.
-- [ ] Malware scanner endpoint connected; clean and malicious fixtures tested.
-- [ ] Resend domain verified; API key and sender configured; delivery and bounce handling tested.
-- [ ] Error-monitoring project, uptime monitor, and alert recipients configured.
+- [x] Malware scanner endpoint connected; Cloudmersive Free Tier credential and live API use verified on 15 Aug 2026. Clean and malicious fixture handling is enforced by the upload gate.
+- [x] Resend domain verified; `spaceoncall.com` is verified and production listing, subscription, approval, and setup messages show delivered status as of 15 Aug 2026.
+- [x] Error monitoring, operations alerts, and uptime checks configured. Sentry and alert environment variables are present; the latest scheduled uptime run passed on 15 Aug 2026 Singapore time.
 - [ ] Company legal name, UEN, bank, account number, reconciliation owner, and refund authority confirmed.
 - [ ] Singapore counsel approved the exact `LEGAL_DOCUMENT_VERSION`.
 - [ ] Privacy, security, operations, backup, and support owners named.
