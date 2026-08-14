@@ -9,8 +9,23 @@ describe("public launch lock", () => {
   });
 
   it("requires an explicit true value outside demo", () => {
-    expect(isPublicLaunchEnabled({ PUBLIC_LAUNCH_ENABLED: "true" } as NodeJS.ProcessEnv, "pilot")).toBe(true);
+    expect(isPublicLaunchEnabled({ PUBLIC_LAUNCH_ENABLED: "true" } as NodeJS.ProcessEnv, "pilot")).toBe(false);
+    expect(isPublicLaunchEnabled({
+      PUBLIC_LAUNCH_ENABLED: "true",
+      PUBLIC_LAUNCH_APPROVED_AT: "2026-08-14T08:00:00.000Z",
+      PUBLIC_LAUNCH_APPROVED_SHA: "reviewed-sha",
+      VERCEL_GIT_COMMIT_SHA: "reviewed-sha"
+    } as NodeJS.ProcessEnv, "pilot")).toBe(true);
     expect(isPublicLaunchEnabled({} as NodeJS.ProcessEnv, "demo")).toBe(true);
+  });
+
+  it("closes again when a different commit is deployed", () => {
+    expect(isPublicLaunchEnabled({
+      PUBLIC_LAUNCH_ENABLED: "true",
+      PUBLIC_LAUNCH_APPROVED_AT: "2026-08-14T08:00:00.000Z",
+      PUBLIC_LAUNCH_APPROVED_SHA: "old-sha",
+      VERCEL_GIT_COMMIT_SHA: "new-sha"
+    } as NodeJS.ProcessEnv, "production")).toBe(false);
   });
 
   it.each([

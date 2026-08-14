@@ -17,7 +17,17 @@ export function isPublicLaunchEnabled(
   mode: AppMode
 ): boolean {
   if (mode === "demo") return true;
-  return environment.PUBLIC_LAUNCH_ENABLED === "true";
+  if (environment.PUBLIC_LAUNCH_ENABLED !== "true") return false;
+  const approvedAt = environment.PUBLIC_LAUNCH_APPROVED_AT;
+  const approvedSha = environment.PUBLIC_LAUNCH_APPROVED_SHA;
+  const deployedSha = environment.VERCEL_GIT_COMMIT_SHA;
+  return Boolean(
+    approvedAt &&
+    !Number.isNaN(Date.parse(approvedAt)) &&
+    approvedSha &&
+    deployedSha &&
+    approvedSha === deployedSha
+  );
 }
 
 export function isAvailableWhileLaunchPaused(pathname: string): boolean {
