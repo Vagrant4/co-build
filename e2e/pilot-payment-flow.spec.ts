@@ -1,7 +1,12 @@
-import { expect, test } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
 import { PrismaClient } from "@prisma/client";
 
 const prisma = new PrismaClient();
+
+async function switchDemoUser(page: Page, userId: string, nextPath: string) {
+  await page.goto(`/demo/session?user=${userId}&next=${encodeURIComponent(nextPath)}`, { waitUntil: "commit" });
+  await page.waitForURL(`**${nextPath}`);
+}
 
 test.afterAll(async () => {
   await prisma.$disconnect();
@@ -31,7 +36,7 @@ test("renter and host accept one agreement before admin verifies payment", async
   });
 
   try {
-    await page.goto("/demo/session?user=demo-renter&next=/dashboard/user");
+    await switchDemoUser(page, "demo-renter", "/dashboard/user");
     let agreementLink = page.locator(`a[href="/dashboard/bookings/${booking.id}/agreement"]`);
     let bookingCard = agreementLink.locator("xpath=ancestor::section[1]");
     await bookingCard.getByPlaceholder(/Ask the host/i).fill("Please confirm the access window and loading arrangements.");
@@ -40,7 +45,7 @@ test("renter and host accept one agreement before admin verifies payment", async
     await expect.poll(() => prisma.bookingMessage.count({ where: { bookingId: booking.id, senderId: "demo-renter" } })).toBe(1);
     await expect.poll(async () => Boolean((await prisma.booking.findUniqueOrThrow({ where: { id: booking.id } })).renterDealConfirmedAt)).toBe(true);
 
-    await page.goto("/demo/session?user=demo-host&next=/dashboard/host");
+    await switchDemoUser(page, "demo-host", "/dashboard/host");
     bookingCard = page.locator(`a[href="/dashboard/bookings/${booking.id}/agreement"]`).locator("xpath=ancestor::article[1]");
     await bookingCard.getByPlaceholder(/Message the renter/i).fill("Access is confirmed. Please follow the PPE and loading rules.");
     await bookingCard.getByRole("button", { name: "Send message" }).click();
@@ -50,14 +55,14 @@ test("renter and host accept one agreement before admin verifies payment", async
     await expect.poll(async () => (await prisma.booking.findUniqueOrThrow({ where: { id: booking.id } })).status).toBe("APPROVED_FOR_PAYMENT");
     await expect.poll(async () => Boolean((await prisma.booking.findUniqueOrThrow({ where: { id: booking.id } })).hostDealConfirmedAt)).toBe(true);
 
-    await page.goto(`/demo/session?user=demo-renter&next=/dashboard/bookings/${booking.id}/agreement`);
+    await switchDemoUser(page, "demo-renter", `/dashboard/bookings/${booking.id}/agreement`);
     await page.getByLabel(/reviewed and accept/i).check();
     await page.getByRole("button", { name: "Accept agreement" }).click();
     await expect.poll(() => prisma.agreementAcceptance.count({ where: { bookingId: booking.id, userId: "demo-renter" } })).toBe(1);
     await page.reload();
     await expect(page.getByText("Your acceptance is recorded.")).toBeVisible();
 
-    await page.goto(`/demo/session?user=demo-host&next=/dashboard/bookings/${booking.id}/agreement`);
+    await switchDemoUser(page, "demo-host", `/dashboard/bookings/${booking.id}/agreement`);
     await page.getByLabel(/reviewed and accept/i).check();
     await page.getByRole("button", { name: "Accept agreement" }).click();
     await expect.poll(() => prisma.agreementAcceptance.count({ where: { bookingId: booking.id, userId: "demo-host" } })).toBe(1);
@@ -65,7 +70,7 @@ test("renter and host accept one agreement before admin verifies payment", async
     await expect(page.getByText("Renter: Accepted")).toBeVisible();
     await expect(page.getByText("Host: Accepted")).toBeVisible();
 
-    await page.goto("/demo/session?user=demo-renter&next=/dashboard/user");
+    await switchDemoUser(page, "demo-renter", "/dashboard/user");
     agreementLink = page.locator(`a[href="/dashboard/bookings/${booking.id}/agreement"]`);
     bookingCard = agreementLink.locator("xpath=ancestor::section[1]");
     await bookingCard.getByPlaceholder("PayNow or bank reference").first().fill(reference);
@@ -75,7 +80,7 @@ test("renter and host accept one agreement before admin verifies payment", async
     await expect(bookingCard.getByText(/remains unpaid until admin verifies/i)).toBeVisible();
     expect((await prisma.booking.findUniqueOrThrow({ where: { id: booking.id } })).status).toBe("PAYMENT_SUBMITTED");
 
-    await page.goto("/demo/session?user=demo-admin&next=/dashboard/admin");
+    await switchDemoUser(page, "demo-admin", "/dashboard/admin");
     const paymentCard = page.locator("article").filter({ hasText: reference });
     await paymentCard.getByRole("button", { name: "Verify paid" }).click();
     await expect.poll(async () => (await prisma.booking.findUniqueOrThrow({ where: { id: booking.id } })).status).toBe("PAID_CONFIRMED");
@@ -97,7 +102,7 @@ test("renter and host accept one agreement before admin verifies payment", async
           scanStatus: "NOT_REQUIRED"
         }
       });
-      await page.goto("/demo/session?user=demo-renter&next=/dashboard/user");
+      await switchDemoUser(page, "demo-renter", "/dashboard/user");
       bookingCard = page.locator(`a[href="/dashboard/bookings/${booking.id}/agreement"]`).locator("xpath=ancestor::section[1]");
       const form = bookingCard.locator(`form:has(input[name="uploadKind"][value="${type}"])`);
       await form.evaluate((element, uploadId) => {
