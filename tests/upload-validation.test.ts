@@ -1,10 +1,20 @@
 import { describe, expect, it } from "vitest";
 import { validateUploadBytes } from "../src/lib/upload-validation";
-import { assertRealUploadsConfigured, assertSafeUploadDeclaration, privateDownloadHeaders } from "../src/lib/uploads";
+import { assertRealUploadsConfigured, assertSafeUploadDeclaration, getUploadPolicy, privateDownloadHeaders } from "../src/lib/uploads";
 
 const onePixelPng = Uint8Array.from(Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=", "base64"));
 
 describe("private upload validation", () => {
+  it("caps uploads at the Cloudmersive free-tier file limit", () => {
+    const environment = { MALWARE_SCANNER_PROVIDER: "cloudmersive" } as NodeJS.ProcessEnv;
+    expect(getUploadPolicy("LISTING_PHOTO", environment).maximumSizeInBytes).toBe(3.5 * 1024 * 1024);
+    expect(() => assertSafeUploadDeclaration("LISTING_PHOTO", {
+      originalName: "workshop.png",
+      contentType: "image/png",
+      sizeBytes: 4 * 1024 * 1024
+    }, environment)).toThrow(/size/i);
+  });
+
   it("accepts a real image and records a SHA-256 checksum", async () => {
     const result = await validateUploadBytes({ type: "CHECK_IN", originalName: "arrival.png", declaredContentType: "image/png", bytes: onePixelPng });
     expect(result.contentType).toBe("image/png");

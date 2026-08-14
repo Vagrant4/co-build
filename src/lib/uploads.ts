@@ -36,8 +36,9 @@ function imagePolicy(maximumMiB: number): UploadPolicy {
 
 export function getUploadPolicy(type: UploadType, environment: NodeJS.ProcessEnv = process.env): UploadPolicy {
   const configuredMaximum = Number(environment.MAX_UPLOAD_BYTES || Number.MAX_SAFE_INTEGER);
+  const scannerMaximum = environment.MALWARE_SCANNER_PROVIDER === "cloudmersive" ? 3.5 * MiB : Number.MAX_SAFE_INTEGER;
   const base = policies[type];
-  return { ...base, maximumSizeInBytes: Math.min(base.maximumSizeInBytes, configuredMaximum) };
+  return { ...base, maximumSizeInBytes: Math.min(base.maximumSizeInBytes, configuredMaximum, scannerMaximum) };
 }
 
 export function assertRealUploadsConfigured(environment: NodeJS.ProcessEnv = process.env): void {
