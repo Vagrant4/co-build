@@ -1,7 +1,8 @@
 import { clerkMiddleware } from "@clerk/nextjs/server";
 import { NextRequest, NextResponse, type NextFetchEvent } from "next/server";
-import { assertAuthenticationConfigured, isDemoMode } from "@/src/lib/app-mode";
+import { assertAuthenticationConfigured, getAppMode, isDemoMode } from "@/src/lib/app-mode";
 import { DEMO_SESSION_COOKIE } from "@/src/lib/authorization";
+import { isAvailableWhileLaunchPaused, isPublicLaunchEnabled, launchPausedResponse } from "@/src/lib/public-launch";
 import { gatePageRequest } from "@/src/lib/request-gate";
 
 const managedAuthentication = clerkMiddleware(async (auth, request) => {
@@ -14,6 +15,12 @@ export default async function proxy(request: NextRequest, event: NextFetchEvent)
   const headers = new Headers(request.headers);
   headers.set("x-request-id", requestId);
   const requestWithId = new NextRequest(request, { headers });
+  const mode = getAppMode();
+  if (!isPublicLaunchEnabled(process.env, mode) && !isAvailableWhileLaunchPaused(request.nextUrl.pathname)) {
+    const response = launchPausedResponse();
+    response.headers.set("x-request-id", requestId);
+    return response;
+  }
   if (isDemoMode()) {
     const denied = await gatePageRequest(requestWithId, { kind: "demo", userId: request.cookies.get(DEMO_SESSION_COOKIE)?.value ?? null });
     if (denied) {
