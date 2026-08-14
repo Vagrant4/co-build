@@ -29,6 +29,7 @@
     "payments:reconcile": "tsx scripts/reconcile-bank-statement.ts",
     "pilot:preflight": "tsx scripts/pilot-preflight.ts",
     "scanner:verify": "node scripts/verify-clamav-scanner.mjs",
+    "providers:verify": "tsx scripts/verify-production-providers.ts",
     "vercel-build": "npm run prisma:generate:prod && npm run pilot:preflight && next build"
   },
   "dependencies": {

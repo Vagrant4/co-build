@@ -1,0 +1,38 @@
+name: Production provider acceptance
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      BLOB_READ_WRITE_TOKEN: ${{ secrets.BLOB_READ_WRITE_TOKEN }}
+      MALWARE_SCANNER_URL: ${{ vars.MALWARE_SCANNER_URL }}
+      MALWARE_SCANNER_TOKEN: ${{ secrets.MALWARE_SCANNER_TOKEN }}
+      RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+      TRANSACTIONAL_EMAIL_FROM: ${{ vars.TRANSACTIONAL_EMAIL_FROM }}
+      PROVIDER_ACCEPTANCE_EMAIL: ${{ vars.PROVIDER_ACCEPTANCE_EMAIL }}
+      NEXT_PUBLIC_SENTRY_DSN: ${{ vars.NEXT_PUBLIC_SENTRY_DSN }}
+      SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+      SENTRY_ORG: ${{ vars.SENTRY_ORG }}
+      SENTRY_PROJECT: ${{ vars.SENTRY_PROJECT }}
+      STRIPE_SECRET_KEY: ${{ secrets.STRIPE_SECRET_KEY }}
+      STRIPE_MONTHLY_PRICE_ID: ${{ vars.STRIPE_MONTHLY_PRICE_ID }}
+      NEXT_PUBLIC_APP_URL: https://spaceoncall.com
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run providers:verify
+      - name: Record non-sensitive acceptance evidence
+        run: |
+          echo "### Production provider acceptance" >> "$GITHUB_STEP_SUMMARY"
+          echo "All private storage, malware scanner, Resend, Sentry, and Stripe acceptance checks passed." >> "$GITHUB_STEP_SUMMARY"
