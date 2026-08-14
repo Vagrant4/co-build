@@ -3867,7 +3867,7 @@ body:has(.admin-auth-page) > footer {
 .admin-console__pulse strong { display: block; margin: 3px 0; font-size: 21px; }
 .admin-console__pulse > a { display: flex; align-items: center; gap: 7px; padding: 16px; color: #ff6a33; font-size: 12px; font-weight: 800; }
 .admin-console__section { scroll-margin-top: 18px; margin: 0 0 18px; border: 1px solid #e0e3e7; background: white; padding: 20px; }
-.admin-console__section > h2 { color: #17191c; font-size: 18px; }
+body.spaceoncall-theme main.admin-console .admin-console__section > h2 { color: #17191c; font-size: 18px; }
 .admin-console__account-card { scroll-margin-top: 18px; }
 .admin-console__account-card:target { border-color: #ff5a1f; box-shadow: 0 0 0 2px rgb(255 90 31 / 18%); }
 
