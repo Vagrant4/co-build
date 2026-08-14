@@ -32,6 +32,7 @@ async function verifyBlob() {
 }
 
 async function verifyScanner() {
+  if (process.env.MALWARE_SCANNER_PROVIDER === "cloudmersive") return verifyCloudmersiveScanner();
   const endpoint = new URL(required("MALWARE_SCANNER_URL"));
   if (endpoint.protocol !== "https:") throw new Error("MALWARE_SCANNER_URL must use HTTPS.");
   const token = required("MALWARE_SCANNER_TOKEN");
@@ -44,6 +45,23 @@ async function verifyScanner() {
   const eicar = "X5O!P%@AP[4\\PZX54(P^)7CC)7}$EICAR-STANDARD-ANTIVIRUS-TEST-FILE!$H+H*";
   if ((await scan(eicar)).safe !== false) throw new Error("Scanner failed the EICAR detection check.");
   results.push({ provider: "malware-scanner", status: "passed", detail: "clean accepted and EICAR rejected" });
+}
+
+async function verifyCloudmersiveScanner() {
+  const apiKey = required("CLOUDMERSIVE_API_KEY");
+  const scan = async (bytes: Uint8Array, name: string) => {
+    const form = new FormData();
+    form.append("inputFile", new Blob([Buffer.from(bytes)]), name);
+    const response = await fetch("https://api.cloudmersive.com/virus/scan/file", { method: "POST", headers: { Apikey: apiKey }, body: form, signal: AbortSignal.timeout(30_000) });
+    if (!response.ok) throw new Error(`Cloudmersive acceptance returned HTTP ${response.status}.`);
+    return response.json() as Promise<{ CleanResult?: boolean; FoundViruses?: unknown[] }>;
+  };
+  const png = Uint8Array.from([137,80,78,71,13,10,26,10,0,0,0,13,73,72,68,82,0,0,0,1,0,0,0,1,8,6,0,0,0,31,21,196,137,0,0,0,13,73,68,65,84,8,215,99,248,207,192,240,31,0,5,0,1,255,137,153,61,29,0,0,0,0,73,69,78,68,174,66,96,130]);
+  if ((await scan(png, "clean.png")).CleanResult !== true) throw new Error("Cloudmersive rejected the clean image control.");
+  const eicar = new TextEncoder().encode("X5O!P%@AP[4\\PZX54(P^)7CC)7}$EICAR-STANDARD-ANTIVIRUS-TEST-FILE!$H+H*");
+  const detected = await scan(eicar, "eicar.com");
+  if (detected.CleanResult !== false || !detected.FoundViruses?.length) throw new Error("Cloudmersive failed the EICAR detection check.");
+  results.push({ provider: "cloudmersive", status: "passed", detail: "clean accepted and EICAR rejected" });
 }
 
 async function verifyResend() {
