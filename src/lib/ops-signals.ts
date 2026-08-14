@@ -7,6 +7,10 @@ export function buildOpsWarnings(input: {
   uploadsConfigured: boolean;
   failedNotifications?: number;
   openModerationReports?: number;
+  pastDueSubscriptions?: number;
+  unscannedUploads?: number;
+  stripeSubscriptions?: number;
+  recentStripeEvents?: number;
   auditValid?: boolean;
 }): string[] {
   const warnings: string[] = [];
@@ -19,6 +23,9 @@ export function buildOpsWarnings(input: {
   if (!input.uploadsConfigured) warnings.push("Real uploads are disabled or private Blob storage is not configured.");
   if (input.failedNotifications) warnings.push(`${input.failedNotifications} email notifications exhausted or are awaiting retry.`);
   if (input.openModerationReports) warnings.push(`${input.openModerationReports} moderation reports require review.`);
+  if (input.pastDueSubscriptions) warnings.push(`${input.pastDueSubscriptions} recurring subscriptions are past due and require billing follow-up.`);
+  if (input.unscannedUploads) warnings.push(`${input.unscannedUploads} available uploads have not passed malware scanning.`);
+  if (input.stripeSubscriptions && !input.recentStripeEvents) warnings.push("Stripe subscriptions exist but no webhook event was recorded in the last 35 days; verify the webhook destination and delivery log.");
   if (input.auditValid === false) warnings.push("Audit checkpoint verification failed; stop sensitive operations and investigate.");
   return warnings;
 }

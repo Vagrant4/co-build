@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Activity, BarChart3, Bell, BookOpenCheck, Building2, CheckCircle2, ClipboardCheck, CreditCard, DollarSign, Download, ExternalLink, ListChecks, ShieldAlert, SlidersHorizontal, UserRound, Users, UserX, XCircle } from "lucide-react";
+import { Activity, BarChart3, Bell, BookOpenCheck, Building2, CheckCircle2, ClipboardCheck, CreditCard, Database, DollarSign, Download, ExternalLink, HardDrive, ListChecks, ShieldAlert, SlidersHorizontal, UserRound, Users, UserX, Webhook, XCircle } from "lucide-react";
 import {
   approvePlatformSubscriptionAction,
   executeAccountDeletionAction,
@@ -24,6 +24,7 @@ import { getDashboardData } from "@/src/lib/repository";
 import { requirePageRole } from "@/src/lib/page-authorization";
 import { getAppMode } from "@/src/lib/app-mode";
 import { prisma } from "@/src/lib/db";
+import { collectOperationsSnapshot } from "@/src/lib/operations-snapshot";
 
 export const dynamic = "force-dynamic";
 
@@ -36,9 +37,10 @@ export default async function AdminDashboardPage({ searchParams }: PageProps) {
   const params = (await searchParams) ?? {};
   const requestedPage = Number(params.page);
   const page = Number.isSafeInteger(requestedPage) && requestedPage > 0 ? requestedPage : 1;
-  const [{ users, listings, bookings, uploads, approvalEvents, equipment, payments, privacyRequests, moderationReports, pagination, totals }, notifications] = await Promise.all([
+  const [{ users, listings, bookings, uploads, approvalEvents, equipment, payments, privacyRequests, moderationReports, pagination, totals }, notifications, operations] = await Promise.all([
     getDashboardData({ page }),
-    prisma.notification.findMany({ where: { userId: admin.id, channel: "IN_APP" }, orderBy: { createdAt: "desc" }, take: 20 })
+    prisma.notification.findMany({ where: { userId: admin.id, channel: "IN_APP" }, orderBy: { createdAt: "desc" }, take: 20 }),
+    collectOperationsSnapshot()
   ]);
   const subscriptionUsers = users.filter((user) => user.role === "RENTER" || user.role === "HOST");
   const activeSubscriptionCount = totals.activeSubscriptionCount;
@@ -97,6 +99,30 @@ export default async function AdminDashboardPage({ searchParams }: PageProps) {
         <div><span>Booking requests</span><strong>{totals.newBookingCount}</strong><small>last 7 days</small></div>
         <div><span>Occupancy</span><strong>{occupancy}%</strong><small>{totals.bookingCount} total bookings</small></div>
         <a href="https://vercel.com/vagrantecommerce-6355s-projects/co-build/analytics" target="_blank" rel="noreferrer">View visitor traffic <ExternalLink size={15} /></a>
+      </section>
+
+      <section className="admin-console__section" aria-labelledby="operations-health-title">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <p className="admin-console__eyebrow !m-0">Automated controls</p>
+            <h2 id="operations-health-title" className="mt-1">Operations health</h2>
+          </div>
+          <StatusBadge status={operations.warnings.length ? "ATTENTION" : "HEALTHY"} />
+        </div>
+        <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+          <OperationsMetric icon={Database} label="Light-booking load" value={`${operations.activeSubscriptions} subscribers`} detail={`${operations.recentBookings} bookings in 30 days`} />
+          <OperationsMetric icon={HardDrive} label="Private uploads" value={formatBytes(operations.uploadBytes)} detail={`${operations.unscannedUploads} unscanned · ${operations.stalePending} stale`} />
+          <OperationsMetric icon={Webhook} label="Stripe webhooks" value={`${operations.recentStripeEvents} recent`} detail={`${operations.pastDueSubscriptions} past-due subscriptions`} />
+          <OperationsMetric icon={ShieldAlert} label="Operations queue" value={`${operations.submittedPayments + operations.openModerationReports} items`} detail={`${operations.failedNotifications} failed emails · audit ${operations.auditValid ? "valid" : "failed"}`} />
+        </div>
+        {operations.warnings.length ? (
+          <div className="mt-4 border border-orange-300 bg-orange-50 p-4" role="alert">
+            <p className="font-black text-orange-900">Automated attention required</p>
+            <ul className="mt-2 grid gap-1 text-sm font-bold text-orange-900">
+              {operations.warnings.map((warning) => <li key={warning}>• {warning}</li>)}
+            </ul>
+          </div>
+        ) : <p className="mt-4 text-sm font-bold text-steel">No automated operating threshold is currently breached.</p>}
       </section>
 
       <LaunchReadinessPanel />
@@ -420,6 +446,26 @@ function Metric({ label, value, detail, icon: Icon, tone }: { label: string; val
       <Icon size={20} className="admin-console__metric-icon" />
     </div>
   );
+}
+
+function OperationsMetric({ label, value, detail, icon: Icon }: { label: string; value: string; detail: string; icon: React.ComponentType<{ size?: number; className?: string }> }) {
+  return (
+    <article className="border border-neutral-200 bg-smoke p-4">
+      <div className="flex items-center justify-between gap-3">
+        <p className="text-xs font-black uppercase text-steel">{label}</p>
+        <Icon size={18} className="text-hazard" aria-hidden="true" />
+      </div>
+      <p className="mt-3 text-xl font-black">{value}</p>
+      <p className="mt-1 text-xs font-bold text-steel">{detail}</p>
+    </article>
+  );
+}
+
+function formatBytes(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KiB`;
+  if (bytes < 1024 * 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MiB`;
+  return `${(bytes / (1024 * 1024 * 1024)).toFixed(1)} GiB`;
 }
 
 function formatDate(date: Date): string {

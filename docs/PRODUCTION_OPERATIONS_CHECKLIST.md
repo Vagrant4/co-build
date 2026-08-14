@@ -32,4 +32,14 @@ Run `npm.cmd run ops:report -- --json` before and after each release. The report
 - Any stale uploads or missing metadata: keep uploads disabled and investigate before accepting another file.
 - Any failed health check or restore drill: stop the pilot until the failure is understood.
 
+## Automated Schedule
+
+- Every 15 minutes: GitHub checks the public database-aware health endpoint and opens or closes an incident issue.
+- Daily: Vercel maintenance clears stale reservations and rate limits, delivers queued email, executes approved retention, checks private Blob storage, verifies the audit chain, and sends aggregate operations alerts.
+- Nightly: GitHub exports, validates, encrypts, checksums, and retains a PostgreSQL backup for 14 days.
+- Monthly: GitHub restores the latest encrypted backup into a disposable database, verifies the application tables, removes plaintext recovery material, and deletes the temporary database.
+- Every pull request and production-branch push: CI runs database validation, migrations, authorization tests, dependency audit, production build, and the desktop/mobile renter-host-admin workflow.
+
+Alerts deliberately contain aggregate counts only. They must never include names, email addresses, contact details, payment references, object keys, database URLs, or credentials.
+
 Vercel Runtime Logs are the initial runtime view. Sentry is the selected persistent error-alerting candidate, but it is not configured by this branch; the owner must create the project, add the DSN in Vercel, set alert recipients, and verify a test event before pilot.

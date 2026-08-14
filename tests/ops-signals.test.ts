@@ -13,4 +13,22 @@ describe("operations thresholds", () => {
     expect(warnings.join(" ")).toContain("2 upload reservations");
     expect(warnings.join(" ")).toContain("private Blob storage");
   });
+
+  it("alerts on billing, scanning, and silent Stripe webhook failures", () => {
+    const warnings = buildOpsWarnings({
+      activeSubscriptions: 2,
+      recentBookings: 3,
+      stalePending: 0,
+      missingMetadata: 0,
+      uploadBytes: 100,
+      uploadsConfigured: true,
+      pastDueSubscriptions: 1,
+      unscannedUploads: 2,
+      stripeSubscriptions: 2,
+      recentStripeEvents: 0
+    });
+    expect(warnings.join(" ")).toContain("past due");
+    expect(warnings.join(" ")).toContain("malware scanning");
+    expect(warnings.join(" ")).toContain("webhook event");
+  });
 });
