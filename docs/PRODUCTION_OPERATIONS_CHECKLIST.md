@@ -16,12 +16,12 @@ Complete this before the first real pilot account. Blank means unverified.
 | Vercel project linked |  |
 | Private Blob store confirmed |  |
 | Private Blob deletion tested |  |
-| Runtime monitoring enabled |  |
-| Persistent error alerts enabled |  |
-| External `/api/health` uptime check |  |
+| Runtime monitoring enabled | Vercel Runtime Logs and Sentry configuration verified 15 Aug 2026 |
+| Persistent error alerts enabled | Sentry plus authenticated Resend operations-alert endpoint configured |
+| External `/api/health` uptime check | GitHub `production-uptime.yml`; latest run passed and live endpoint returned HTTP 200 on 15 Aug 2026 |
 | Backup owner |  |
 | Incident owner |  |
-| Unscanned-file risk accepted or scanner configured |  |
+| Unscanned-file risk accepted or scanner configured | Cloudmersive configured; 0 unscanned private uploads; account usage verified 15 Aug 2026 |
 
 ## Routine Checks
 
@@ -42,4 +42,4 @@ Run `npm.cmd run ops:report -- --json` before and after each release. The report
 
 Alerts deliberately contain aggregate counts only. They must never include names, email addresses, contact details, payment references, object keys, database URLs, or credentials.
 
-Vercel Runtime Logs are the initial runtime view. Sentry is the selected persistent error-alerting candidate, but it is not configured by this branch; the owner must create the project, add the DSN in Vercel, set alert recipients, and verify a test event before pilot.
+Vercel Runtime Logs remain the initial runtime view. Sentry configuration and the authenticated operations-alert endpoint are present in Vercel. The latest uptime, encrypted-backup, restore-drill, and public-launch-evidence workflows passed before this checklist was updated on 15 Aug 2026.
