@@ -89,7 +89,7 @@ export async function getDashboardData(options: { page?: number; pageSize?: numb
     prisma.listing.findMany({
       include: {
         bookings: true,
-        host: { select: { fullName: true, role: true, suspended: true, verificationStatus: true, platformSubscriptionStatus: true } }
+        host: { select: { id: true, fullName: true, role: true, suspended: true, verificationStatus: true, platformSubscriptionStatus: true } }
       },
       orderBy: { createdAt: "desc" },
       skip, take: pageSize

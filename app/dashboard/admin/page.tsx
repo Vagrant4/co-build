@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Activity, BarChart3, Bell, BookOpenCheck, Building2, CheckCircle2, ClipboardCheck, CreditCard, DollarSign, Download, ExternalLink, LayoutDashboard, ListChecks, ShieldAlert, SlidersHorizontal, UserRound, Users, UserX, XCircle } from "lucide-react";
+import { Activity, BarChart3, Bell, BookOpenCheck, Building2, CheckCircle2, ClipboardCheck, CreditCard, DollarSign, Download, ExternalLink, ListChecks, ShieldAlert, SlidersHorizontal, UserRound, Users, UserX, XCircle } from "lucide-react";
 import {
   approvePlatformSubscriptionAction,
   executeAccountDeletionAction,
@@ -18,6 +18,7 @@ import {
 import { LaunchReadinessPanel } from "@/components/launch-readiness-panel";
 import { StatusBadge } from "@/components/status-badge";
 import { NotificationCenter } from "@/components/notification-center";
+import { AdminSectionNav } from "@/components/admin-section-nav";
 import { calculatePlatformSubscriptionRevenue, formatCurrency, PLATFORM_SUBSCRIPTION_MONTHLY } from "@/src/lib/fabrication";
 import { getDashboardData } from "@/src/lib/repository";
 import { requirePageRole } from "@/src/lib/page-authorization";
@@ -50,14 +51,7 @@ export default async function AdminDashboardPage({ searchParams }: PageProps) {
       <aside className="admin-console__sidebar">
         <div className="admin-console__brand"><span className="admin-console__mark">$</span><span>SpaceOnCall</span></div>
         <p className="admin-console__eyebrow">Operations console</p>
-        <nav className="admin-console__nav" aria-label="Admin sections">
-          <AdminNav href="#overview" icon={LayoutDashboard} label="Overview" />
-          <AdminNav href="#approvals" icon={ListChecks} label="Approvals" count={totals.pendingListingCount} />
-          <AdminNav href="#accounts" icon={Users} label="Hosts & renters" count={totals.pendingUserCount} />
-          <AdminNav href="#payments" icon={CreditCard} label="Payments" count={totals.submittedPaymentCount} />
-          <AdminNav href="#safety" icon={ShieldAlert} label="Safety & bookings" count={totals.pendingBookingCount} />
-          <AdminNav href="#activity" icon={Activity} label="Activity log" />
-        </nav>
+        <AdminSectionNav counts={{ approvals: totals.pendingListingCount, accounts: totals.pendingUserCount, payments: totals.submittedPaymentCount, safety: totals.pendingBookingCount }} />
         <div className="admin-console__utility">
           <Link href="/dashboard/admin/launch-setup"><ClipboardCheck size={17} /> Launch setup</Link>
           <Link href="/dashboard/admin/export"><Download size={17} /> Export centre</Link>
@@ -201,7 +195,7 @@ export default async function AdminDashboardPage({ searchParams }: PageProps) {
                   {listing.host?.suspended ? <StatusBadge status="SUSPENDED" /> : null}
                 </div>
                 {!hostReady ? (
-                  <a className="admin-console__review-link" href="#accounts">Review host account before publishing</a>
+                  <a className="admin-console__review-link" href={`#account-${listing.host?.id ?? "missing"}`}>Review host account before publishing</a>
                 ) : null}
               </div>
               <div className="grid grid-cols-3 gap-2">
@@ -263,7 +257,7 @@ export default async function AdminDashboardPage({ searchParams }: PageProps) {
       <DashboardSection id="accounts" title="Hosts and renters">
         <div className="grid gap-4 md:grid-cols-3">
           {users.map((user) => (
-            <article key={user.id} className="border border-neutral-300 bg-white p-4">
+            <article key={user.id} id={`account-${user.id}`} className="admin-console__account-card border border-neutral-300 bg-white p-4">
               <div className="mb-2 flex flex-wrap gap-2">
                 <StatusBadge status={user.verificationStatus} />
                 {user.suspended && <StatusBadge status="SUSPENDED" />}
@@ -426,10 +420,6 @@ function Metric({ label, value, detail, icon: Icon, tone }: { label: string; val
       <Icon size={20} className="admin-console__metric-icon" />
     </div>
   );
-}
-
-function AdminNav({ href, icon: Icon, label, count }: { href: string; icon: React.ComponentType<{ size?: number }>; label: string; count?: number }) {
-  return <a href={href}><Icon size={18} /><span>{label}</span>{count ? <b>{count}</b> : null}</a>;
 }
 
 function formatDate(date: Date): string {
