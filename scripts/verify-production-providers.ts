@@ -1,18 +1,21 @@
 import { del, head, put } from "@vercel/blob";
 import * as Sentry from "@sentry/nextjs";
 import Stripe from "stripe";
+import { pathToFileURL } from "node:url";
 import { assertMonthlyStripePrice } from "../src/lib/stripe-billing";
 
 type Result = { provider: string; status: "passed"; detail: string };
 const results: Result[] = [];
 
-async function main() {
+export async function verifyProductionProviders() {
+  results.length = 0;
   await verifyBlob();
   await verifyScanner();
   await verifyResend();
   await verifySentry();
   await verifyStripe();
   console.log(JSON.stringify({ checkedAt: new Date().toISOString(), results }, null, 2));
+  return [...results];
 }
 
 async function verifyBlob() {
@@ -89,4 +92,6 @@ function required(key: string): string {
   return value;
 }
 
-main().catch((error) => { console.error(error instanceof Error ? error.message : "Provider acceptance failed."); process.exitCode = 1; });
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  verifyProductionProviders().catch((error) => { console.error(error instanceof Error ? error.message : "Provider acceptance failed."); process.exitCode = 1; });
+}

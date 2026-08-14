@@ -7,6 +7,7 @@ const ALWAYS_AVAILABLE_PATHS = [
   "/sign-up",
   "/api/health",
   "/api/cron/maintenance",
+  "/api/cron/provider-acceptance",
   "/api/ops/alerts",
   "/api/stripe/webhook",
   "/__clerk"
