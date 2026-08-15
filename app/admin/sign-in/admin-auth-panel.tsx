@@ -30,6 +30,8 @@ export function AdminAuthPanel({
   const [newPassword, setNewPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
+  const [secondFactorRequired, setSecondFactorRequired] = useState(false);
+  const [secondFactorCode, setSecondFactorCode] = useState("");
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -97,11 +99,52 @@ export function AdminAuthPanel({
         password: newPassword
       });
 
+      if (result.status === "needs_second_factor") {
+        const emailCodeFactor = result.supportedSecondFactors?.find(
+          (factor) => factor.strategy === "email_code"
+        );
+        if (!emailCodeFactor || !("emailAddressId" in emailCodeFactor)) {
+          setError("Email verification is unavailable. Contact the operations owner.");
+          return;
+        }
+        await signIn.prepareSecondFactor({
+          strategy: "email_code",
+          emailAddressId: emailCodeFactor.emailAddressId
+        });
+        setPassword("");
+        setSecondFactorRequired(true);
+        return;
+      }
+
       if (result.status !== "complete" || !result.createdSessionId) {
         setError("Additional administrator verification is required. Contact the operations owner.");
         return;
       }
 
+      await setActive({ session: result.createdSessionId });
+      window.location.assign("/dashboard/admin");
+    } catch (caught) {
+      setError(safeSignInError(caught));
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  async function verifySecondFactor(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setError("");
+    if (!isLoaded || !signIn || !setActive) return;
+
+    setSubmitting(true);
+    try {
+      const result = await signIn.attemptSecondFactor({
+        strategy: "email_code",
+        code: secondFactorCode
+      });
+      if (result.status !== "complete" || !result.createdSessionId) {
+        setError("The administrator verification code could not be confirmed.");
+        return;
+      }
       await setActive({ session: result.createdSessionId });
       window.location.assign("/dashboard/admin");
     } catch (caught) {
@@ -147,6 +190,38 @@ export function AdminAuthPanel({
           {submitting ? "Resetting..." : "Reset password and sign in"}
         </button>
         <button className="admin-auth-page__button admin-auth-page__button--secondary" type="button" onClick={() => { setResetStage("idle"); setError(""); }}>
+          Back to sign in
+        </button>
+      </form>
+    );
+  }
+
+  if (secondFactorRequired) {
+    return (
+      <form className="admin-auth-page__form" onSubmit={verifySecondFactor}>
+        <p className="admin-auth-page__security-note">A sign-in code was sent to the authorized administrator email.</p>
+        <div className="admin-auth-page__field">
+          <label htmlFor="admin-second-factor-code"><KeyRound size={15} /> Verification code</label>
+          <input
+            id="admin-second-factor-code"
+            inputMode="numeric"
+            autoComplete="one-time-code"
+            value={secondFactorCode}
+            onChange={(event) => setSecondFactorCode(event.target.value)}
+            required
+          />
+        </div>
+        {error ? <p className="admin-auth-page__error" role="alert">{error}</p> : null}
+        <button className="admin-auth-page__button" type="submit" disabled={submitting}>
+          {submitting ? <LoaderCircle className="animate-spin" size={18} /> : <KeyRound size={18} />}
+          {submitting ? "Verifying..." : "Verify and open admin console"}
+        </button>
+        <button
+          className="admin-auth-page__button admin-auth-page__button--secondary"
+          type="button"
+          onClick={() => { setSecondFactorRequired(false); setSecondFactorCode(""); setError(""); }}
+          disabled={submitting}
+        >
           Back to sign in
         </button>
       </form>
