@@ -1,12 +1,12 @@
-import { Camera, ClipboardPlus, CreditCard, Download, FileCheck2, FileText } from "lucide-react";
+import { ClipboardPlus, CreditCard, Download, FileCheck2, FileText } from "lucide-react";
 import {
   confirmDealAction,
   confirmAdditionalRequirementPaymentAction,
   confirmPaymentAction,
   createAdditionalRequirementAction,
-  uploadBookingPhotoAction
 } from "@/app/actions";
 import { PrivateUploadField } from "@/components/private-upload-field";
+import { BookingPhotoForm } from "@/components/booking-photo-form";
 import { BookingChat } from "@/components/booking-chat";
 import { StatusBadge } from "@/components/status-badge";
 import { NotificationCenter } from "@/components/notification-center";
@@ -125,8 +125,8 @@ export default async function UserDashboardPage() {
                 placeholder="Ask the host about access, loading, timing, or setup."
               />
               <AdditionalRequirementForm bookingId={booking.id} />
-              <PhotoForm bookingId={booking.id} type="CHECK_IN" label="Upload check-in photos" />
-              <PhotoForm bookingId={booking.id} type="CHECK_OUT" label="Upload check-out photos" />
+              <BookingPhotoForm bookingId={booking.id} type="CHECK_IN" label="Upload check-in photos" />
+              <BookingPhotoForm bookingId={booking.id} type="CHECK_OUT" label="Upload check-out photos" />
             </aside>
           </section>
         ))}
@@ -135,7 +135,6 @@ export default async function UserDashboardPage() {
     </main>
   );
 }
-
 function formatDate(date: Date): string {
   return new Intl.DateTimeFormat("en-SG", {
     day: "2-digit",
@@ -230,15 +229,3 @@ function DealConfirmationForm({ bookingId, label, confirmed }: { bookingId: stri
   );
 }
 
-function PhotoForm({ bookingId, type, label }: { bookingId: string; type: "CHECK_IN" | "CHECK_OUT"; label: string }) {
-  return (
-    <form action={uploadBookingPhotoAction} className="grid gap-3 border border-neutral-200 bg-white p-3">
-      <input type="hidden" name="bookingId" value={bookingId} />
-      <input type="hidden" name="uploadKind" value={type} />
-      <PrivateUploadField label={label} name="photo" type={type} bookingId={bookingId} accept="image/jpeg,image/png,image/webp" required />
-      <button className="button-secondary" type="submit">
-        <Camera size={18} /> Upload
-      </button>
-    </form>
-  );
-}
