@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { useSignIn } from "@clerk/nextjs/legacy";
 import { KeyRound, LoaderCircle, Mail } from "lucide-react";
 
@@ -18,6 +18,31 @@ export function EmailCodeSignIn() {
   const [stage, setStage] = useState<"email" | "code">("email");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
+  const [resendCooldown, setResendCooldown] = useState(0);
+
+  useEffect(() => {
+    if (resendCooldown <= 0) return;
+    const timer = window.setTimeout(() => setResendCooldown((seconds) => Math.max(0, seconds - 1)), 1000);
+    return () => window.clearTimeout(timer);
+  }, [resendCooldown]);
+
+  async function sendCode() {
+    if (!signIn) throw new Error("Sign-in is not ready.");
+    const result = await signIn.create({ identifier: email.trim() });
+    const factor = result.supportedFirstFactors?.find(
+      (item) => item.strategy === "email_code" && "emailAddressId" in item
+    );
+
+    if (!factor || !("emailAddressId" in factor)) {
+      throw new Error("Email-code sign-in is unavailable for this account.");
+    }
+
+    await signIn.prepareFirstFactor({
+      strategy: "email_code",
+      emailAddressId: factor.emailAddressId
+    });
+  }
 
   async function requestCode(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -25,21 +50,28 @@ export function EmailCodeSignIn() {
 
     setSubmitting(true);
     setError("");
+    setNotice("");
     try {
-      const result = await signIn.create({ identifier: email.trim() });
-      const factor = result.supportedFirstFactors?.find(
-        (item) => item.strategy === "email_code" && "emailAddressId" in item
-      );
-
-      if (!factor || !("emailAddressId" in factor)) {
-        throw new Error("Email-code sign-in is unavailable for this account.");
-      }
-
-      await signIn.prepareFirstFactor({
-        strategy: "email_code",
-        emailAddressId: factor.emailAddressId
-      });
+      await sendCode();
       setStage("code");
+      setResendCooldown(30);
+    } catch (caught) {
+      setError(safeError(caught));
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  async function resendCode() {
+    if (!isLoaded || !signIn || resendCooldown > 0) return;
+    setSubmitting(true);
+    setError("");
+    setNotice("");
+    try {
+      await sendCode();
+      setCode("");
+      setNotice("A new verification code was sent. Older codes will no longer work.");
+      setResendCooldown(30);
     } catch (caught) {
       setError(safeError(caught));
     } finally {
@@ -116,6 +148,15 @@ export function EmailCodeSignIn() {
             {submitting ? <LoaderCircle className="animate-spin" size={18} /> : <KeyRound size={18} />}
             Verify and sign in
           </button>
+          <button
+            className="button-secondary w-full justify-center"
+            type="button"
+            onClick={resendCode}
+            disabled={submitting || resendCooldown > 0}
+          >
+            <Mail size={18} />
+            {resendCooldown > 0 ? `Resend code in ${resendCooldown}s` : "Resend verification code"}
+          </button>
           <button className="button-secondary w-full justify-center" type="button" onClick={() => { setStage("email"); setCode(""); setError(""); }}>
             Use a different email
           </button>
@@ -123,6 +164,7 @@ export function EmailCodeSignIn() {
       )}
 
       {error ? <p className="mt-4 border-l-2 border-red-500 pl-3 text-sm text-red-300" role="alert">{error}</p> : null}
+      {notice ? <p className="mt-4 border-l-2 border-emerald-500 pl-3 text-sm text-emerald-300" role="status">{notice}</p> : null}
       <p className="mt-6 text-xs text-zinc-500">Administrator access uses the separate private admin portal.</p>
     </section>
   );
