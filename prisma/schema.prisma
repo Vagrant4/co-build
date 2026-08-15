@@ -467,6 +467,7 @@ model PaymentRecord {
   reference               String
   idempotencyKey          String                 @unique
   reviewNote              String?
+  isPilotTest             Boolean                @default(false)
   submittedAt             DateTime               @default(now())
   reviewedAt              DateTime?
   payer                   User                   @relation("PaymentPayer", fields: [payerId], references: [id])
