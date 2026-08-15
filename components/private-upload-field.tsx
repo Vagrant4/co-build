@@ -14,15 +14,17 @@ type Props = {
   listingId?: string;
   required?: boolean;
   maxFiles?: number;
+  onReadyChange?: (ready: boolean) => void;
 };
 
-export function PrivateUploadField({ label, name, type, accept, bookingId, listingId, required = false, maxFiles = 1 }: Props) {
+export function PrivateUploadField({ label, name, type, accept, bookingId, listingId, required = false, maxFiles = 1, onReadyChange }: Props) {
   const [uploadIds, setUploadIds] = useState<string[]>([]);
   const [state, setState] = useState<"idle" | "uploading" | "ready" | "error">("idle");
   const [message, setMessage] = useState("");
 
   async function handleFiles(files: File[]) {
     setUploadIds([]);
+    onReadyChange?.(false);
     if (files.length === 0) return setState("idle");
     if (files.length > maxFiles) {
       setState("error");
@@ -44,6 +46,7 @@ export function PrivateUploadField({ label, name, type, accept, bookingId, listi
       const ids = await Promise.all(files.map((file) => uploadFile(file, { type, bookingId, listingId })));
       setUploadIds(ids);
       setState("ready");
+      onReadyChange?.(true);
       setMessage(files.length === 1 ? `${files[0].name} is ready` : `${files.length} workspace photos are ready`);
     } catch (error) {
       setState("error");
