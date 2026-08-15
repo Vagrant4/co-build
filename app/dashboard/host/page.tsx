@@ -179,7 +179,8 @@ function formatDate(date: Date): string {
   return new Intl.DateTimeFormat("en-SG", {
     day: "2-digit",
     month: "short",
-    year: "numeric"
+    year: "numeric",
+    timeZone: "Asia/Singapore"
   }).format(date);
 }
 
