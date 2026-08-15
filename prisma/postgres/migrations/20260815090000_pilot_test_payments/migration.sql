@@ -1,0 +1,1 @@
+ALTER TABLE "PaymentRecord" ADD COLUMN "isPilotTest" BOOLEAN NOT NULL DEFAULT false;

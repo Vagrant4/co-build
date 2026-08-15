@@ -36,6 +36,7 @@ import { CONTACT_POLICY_MESSAGE, containsRestrictedContactDetail } from "@/src/l
 import { prisma } from "@/src/lib/db";
 import { LEGAL_DOCUMENT_VERSION } from "@/src/lib/legal-documents";
 import { nextPaymentState } from "@/src/lib/payment-workflow";
+import { assertPilotPaymentAllowed, PILOT_PAYMENT_ACKNOWLEDGEMENT } from "@/src/lib/pilot-payment";
 import { queueAdminNotifications, queueUserNotification } from "@/src/lib/notifications";
 import { enforceRateLimit } from "@/src/lib/rate-limit";
 import { toListing } from "@/src/lib/repository";
@@ -637,6 +638,66 @@ export async function updateListingStatusAction(formData: FormData) {
   });
   revalidatePath("/search"); revalidatePath("/dashboard/admin");
   redirect(`/dashboard/admin?listingUpdate=${status.toLowerCase()}#approvals`);
+}
+
+export async function verifyPilotBookingPaymentAction(formData: FormData) {
+  const admin = await requireAdmin();
+  const bookingId = requireString(formData, "bookingId");
+  const acknowledgement = requireString(formData, "acknowledgement");
+  const booking = await prisma.booking.findUnique({
+    where: { id: bookingId },
+    include: { listing: { select: { hostId: true } }, agreementAcceptances: true }
+  });
+  if (!booking?.listing.hostId) notFound();
+
+  const document = await loadBookingDocument(bookingId);
+  if (!document) notFound();
+  const documentHash = bookingDocumentDigest(document.body);
+  const agreementAccepted = hasCurrentAgreementAcceptance(
+    booking.agreementAcceptances,
+    [booking.userId, booking.listing.hostId],
+    documentHash
+  );
+  assertPilotPaymentAllowed({ appMode: getAppMode(), acknowledgement, booking, agreementAccepted });
+
+  const now = new Date();
+  await prisma.$transaction(async (tx) => {
+    await tx.paymentRecord.create({
+      data: {
+        payerId: booking.userId,
+        reviewerId: admin.id,
+        bookingId,
+        kind: "BOOKING_TOTAL",
+        status: "VERIFIED",
+        amount: booking.grandTotal,
+        reference: `PILOT-TEST-${bookingId}`,
+        idempotencyKey: `pilot-test:${bookingId}`,
+        reviewNote: PILOT_PAYMENT_ACKNOWLEDGEMENT,
+        isPilotTest: true,
+        reviewedAt: now
+      }
+    });
+    await tx.booking.update({ where: { id: bookingId }, data: { status: "PAID_CONFIRMED" } });
+    await tx.approvalEvent.create({
+      data: {
+        actorId: admin.id,
+        bookingId,
+        target: "pilot_payment_simulation",
+        decision: "APPROVED",
+        note: `${PILOT_PAYMENT_ACKNOWLEDGEMENT}. Admin advanced the confirmed pilot booking for workflow rehearsal; this is not payment reconciliation.`
+      }
+    });
+    await queueUserNotification(tx, {
+      userId: booking.userId,
+      type: "PILOT_TEST_PAYMENT",
+      title: "Pilot booking moved to check-in testing",
+      body: `${PILOT_PAYMENT_ACKNOWLEDGEMENT}. No charge or transfer was recorded.`,
+      dedupeKey: `booking:${bookingId}:pilot-test-payment`,
+      email: false
+    });
+  });
+  revalidateDashboards();
+  redirect("/dashboard/admin?pilotPayment=verified#safety");
 }
 
 export async function updateUserVerificationAction(formData: FormData) {

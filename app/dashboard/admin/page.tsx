@@ -14,7 +14,8 @@ import {
   updateEquipmentPriceAction,
   updateListingPricingAction,
   updateListingStatusAction,
-  updateUserVerificationAction
+  updateUserVerificationAction,
+  verifyPilotBookingPaymentAction
 } from "@/app/actions";
 import { LaunchReadinessPanel } from "@/components/launch-readiness-panel";
 import { StatusBadge } from "@/components/status-badge";
@@ -30,7 +31,7 @@ import { collectOperationsSnapshot } from "@/src/lib/operations-snapshot";
 export const dynamic = "force-dynamic";
 
 type PageProps = {
-  searchParams?: Promise<{ page?: string; approvalError?: string; listingUpdate?: string; uploadRemediation?: string }> | { page?: string; approvalError?: string; listingUpdate?: string; uploadRemediation?: string };
+  searchParams?: Promise<{ page?: string; approvalError?: string; listingUpdate?: string; uploadRemediation?: string; pilotPayment?: string }> | { page?: string; approvalError?: string; listingUpdate?: string; uploadRemediation?: string; pilotPayment?: string };
 };
 
 export default async function AdminDashboardPage({ searchParams }: PageProps) {
@@ -84,6 +85,12 @@ export default async function AdminDashboardPage({ searchParams }: PageProps) {
         <div className="admin-console__action-message" role="status">
           <CheckCircle2 size={20} />
           <div><strong>Listing updated.</strong><span>The listing is now {params.listingUpdate}.</span></div>
+        </div>
+      ) : null}
+      {params.pilotPayment === "verified" ? (
+        <div className="admin-console__action-message" role="status">
+          <CheckCircle2 size={20} />
+          <div><strong>Pilot workflow advanced.</strong><span>Test only. No money moved and no payment reconciliation was recorded.</span></div>
         </div>
       ) : null}
 
@@ -263,6 +270,15 @@ export default async function AdminDashboardPage({ searchParams }: PageProps) {
                   View booking agreement
                 </a>
                 <a className="button-secondary col-span-2 w-full" href={`/api/bookings/${booking.id}/documents/booking-summary`}><Download size={18} aria-hidden="true" /> Download PDF</a>
+                {getAppMode() === "pilot" && booking.status === "APPROVED_FOR_PAYMENT" && booking.renterDealConfirmedAt && booking.hostDealConfirmedAt ? (
+                  <form action={verifyPilotBookingPaymentAction} className="col-span-2 border border-orange-400 bg-orange-50 p-3">
+                    <input type="hidden" name="bookingId" value={booking.id} />
+                    <input type="hidden" name="acknowledgement" value="TEST ONLY - NO MONEY MOVED" />
+                    <p className="text-xs font-black uppercase text-orange-900">Pilot rehearsal only</p>
+                    <p className="mt-1 text-xs font-bold text-orange-900">Advances this confirmed booking to check-in testing. It does not charge, transfer, or reconcile money.</p>
+                    <button className="button-primary mt-3 w-full" type="submit">Mark pilot test ready for check-in</button>
+                  </form>
+                ) : null}
                 <BookingAdminButton bookingId={booking.id} action="ADMIN_APPROVE" label="Approve high-risk" disabled={booking.status !== "PENDING_ADMIN_HIGH_RISK"} />
                 <BookingAdminButton bookingId={booking.id} action="ADMIN_REJECT" label="Reject high-risk" disabled={booking.status !== "PENDING_ADMIN_HIGH_RISK"} />
                 <form action={updateDepositStatusAction} className="col-span-2 grid gap-2 border border-neutral-200 bg-white p-3">
@@ -324,9 +340,10 @@ export default async function AdminDashboardPage({ searchParams }: PageProps) {
             <article key={payment.id} className="border border-neutral-300 bg-white p-4">
               <div className="flex flex-wrap gap-2"><StatusBadge status={payment.kind} /><StatusBadge status={payment.status} /></div>
               <h3 className="mt-3 text-lg font-black">{payment.payer.fullName} · {formatCurrency(payment.amount)}</h3>
+              {payment.isPilotTest ? <p className="mt-2 border border-orange-400 bg-orange-50 p-2 text-xs font-black uppercase text-orange-900">Test only · no money moved</p> : null}
               <p className="mt-1 break-all text-sm font-bold text-steel">Reference: {payment.reference}</p>
               {payment.booking ? <p className="mt-1 text-sm font-bold text-steel">Booking: {payment.booking.listing.title}</p> : null}
-              {payment.proofUpload ? <a className="button-secondary mt-3 w-full" href={`/api/uploads/${payment.proofUpload.id}`}>Review private proof</a> : <p className="mt-3 text-sm font-bold text-amber-800">No uploaded proof. Verify the bank reference independently.</p>}
+              {payment.proofUpload ? <a className="button-secondary mt-3 w-full" href={`/api/uploads/${payment.proofUpload.id}`}>Review private proof</a> : payment.isPilotTest ? <p className="mt-3 text-sm font-bold text-orange-900">No proof is expected for this test-only workflow record.</p> : <p className="mt-3 text-sm font-bold text-amber-800">No uploaded proof. Verify the bank reference independently.</p>}
               {payment.status === "SUBMITTED" && payment.kind === "BOOKING_TOTAL" ? <PaymentReviewForm paymentId={payment.id} action={reviewBookingPaymentAction} /> : null}
               {payment.status === "SUBMITTED" && payment.kind === "ADDITIONAL_REQUIREMENT" ? <PaymentReviewForm paymentId={payment.id} action={reviewAdditionalRequirementPaymentAction} /> : null}
             </article>
