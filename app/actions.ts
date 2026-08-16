@@ -40,7 +40,7 @@ import { assertPilotPaymentAllowed, PILOT_PAYMENT_ACKNOWLEDGEMENT } from "@/src/
 import { queueAdminNotifications, queueUserNotification } from "@/src/lib/notifications";
 import { enforceRateLimit } from "@/src/lib/rate-limit";
 import { toListing } from "@/src/lib/repository";
-import { commonSafetyRules } from "@/src/lib/seed-data";
+import { commonSafetyRules, isDummyListingSlug } from "@/src/lib/seed-data";
 import { remediateLegacyUploads } from "@/src/lib/upload-service";
 
 export async function createBookingAction(formData: FormData) {
@@ -50,6 +50,7 @@ export async function createBookingAction(formData: FormData) {
   if (formData.get("safetyAccepted") !== "on") throw new Error("Safety rules must be accepted before submitting a booking request.");
 
   const listingSlug = requireString(formData, "listingSlug");
+  if (isDummyListingSlug(listingSlug)) throw new Error("This is a dummy showcase listing and is unavailable for booking.");
   const durationDays = parseDuration(requireString(formData, "durationDays"));
   const bookingWindow = parseSingaporeBookingWindow(requireString(formData, "startDate"), durationDays);
   const workType = requireString(formData, "workType");

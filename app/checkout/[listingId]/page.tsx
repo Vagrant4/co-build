@@ -4,7 +4,7 @@ import { createBookingAction } from "@/app/actions";
 import { PrivateUploadField } from "@/components/private-upload-field";
 import { formatCurrency, getDurationPrice } from "@/src/lib/fabrication";
 import { getEquipmentAddons, getPublicListingBySlug } from "@/src/lib/repository";
-import { workTypes } from "@/src/lib/seed-data";
+import { isDummyListingSlug, workTypes } from "@/src/lib/seed-data";
 import { requirePageRole } from "@/src/lib/page-authorization";
 import { singaporeToday } from "@/src/lib/booking-window";
 
@@ -21,7 +21,7 @@ export default async function CheckoutPage({ params }: PageProps) {
     getPublicListingBySlug(listingId),
     getEquipmentAddons()
   ]);
-  if (!listing) notFound();
+  if (!listing || isDummyListingSlug(listing.slug)) notFound();
   const listingAddons = addons.filter((addon) => listing.equipmentSlugs.includes(addon.slug));
 
   return (

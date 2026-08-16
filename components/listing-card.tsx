@@ -1,16 +1,18 @@
 import { ArrowRight, Bolt, MapPin, Ruler, ShieldCheck, Truck } from "lucide-react";
 import type { Listing } from "@/src/lib/fabrication";
 import { formatCurrency, sizeRequirementLabel } from "@/src/lib/fabrication";
+import { isDummyListingSlug } from "@/src/lib/seed-data";
 
 export function ListingCard({ listing }: { listing: Listing }) {
   const loadingLabel = listing.loadingAccess[0] ?? "Loading";
   const workPreview = listing.permittedWork.slice(0, 3);
+  const isDummy = isDummyListingSlug(listing.slug);
 
   return (
     <article className="card listing-card overflow-hidden">
       <a href={`/listings/${listing.slug}`} className="listing-card__media" aria-label={`View ${listing.title}`}>
         <img src={listing.photoUrls[0]} alt={`${listing.title} workspace`} className="h-56 w-full object-cover" loading="lazy" />
-        <span className="listing-card__signal">Available</span>
+        <span className="listing-card__signal">{isDummy ? "Unavailable - showcase only" : "Available"}</span>
         <span className="listing-card__badge">{sizeRequirementLabel(listing.sizeSqft)}</span>
         <span className="listing-card__location">
           <MapPin size={14} /> {listing.location}
@@ -19,7 +21,7 @@ export function ListingCard({ listing }: { listing: Listing }) {
       <div className="listing-card__body">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="min-w-0">
-            <p className="text-xs font-black uppercase text-hazard">Available workspace</p>
+            <p className="text-xs font-black uppercase text-hazard">{isDummy ? "Dummy listing - unavailable" : "Available workspace"}</p>
             <h3 className="mt-1 text-xl font-black leading-tight">{listing.title}</h3>
             <p className="mt-1 text-sm font-bold text-steel">{listing.address}</p>
           </div>

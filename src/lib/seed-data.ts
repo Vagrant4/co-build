@@ -75,6 +75,40 @@ export const sampleWorkshopPhotos = [
   }
 ] as const;
 
+export const dummyListingSlugs = [
+  "maker-bench-kallang",
+  "small-bay-eunos",
+  "medium-bay-woodlands",
+  "large-bay-tuas",
+  "electronics-bench-ubi",
+  "woodworking-bay-bedok",
+  "signage-bay-jurong",
+  "ecommerce-packing-changi",
+  "metalwork-bay-bukit-batok",
+  "project-hall-tuas-west"
+] as const;
+
+export const dummyListingImages: Record<(typeof dummyListingSlugs)[number], string> = {
+  "maker-bench-kallang": "/assets/sample-workshop-photo-bench.png",
+  "small-bay-eunos": "/assets/sample-workshop-photo-small-bay.png",
+  "medium-bay-woodlands": "/assets/sample-workshop-photo-medium-bay.png",
+  "large-bay-tuas": "/assets/sample-workshop-photo-large-bay.png",
+  "electronics-bench-ubi": "/assets/maker-bench.png",
+  "woodworking-bay-bedok": "/assets/medium-bay.png",
+  "signage-bay-jurong": "/assets/large-bay.png",
+  "ecommerce-packing-changi": "/assets/small-bay.png",
+  "metalwork-bay-bukit-batok": "/assets/spaceoncall-fabrication-bay.webp",
+  "project-hall-tuas-west": "/assets/spaceoncall-warehouse.webp"
+};
+
+export function isDummyListingSlug(slug: string): boolean {
+  return dummyListingSlugs.includes(slug as (typeof dummyListingSlugs)[number]);
+}
+
+export function getDummyListingImage(slug: string): string | null {
+  return isDummyListingSlug(slug) ? dummyListingImages[slug as (typeof dummyListingSlugs)[number]] : null;
+}
+
 export const seedListings: Listing[] = [
   {
     slug: "maker-bench-kallang",
@@ -94,7 +128,7 @@ export const seedListings: Listing[] = [
     prohibitedWork: ["Welding", "Grinding", "Spray painting, approval-only", "Chemical work, approval-only"],
     safetyRules: commonSafetyRules,
     cancellationPolicy: "Cancel 24 hours before check-in for a 70% refund.",
-    photoUrls: [sampleWorkshopPhotos[0].src],
+    photoUrls: ["/assets/maker-bench.png"],
     floorPlanUrl: "/assets/floor-plan-maker-bench.png",
     prices: {
       day: 45,
@@ -175,7 +209,7 @@ export const seedListings: Listing[] = [
     prohibitedWork: ["Spray painting, approval-only", "Chemical work, approval-only"],
     safetyRules: commonSafetyRules,
     cancellationPolicy: "Cancel 7 days before check-in for a 60% refund.",
-    photoUrls: [sampleWorkshopPhotos[2].src],
+    photoUrls: ["/assets/medium-bay.png"],
     floorPlanUrl: "/assets/floor-plan-medium-bay.png",
     prices: {
       day: 260,
@@ -223,7 +257,7 @@ export const seedListings: Listing[] = [
     prohibitedWork: ["Spray painting, approval-only", "Chemical work, approval-only"],
     safetyRules: commonSafetyRules,
     cancellationPolicy: "Cancel 14 days before check-in for a 50% refund.",
-    photoUrls: [sampleWorkshopPhotos[3].src],
+    photoUrls: ["/assets/large-bay.png"],
     floorPlanUrl: "/assets/floor-plan-large-bay.png",
     prices: {
       day: 650,
@@ -351,7 +385,7 @@ export const seedListings: Listing[] = [
     prohibitedWork: ["Metal fabrication", "Welding", "Grinding", "Spray painting, approval-only", "Chemical work, approval-only"],
     safetyRules: commonSafetyRules,
     cancellationPolicy: "Cancel 7 days before check-in for a 65% refund.",
-    photoUrls: [sampleWorkshopPhotos[1].src],
+    photoUrls: ["/assets/small-bay.png"],
     floorPlanUrl: "/assets/floor-plan-large-bay.png",
     prices: {
       day: 520,
@@ -383,7 +417,7 @@ export const seedListings: Listing[] = [
     prohibitedWork: ["Spray painting, approval-only", "Chemical work, approval-only"],
     safetyRules: commonSafetyRules,
     cancellationPolicy: "Cancel 14 days before check-in for a 50% refund.",
-    photoUrls: [sampleWorkshopPhotos[3].src],
+    photoUrls: ["/assets/spaceoncall-fabrication-bay.webp"],
     floorPlanUrl: "/assets/floor-plan-large-bay.png",
     prices: {
       day: 760,
@@ -415,7 +449,7 @@ export const seedListings: Listing[] = [
     prohibitedWork: ["Spray painting, approval-only", "Chemical work, approval-only"],
     safetyRules: commonSafetyRules,
     cancellationPolicy: "Cancel 14 days before check-in for a 50% refund.",
-    photoUrls: [sampleWorkshopPhotos[3].src],
+    photoUrls: ["/assets/spaceoncall-warehouse.webp"],
     floorPlanUrl: "/assets/floor-plan-large-bay.png",
     prices: {
       day: 980,

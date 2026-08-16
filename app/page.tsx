@@ -119,49 +119,6 @@ export default async function HomePage() {
       href: "/search?workType=Storage+%2B+work+area"
     }
   ];
-  const hostListingTemplates = [
-    {
-      title: "Tuas fabrication bay with loading access",
-      location: "Tuas South, Singapore",
-      size: "1,200 sqft",
-      type: "B2",
-      utilities: "Three-phase power / roller shutter",
-      access: "Daily, 7am-10pm",
-      rate: "S$320/day",
-      image: "/assets/spaceoncall-fabrication-bay.webp"
-    },
-    {
-      title: "Ready-to-use food production kitchen",
-      location: "Bedok North, Singapore",
-      size: "850 sqft",
-      type: "Food production",
-      utilities: "Extraction / sinks / cold storage",
-      access: "24/7 controlled access",
-      rate: "S$280/day",
-      image: "/assets/spaceoncall-commercial-kitchen.webp"
-    },
-    {
-      title: "Flexible neighbourhood pop-up unit",
-      location: "Kallang, Singapore",
-      size: "620 sqft",
-      type: "Retail",
-      utilities: "Track lighting / glass frontage",
-      access: "Daily, 9am-10pm",
-      rate: "S$190/day",
-      image: "/assets/spaceoncall-popup-retail.webp"
-    },
-    {
-      title: "Small-business warehouse and fulfilment bay",
-      location: "Woodlands, Singapore",
-      size: "4,800 sqft",
-      type: "B1",
-      utilities: "Loading bays / storage racks",
-      access: "Weekdays, 6am-11pm",
-      rate: "S$540/day",
-      image: "/assets/spaceoncall-warehouse.webp"
-    }
-  ];
-
   return (
     <main className="industrial-home">
       <section className="hero-stage">
@@ -264,56 +221,6 @@ export default async function HomePage() {
               </a>
             ))}
           </div>
-        </div>
-      </section>
-
-      <section id="host-templates" className="host-template-section" aria-labelledby="host-template-title">
-        <div className="section-shell">
-          <div className="section-heading">
-            <div>
-              <p className="text-sm font-black uppercase text-hazard">Sample host listings</p>
-              <h2 id="host-template-title" className="text-3xl font-black text-white md:text-5xl">
-                Show renters the operating facts.
-              </h2>
-              <p className="mt-3 max-w-3xl text-lg text-steel">
-                Example templates demonstrate the photo quality, specifications and pricing a complete host listing should provide.
-              </p>
-            </div>
-            <a className="button-primary" href="/dashboard/host/listings/new">
-              Create host listing <Factory size={18} />
-            </a>
-          </div>
-          <div className="host-template-grid">
-            {hostListingTemplates.map((template) => (
-              <article key={template.title} className="host-template-card">
-                <div className="host-template-card__media">
-                  <img src={template.image} alt="" />
-                  <span className="host-template-card__badge">Sample template</span>
-                </div>
-                <div className="host-template-card__body">
-                  <div>
-                    <p className="host-template-card__location"><MapPinned size={15} /> {template.location}</p>
-                    <h3>{template.title}</h3>
-                  </div>
-                  <dl className="host-template-card__specs">
-                    <div><dt>Available area</dt><dd>{template.size}</dd></div>
-                    <div><dt>Space type</dt><dd>{template.type}</dd></div>
-                    <div><dt>Facilities</dt><dd>{template.utilities}</dd></div>
-                    <div><dt>Access</dt><dd>{template.access}</dd></div>
-                  </dl>
-                  <div className="host-template-card__footer">
-                    <div><span>Example rate</span><strong>{template.rate}</strong></div>
-                    <a href="/dashboard/host/listings/new" aria-label={`Create a listing like ${template.title}`}>
-                      Use structure <ArrowRight size={17} />
-                    </a>
-                  </div>
-                </div>
-              </article>
-            ))}
-          </div>
-          <p className="host-template-note">
-            Sample information only. Hosts must enter accurate property details, permitted use, availability and pricing before review.
-          </p>
         </div>
       </section>
 

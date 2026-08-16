@@ -2,7 +2,7 @@ import type { Prisma } from "@prisma/client";
 import type { EquipmentAddon, Listing, ListingFilters } from "./fabrication";
 import { filterListings } from "./fabrication";
 import { prisma } from "./db";
-import { humanServiceAddonSlugs } from "./seed-data";
+import { getDummyListingImage, humanServiceAddonSlugs } from "./seed-data";
 
 type ListingRecord = Awaited<ReturnType<typeof prisma.listing.findMany>>[number] & {
   equipmentAddons?: { equipmentAddon: EquipmentAddon }[];
@@ -160,6 +160,7 @@ export async function getDashboardData(options: { page?: number; pageSize?: numb
 
 export function toListing(record: ListingRecord): Listing {
   const uploadedPhotoUrls = record.uploads?.filter((upload) => upload.scanStatus === "SAFE" || upload.scanStatus === "NOT_REQUIRED").map((upload) => `/api/listings/${record.id}/photos/${upload.id}`) ?? [];
+  const dummyImage = getDummyListingImage(record.slug);
   return {
     slug: record.slug,
     title: record.title,
@@ -181,7 +182,7 @@ export function toListing(record: ListingRecord): Listing {
     prohibitedWork: parseJsonArray(record.prohibitedWorkJson),
     safetyRules: parseJsonArray(record.safetyRulesJson),
     cancellationPolicy: record.cancellationPolicy,
-    photoUrls: uploadedPhotoUrls.length ? uploadedPhotoUrls : parseJsonArray(record.photoUrlsJson),
+    photoUrls: uploadedPhotoUrls.length ? uploadedPhotoUrls : dummyImage ? [dummyImage] : parseJsonArray(record.photoUrlsJson),
     floorPlanUrl: record.floorPlanUrl,
     prices: {
       day: record.priceDay,
