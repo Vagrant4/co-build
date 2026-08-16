@@ -176,7 +176,7 @@ export const seedListings: Listing[] = [
   },
   {
     slug: "medium-bay-woodlands",
-    title: "320 sqft B2 project workspace with cargo lift",
+    title: "320 sqft project workspace with cargo lift",
     address: "Woodlands Industrial Xchange, Singapore",
     location: "Woodlands",
     sizeSqft: 320,
@@ -225,7 +225,7 @@ export const seedListings: Listing[] = [
   },
   {
     slug: "large-bay-tuas",
-    title: "850 sqft Tuas B2 workspace with forklift and lorry access",
+    title: "850 sqft Tuas workspace with forklift and lorry access",
     address: "Tuas Avenue, Singapore",
     location: "Tuas",
     sizeSqft: 850,
@@ -401,7 +401,7 @@ export const seedListings: Listing[] = [
   },
   {
     slug: "metalwork-bay-bukit-batok",
-    title: "3,200 sqft B2 metalwork bay with three-phase power",
+    title: "3,200 sqft metalwork bay with three-phase power",
     address: "Bukit Batok Industrial Park A, Singapore",
     location: "Bukit Batok",
     sizeSqft: 3200,

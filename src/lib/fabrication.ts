@@ -142,27 +142,6 @@ export type ListingFilters = {
   factoryType?: FactoryType;
 };
 
-const B1_WORK = new Set([
-  "Assembly",
-  "Packing",
-  "Repair",
-  "Light fabrication",
-  "Electronics",
-  "3D printing",
-  "Storage + work area"
-]);
-
-const B2_WORK = new Set([
-  "Metal fabrication",
-  "Welding",
-  "Grinding",
-  "Woodworking",
-  "Furniture work",
-  "Signage work",
-  "Laser cutting",
-  "CNC work"
-]);
-
 const APPROVAL_ONLY_WORK = new Set(["Welding", "Spray painting, approval-only", "Chemical work, approval-only"]);
 
 export function calculateBookingQuote(input: BookingQuoteInput): BookingQuote {
@@ -205,26 +184,10 @@ export function classifyWorkRisk(
     };
   }
 
-  if (zoning === "B1" && B2_WORK.has(workType)) {
-    return {
-      riskLevel: "ADMIN_APPROVAL",
-      requiresAdminApproval: true,
-      reason: `${workType} is heavier/noisy work and needs a B2 space.`
-    };
-  }
-
-  if (zoning === "UNKNOWN") {
-    return {
-      riskLevel: "ADMIN_APPROVAL",
-      requiresAdminApproval: true,
-      reason: `${workType} needs admin review because zoning is unknown.`
-    };
-  }
-
   return {
     riskLevel: "STANDARD",
     requiresAdminApproval: false,
-    reason: `${workType} is suitable for ${zoning} ${zoning === "B1" ? "light industrial" : "industrial"} use.`
+    reason: `${workType} requires host confirmation against the listing's permitted activities and site restrictions.`
   };
 }
 
@@ -333,6 +296,11 @@ export function sizeBandLabel(sizeBand: SizeBand): string {
 
 export function sizeRequirementLabel(sizeSqft: number): string {
   return sizeSqft <= 1000 ? "Smaller than 1,000 sqft" : "Bigger than 1,000 sqft";
+}
+
+export function formatArea(sizeSqft: number): string {
+  const sizeSqm = Math.round(sizeSqft / 10.7639);
+  return `${sizeSqft.toLocaleString("en-US")} sqft / ${sizeSqm.toLocaleString("en-US")} m²`;
 }
 
 export function inferSpaceTypeFromSize(sizeSqft: number): SpaceType {

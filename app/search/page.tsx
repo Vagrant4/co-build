@@ -1,4 +1,4 @@
-import type { DurationDays, FactoryType, ListingFilters, PowerType, SizeBand } from "@/src/lib/fabrication";
+import type { DurationDays, ListingFilters, PowerType, SizeBand } from "@/src/lib/fabrication";
 import { ListingCard } from "@/components/listing-card";
 import { SearchForm } from "@/components/search-form";
 import { getApprovedListings } from "@/src/lib/repository";
@@ -21,35 +21,32 @@ export default async function SearchPage({ searchParams }: PageProps) {
           <p className="text-sm font-black uppercase text-safety">Search results</p>
           <h1 className="mt-2 text-4xl font-black text-white md:text-6xl">Find business space</h1>
           <p className="mt-3 max-w-3xl text-lg font-bold text-neutral-300">
-            Filter by location, required size, requested check-in and check-out dates, work type, power availability, equipment, loading access, and
-            factory type.
+            Filter by location, required area, requested check-in and check-out dates, intended activity, available equipment, and loading access.
           </p>
         </div>
       </section>
       <section className="section-shell pt-8 pb-12">
       <div className="filter-panel mb-6">
         <SearchForm compact />
-        <form action="/search" className="mt-4 grid gap-3 border-t border-neutral-200 pt-4 md:grid-cols-5">
+        <form action="/search" className="mt-4 grid gap-3 border-t border-neutral-200 pt-4 md:grid-cols-4">
           <label>
-            <span className="label">Min sqft</span>
-            <input className="field" name="minSqft" type="number" placeholder="100" />
+            <span className="label">Minimum area</span>
+            <input className="field" name="minArea" type="number" placeholder="100" />
           </label>
           <label>
-            <span className="label">Max sqft</span>
-            <input className="field" name="maxSqft" type="number" placeholder="400" />
+            <span className="label">Maximum area</span>
+            <input className="field" name="maxArea" type="number" placeholder="400" />
+          </label>
+          <label>
+            <span className="label">Area unit</span>
+            <select className="field" name="areaUnit" defaultValue="SQFT">
+              <option value="SQFT">Square feet (sqft)</option>
+              <option value="SQM">Square metres (m²)</option>
+            </select>
           </label>
           <label>
             <span className="label">Loading</span>
             <input className="field" name="loadingAccess" placeholder="cargo lift" />
-          </label>
-          <label>
-            <span className="label">Factory type</span>
-            <select className="field" name="factoryType" defaultValue="">
-              <option value="">Any factory type</option>
-              <option value="OFFICE">Office</option>
-              <option value="B1">B1</option>
-              <option value="B2">B2</option>
-            </select>
           </label>
           <button className="button-dark self-end" type="submit">
             Apply detailed filters
@@ -76,15 +73,14 @@ function parseFilters(params: Record<string, string | string[] | undefined>): Li
   const duration = one(params.durationDays);
   return {
     location: one(params.location),
-    minSqft: numberOrUndefined(one(params.minSqft)),
-    maxSqft: numberOrUndefined(one(params.maxSqft)),
+    minSqft: areaInSqft(one(params.minArea) ?? one(params.minSqft), one(params.areaUnit)),
+    maxSqft: areaInSqft(one(params.maxArea) ?? one(params.maxSqft), one(params.areaUnit)),
     durationDays: parseDuration(duration),
     sizeBand: one(params.sizeBand) as SizeBand | undefined,
     workType: one(params.workType),
     powerType: one(params.powerType) as PowerType | undefined,
     equipment: many(params.equipment),
-    loadingAccess: one(params.loadingAccess),
-    factoryType: one(params.factoryType) as FactoryType | undefined
+    loadingAccess: one(params.loadingAccess)
   };
 }
 
@@ -106,4 +102,10 @@ function parseDuration(value?: string): DurationDays | undefined {
 function numberOrUndefined(value?: string) {
   const number = Number(value);
   return Number.isFinite(number) && number > 0 ? number : undefined;
+}
+
+function areaInSqft(value?: string, unit?: string) {
+  const area = numberOrUndefined(value);
+  if (!area) return undefined;
+  return unit === "SQM" ? Math.round(area * 10.7639) : area;
 }

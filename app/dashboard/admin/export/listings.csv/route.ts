@@ -49,7 +49,7 @@ export async function GET() {
     { key: "location", header: "Location" },
     { key: "sizeSqft", header: "Size sqft" },
     { key: "spaceType", header: "Space type" },
-    { key: "factoryType", header: "Factory type" },
+    { key: "factoryType", header: "Legacy local classification" },
     { key: "powerType", header: "Power" },
     { key: "loadingAccessJson", header: "Loading access" },
     { key: "accessHours", header: "Access hours" },

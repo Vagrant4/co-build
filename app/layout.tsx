@@ -9,7 +9,7 @@ import { getOptionalUser } from "@/src/lib/authorization";
 
 export const metadata: Metadata = {
   title: "SpaceOnCall | Business space on demand",
-  description: "Find and rent business space on demand by location, floor area, facilities, access, and permitted use in Singapore."
+  description: "Find and rent business space on demand by location, usable area, facilities, access, and permitted use."
 };
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {

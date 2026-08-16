@@ -7,20 +7,20 @@ export function SearchForm({ compact = false }: { compact?: boolean }) {
       <div className="search-form__controls">
         <label className="search-form__location">
           <span className="label">Location</span>
-          <input className="field" name="location" placeholder="Kallang, Tuas, Woodlands" />
+          <input className="field" name="location" placeholder="City, area, or district" />
         </label>
         <label className="search-form__size">
           <span className="label">Size required</span>
           <select className="field" name="sizeBand" defaultValue="">
             <option value="">Any size</option>
-            <option value="UNDER_1000">Smaller than 1,000 sqft</option>
-            <option value="UNDER_5000">Smaller than 5,000 sqft</option>
-            <option value="UNDER_10000">Smaller than 10,000 sqft</option>
-            <option value="OVER_10000">Bigger than 10,000 sqft</option>
+            <option value="UNDER_1000">Under 1,000 sqft / 93 m²</option>
+            <option value="UNDER_5000">Under 5,000 sqft / 465 m²</option>
+            <option value="UNDER_10000">Under 10,000 sqft / 929 m²</option>
+            <option value="OVER_10000">Over 10,000 sqft / 929 m²</option>
           </select>
         </label>
         <label className="search-form__work">
-          <span className="label">Work</span>
+          <span className="label">Intended activity</span>
           <select className="field" name="workType" defaultValue="">
             <option value="">Any work</option>
             {workTypes.map((type) => (

@@ -19,10 +19,10 @@ export default async function NewListingPage() {
       <div className="mb-6">
         <p className="signal-kicker">Host listing form</p>
         <h1 className="flex items-center gap-3 text-4xl font-black">
-          <Factory className="text-hazard" size={38} /> List fabrication space
+          <Factory className="text-hazard" size={38} /> List business space
         </h1>
         <p className="mt-2 max-w-3xl font-bold text-steel">
-          Submitted spaces start as pending admin approval. Hosts declare exact square footage, type, access,
+          Submitted spaces start as pending admin approval. Hosts declare the usable area, space category, access,
           allowed work, restricted work, available equipment, pricing, deposits, and cleaning rules.
         </p>
       </div>
@@ -34,24 +34,34 @@ export default async function NewListingPage() {
           </div>
         </FormSection>
 
-        <FormSection id="space-access" number="2" title="Space & Access" summary="Declare the working area, factory type, and standard access hours.">
+        <FormSection id="space-access" number="2" title="Space & Access" summary="Declare the usable area, space category, and standard access hours.">
           <div className="grid gap-4 md:grid-cols-2">
-            <Input name="sizeSqft" label="Available size in sqft" type="number" defaultValue="160" />
-            <div role="group" aria-labelledby="listing-type-label" className="md:col-span-2">
-              <span id="listing-type-label" className="label">
-                Type
-              </span>
-              <div className="grid gap-2 md:grid-cols-4">
-                <Checkbox name="factoryType" value="OFFICE" label="Office" />
-                <Checkbox name="factoryType" value="B1" label="B1" defaultChecked />
-                <Checkbox name="factoryType" value="B2" label="B2" />
-                <Checkbox name="factoryType" value="OTHER" label="Other" />
-                <label className="md:col-span-2">
-                  <span className="label">Other type, state:</span>
-                  <input className="field" name="factoryTypeOther" placeholder="State other space type" />
-                </label>
-              </div>
-            </div>
+            <Input name="availableSize" label="Available area" type="number" defaultValue="160" />
+            <label>
+              <span className="label">Area unit</span>
+              <select className="field" name="sizeUnit" defaultValue="SQFT">
+                <option value="SQFT">Square feet (sqft)</option>
+                <option value="SQM">Square metres (m²)</option>
+              </select>
+            </label>
+            <label>
+              <span className="label">Space category</span>
+              <select className="field" name="spaceCategory" defaultValue="WORKSHOP">
+                <option value="WORKSHOP">Workshop</option>
+                <option value="WAREHOUSE">Warehouse / cargo space</option>
+                <option value="COMMERCIAL_KITCHEN">Commercial kitchen / food stall</option>
+                <option value="RETAIL">Retail / pop-up space</option>
+                <option value="OFFICE">Office / project room</option>
+                <option value="STUDIO">Studio / production room</option>
+                <option value="STORAGE">Storage space</option>
+                <option value="OUTDOOR">Outdoor yard</option>
+                <option value="OTHER">Other</option>
+              </select>
+            </label>
+            <label>
+              <span className="label">Other category or local classification (optional)</span>
+              <input className="field" name="localClassification" placeholder="For example: local zoning, licence class, or other space type" />
+            </label>
             <input type="hidden" name="powerType" value="SINGLE_PHASE" />
             <div className="grid gap-4 md:col-span-2 md:grid-cols-2">
               <label>
@@ -70,7 +80,7 @@ export default async function NewListingPage() {
           </div>
         </FormSection>
 
-        <FormSection id="work-rules" number="3" title="Work Rules" summary="Make permitted and restricted work clear before a renter books the space.">
+        <FormSection id="work-rules" number="3" title="Capabilities & Work Rules" summary="Make facilities, permitted activities, and restrictions clear before a renter starts a private chat.">
           <div className="grid gap-4 md:grid-cols-2">
             <Textarea name="loadingAccess" label="Loading access" defaultValue={"ramp\nlorry access"} />
             <Textarea name="amenities" label="Included amenities" defaultValue={"Workbench\nWi-Fi\nWaste bins\nShared sink"} />

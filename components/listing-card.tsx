@@ -1,6 +1,6 @@
 import { ArrowRight, Bolt, MapPin, Ruler, ShieldCheck, Truck } from "lucide-react";
 import type { Listing } from "@/src/lib/fabrication";
-import { formatCurrency, sizeRequirementLabel } from "@/src/lib/fabrication";
+import { formatArea, formatCurrency, sizeRequirementLabel } from "@/src/lib/fabrication";
 import { isDummyListingSlug } from "@/src/lib/seed-data";
 
 export function ListingCard({ listing }: { listing: Listing }) {
@@ -25,11 +25,11 @@ export function ListingCard({ listing }: { listing: Listing }) {
             <h3 className="mt-1 text-xl font-black leading-tight">{listing.title}</h3>
             <p className="mt-1 text-sm font-bold text-steel">{listing.address}</p>
           </div>
-          <span className="status-pill status-pill--strong">{listing.zoning}</span>
+          <span className="status-pill status-pill--strong">Host approval required</span>
         </div>
         <div className="listing-card__specs">
           <span className="listing-card__spec">
-            <Ruler size={16} /> {listing.sizeSqft} sqft
+            <Ruler size={16} /> {formatArea(listing.sizeSqft)}
           </span>
           <span className="listing-card__spec">
             <Bolt size={16} /> {listing.powerType === "THREE_PHASE" ? "3-phase" : "1-phase"}
