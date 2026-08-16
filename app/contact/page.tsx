@@ -1,4 +1,4 @@
-import { Mail, Phone } from "lucide-react";
+import { Mail } from "lucide-react";
 
 export default function ContactPage() {
   return (
@@ -12,9 +12,6 @@ export default function ContactPage() {
         <div className="mt-6 space-y-3">
           <p className="flex items-center gap-2 font-black">
             <Mail className="text-hazard" size={20} /> support@spaceoncall.com
-          </p>
-          <p className="flex items-center gap-2 font-black">
-            <Phone className="text-hazard" size={20} /> +65 9000 0000
           </p>
         </div>
       </section>

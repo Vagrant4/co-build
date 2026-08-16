@@ -6,6 +6,7 @@ import { formatCurrency, sizeRequirementLabel } from "@/src/lib/fabrication";
 import { prisma } from "@/src/lib/db";
 import { getEquipmentAddons, getPublicListingBySlug } from "@/src/lib/repository";
 import { getOptionalUser } from "@/src/lib/authorization";
+import { isDummyListingSlug } from "@/src/lib/seed-data";
 
 export const dynamic = "force-dynamic";
 
@@ -25,6 +26,7 @@ export default async function ListingDetailPage({ params }: PageProps) {
     })
   ]);
   if (!listing || !listingRecord) notFound();
+  const isDummy = isDummyListingSlug(listing.slug);
 
   const conversation = actor?.role === "RENTER" && !actor.suspended ? await prisma.conversation.findUnique({
     where: { listingId_renterId: { listingId: listingRecord.id, renterId: actor.id } },
@@ -42,7 +44,7 @@ export default async function ListingDetailPage({ params }: PageProps) {
           <div className="flex flex-col justify-between gap-6">
             <div>
               <div className="mb-3 flex flex-wrap gap-2">
-                <StatusBadge status={listing.status} />
+                {isDummy ? <span className="status-pill bg-neutral-700 text-white">Unavailable - dummy listing</span> : <StatusBadge status={listing.status} />}
                 <span className="status-pill bg-safety text-ink">{listing.zoning}</span>
               </div>
               <p className="text-sm font-black uppercase text-safety">{sizeRequirementLabel(listing.sizeSqft)}</p>
@@ -55,9 +57,13 @@ export default async function ListingDetailPage({ params }: PageProps) {
               <Spec icon={Truck} label="Loading" value={listing.loadingAccess.join(", ")} />
               <Spec icon={CalendarDays} label="Access" value={listing.accessHours} />
             </div>
-            <a href={`/checkout/${listing.slug}`} className="button-primary">
-              Request booking <ArrowRight size={18} />
-            </a>
+            {isDummy ? (
+              <div className="border border-safety bg-safety/10 p-4 font-black text-safety">Showcase listing only. Booking is unavailable.</div>
+            ) : (
+              <a href={`/checkout/${listing.slug}`} className="button-primary">
+                Request booking <ArrowRight size={18} />
+              </a>
+            )}
           </div>
         </div>
       </section>
@@ -113,11 +119,15 @@ export default async function ListingDetailPage({ params }: PageProps) {
             ))}
           </div>
           <p className="mt-4 text-sm font-bold text-steel">Welding/hot work adds an extra deposit where available.</p>
-          <a className="button-dark mt-5 w-full" href={`/checkout/${listing.slug}`}>
-            Continue to checkout
-          </a>
+          {isDummy ? (
+            <p className="mt-5 border border-neutral-300 bg-smoke p-3 text-center font-black">Unavailable - dummy listing</p>
+          ) : (
+            <a className="button-dark mt-5 w-full" href={`/checkout/${listing.slug}`}>
+              Continue to checkout
+            </a>
+          )}
           <div className="mt-5 grid gap-3">
-            {actor?.role === "RENTER" && !actor.suspended ? (
+            {!isDummy && actor?.role === "RENTER" && !actor.suspended ? (
               <ListingChat
                 listingId={listingRecord.id}
                 conversationId={conversation?.id}
@@ -126,9 +136,9 @@ export default async function ListingDetailPage({ params }: PageProps) {
                 title="Chat with host before booking"
                 placeholder="Ask about access, loading, power, equipment, or timing before checkout."
               />
-            ) : (
+            ) : !isDummy ? (
               <a className="button-secondary w-full" href="/sign-in">Sign in as a renter to start a private chat</a>
-            )}
+            ) : null}
           </div>
         </aside>
       </section>

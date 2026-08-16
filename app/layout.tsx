@@ -5,15 +5,17 @@ import { Logo } from "@/components/logo";
 import { SiteHeader } from "@/components/site-header";
 import { assertAuthenticationConfigured, getAppMode } from "@/src/lib/app-mode";
 import { ServiceWorkerRegistration } from "@/components/service-worker-registration";
+import { getOptionalUser } from "@/src/lib/authorization";
 
 export const metadata: Metadata = {
   title: "SpaceOnCall | Business space on demand",
   description: "Find and rent business space on demand by location, floor area, facilities, access, and permitted use in Singapore."
 };
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
   const mode = getAppMode();
   assertAuthenticationConfigured();
+  const account = await getOptionalUser();
 
   const content = (
     <html lang="en">
@@ -24,7 +26,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             Demo mode: showcase accounts and simulated transactions only
           </div>
         )}
-        <SiteHeader appMode={mode} />
+        <SiteHeader appMode={mode} accountRole={account?.role ?? null} />
         {children}
         <footer className="border-t border-neutral-300 bg-ink py-8 text-white">
           <div className="section-shell flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
@@ -34,7 +36,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             </div>
             <div className="flex flex-wrap gap-3 text-sm font-bold text-neutral-200">
               <a href="/pricing">Pricing</a>
-              <a href="/create-account">Create account</a>
+              {!account ? <a href="/create-account">Create account</a> : null}
               <a href="/safety">Safety</a>
               <a href="/legal">Legal Centre</a>
               <a href="/faq">FAQ</a>

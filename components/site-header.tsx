@@ -2,26 +2,27 @@
 
 import { ClipboardCheck, Factory, LayoutDashboard, Menu, Search, ShieldCheck, UserPlus } from "lucide-react";
 import { UserButton, useAuth } from "@clerk/nextjs";
+import type { UserRole } from "@prisma/client";
 import { usePathname } from "next/navigation";
 import { AccountSwitcher } from "./account-switcher";
 import { Logo } from "./logo";
 
-function getNavItems(pathname: string) {
-  if (pathname.startsWith("/dashboard/host")) {
+function getNavItems(pathname: string, role: UserRole | null) {
+  if (role === "HOST" || pathname.startsWith("/dashboard/host")) {
     return [
       { href: "/dashboard/host", label: "Host Dashboard", icon: LayoutDashboard },
       { href: "/dashboard/host/listings/new", label: "List Your Space", icon: Factory }
     ];
   }
 
-  if (pathname.startsWith("/dashboard/user")) {
+  if (role === "RENTER" || pathname.startsWith("/dashboard/user")) {
     return [
       { href: "/search", label: "Find a Space", icon: Search },
       { href: "/dashboard/user", label: "My Bookings", icon: ClipboardCheck }
     ];
   }
 
-  if (pathname.startsWith("/dashboard/admin")) {
+  if (role === "ADMIN" || pathname.startsWith("/dashboard/admin")) {
     return [{ href: "/dashboard/admin", label: "Admin Dashboard", icon: ShieldCheck }];
   }
 
@@ -32,9 +33,9 @@ function getNavItems(pathname: string) {
   ];
 }
 
-export function SiteHeader({ appMode }: { appMode: "demo" | "pilot" | "production" }) {
+export function SiteHeader({ appMode, accountRole }: { appMode: "demo" | "pilot" | "production"; accountRole: UserRole | null }) {
   const pathname = usePathname();
-  const navItems = getNavItems(pathname);
+  const navItems = getNavItems(pathname, accountRole);
 
   return (
     <header className="site-header">
@@ -51,7 +52,7 @@ export function SiteHeader({ appMode }: { appMode: "demo" | "pilot" | "productio
         <div className="site-header__desktop-actions">
           <AccountSwitcher appMode={appMode} />
           <Navigation pathname={pathname} navItems={navItems} />
-          {appMode !== "demo" && <ManagedAccountControl />}
+          {appMode !== "demo" && <ManagedAccountControl accountRole={accountRole} />}
         </div>
 
         <details className="site-header__mobile-menu">
@@ -62,7 +63,7 @@ export function SiteHeader({ appMode }: { appMode: "demo" | "pilot" | "productio
           <div className="site-header__mobile-panel">
             <AccountSwitcher appMode={appMode} />
             <Navigation pathname={pathname} navItems={navItems} />
-            {appMode !== "demo" && <ManagedAccountControl />}
+            {appMode !== "demo" && <ManagedAccountControl accountRole={accountRole} />}
           </div>
         </details>
       </div>
@@ -98,7 +99,19 @@ function Navigation({
   );
 }
 
-function ManagedAccountControl() {
+function ManagedAccountControl({ accountRole }: { accountRole: UserRole | null }) {
   const { isSignedIn } = useAuth();
-  return <div className="flex items-center gap-2">{isSignedIn ? <UserButton /> : <a className="button-secondary" href="/sign-in">Sign in</a>}</div>;
+  const roleLabel = accountRole === "RENTER" ? "Renter" : accountRole === "HOST" ? "Host" : accountRole === "ADMIN" ? "Admin" : null;
+  return (
+    <div className="flex items-center gap-2">
+      {isSignedIn ? (
+        <>
+          {roleLabel ? <span className="status-pill hidden sm:inline-flex">{roleLabel}</span> : null}
+          <UserButton />
+        </>
+      ) : (
+        <a className="button-secondary" href="/sign-in">Sign in</a>
+      )}
+    </div>
+  );
 }
