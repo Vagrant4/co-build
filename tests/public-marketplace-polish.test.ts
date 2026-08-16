@@ -40,4 +40,18 @@ describe("public marketplace polish", () => {
     expect(read("app/checkout/[listingId]/page.tsx")).toContain("isDummyListingSlug");
     expect(read("app/actions.ts")).toContain("dummy showcase listing and is unavailable for booking");
   });
+
+  it("uses internationally understandable capability-based listing fields", () => {
+    const hostForm = read("app/dashboard/host/listings/new/page.tsx");
+    const search = read("app/search/page.tsx");
+    const homepage = read("app/page.tsx");
+
+    expect(hostForm).toContain("Space category");
+    expect(hostForm).toContain("Square metres (m²)");
+    expect(hostForm).toContain("local classification (optional)");
+    expect(hostForm).not.toContain('label="B1"');
+    expect(hostForm).not.toContain('label="B2"');
+    expect(search).not.toContain("Factory type");
+    expect(homepage).not.toContain("B1/B2 suitability");
+  });
 });

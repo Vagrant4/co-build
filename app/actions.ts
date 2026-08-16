@@ -4,7 +4,7 @@ import { auth, clerkClient, currentUser } from "@clerk/nextjs/server";
 import { cookies } from "next/headers";
 import { forbidden, notFound, redirect, unauthorized } from "next/navigation";
 import { revalidatePath } from "next/cache";
-import type { BookingAction, DurationDays, PowerType, SpaceType, Zoning } from "@/src/lib/fabrication";
+import type { BookingAction, DurationDays, PowerType, SpaceType } from "@/src/lib/fabrication";
 import {
   advanceAdditionalRequirementStatus,
   advanceBookingStatus,
@@ -564,7 +564,7 @@ export async function reviewAdditionalRequirementPaymentAction(formData: FormDat
 export async function createListingAction(formData: FormData) {
   const host = await requireRole("HOST");
   const title = requireString(formData, "title");
-  assertNoRestrictedContact(title, requireString(formData, "amenities"), requireString(formData, "permittedWork"), requireString(formData, "restrictedWork"), optionalString(formData, "factoryTypeOther"), optionalString(formData, "equipmentOther"));
+  assertNoRestrictedContact(title, requireString(formData, "amenities"), requireString(formData, "permittedWork"), requireString(formData, "restrictedWork"), optionalString(formData, "localClassification"), optionalString(formData, "equipmentOther"));
   const slug = slugify(`${title}-${Date.now()}`);
   const photoUploadIds = formData.getAll("photoUploadId").map(String).filter(Boolean);
   const floorPlanUploadIds = formData.getAll("floorPlanUploadId").map(String).filter(Boolean);
@@ -573,12 +573,20 @@ export async function createListingAction(formData: FormData) {
   if (floorPlanUploadIds.length > 1) throw new Error("A listing may include only one floor plan.");
   if (new Set(submittedUploadIds).size !== submittedUploadIds.length) throw new Error("Duplicate listing uploads are not allowed.");
   const equipmentSlugs = formData.getAll("equipment").map(String).filter((slugValue) => slugValue !== "other");
-  const factoryTypes = formData.getAll("factoryType").map(String).filter((value) => ["OFFICE", "B1", "B2", "OTHER"].includes(value));
-  const sizeSqft = Number(requireString(formData, "sizeSqft"));
+  const availableSize = Number(requireString(formData, "availableSize"));
+  const sizeUnit = requireString(formData, "sizeUnit");
+  if (!Number.isFinite(availableSize) || availableSize <= 0) throw new Error("Available area must be greater than zero.");
+  if (sizeUnit !== "SQFT" && sizeUnit !== "SQM") throw new Error("Select a valid area unit.");
+  const sizeSqft = Math.max(1, Math.round(sizeUnit === "SQM" ? availableSize * 10.7639 : availableSize));
   const spaceType = inferSpaceTypeFromSize(sizeSqft);
   const amenities = splitList(requireString(formData, "amenities"));
-  const declaredType = formatDeclaredType(factoryTypes, optionalString(formData, "factoryTypeOther"));
-  if (declaredType) amenities.push(declaredType);
+  const spaceCategory = requireString(formData, "spaceCategory");
+  const categoryLabels: Record<string, string> = { WORKSHOP: "Workshop", WAREHOUSE: "Warehouse / cargo space", COMMERCIAL_KITCHEN: "Commercial kitchen / food stall", RETAIL: "Retail / pop-up space", OFFICE: "Office / project room", STUDIO: "Studio / production room", STORAGE: "Storage space", OUTDOOR: "Outdoor yard", OTHER: "Other" };
+  if (!categoryLabels[spaceCategory]) throw new Error("Select a valid space category.");
+  amenities.push(`Space category: ${categoryLabels[spaceCategory]}`);
+  amenities.push(`Host-declared area: ${availableSize} ${sizeUnit === "SQM" ? "m²" : "sqft"}`);
+  const localClassification = optionalString(formData, "localClassification");
+  if (localClassification) amenities.push(`Local classification: ${localClassification}`);
   const equipmentOther = optionalString(formData, "equipmentOther");
   if (equipmentOther) amenities.push(...splitList(equipmentOther).map((item) => `Equipment: ${item}`));
   const accessStart = requireString(formData, "accessStart");
@@ -592,7 +600,7 @@ export async function createListingAction(formData: FormData) {
     const listing = await tx.listing.create({
       data: {
         slug, title, address: requireString(formData, "address"), location: requireString(formData, "location"), sizeSqft, spaceType,
-        factoryType: zoningFromFactoryTypes(factoryTypes), status: "PENDING_ADMIN", accessHours,
+        factoryType: "UNKNOWN", status: "PENDING_ADMIN", accessHours,
         powerType: requireString(formData, "powerType") as PowerType,
         loadingAccessJson: JSON.stringify(splitList(requireString(formData, "loadingAccess"))), amenitiesJson: JSON.stringify(amenities),
         permittedWorkJson: JSON.stringify(splitList(requireString(formData, "permittedWork"))), prohibitedWorkJson: JSON.stringify(splitList(requireString(formData, "restrictedWork"))),
@@ -866,8 +874,6 @@ function optionalString(formData: FormData, key: string) { const value = formDat
 function numberField(formData: FormData, key: string) { const value = Number(requireString(formData, key)); if (!Number.isFinite(value) || value < 0) throw new Error(`${key} must be a valid non-negative number.`); return value; }
 function parseDuration(value: string): DurationDays { const duration = Number(value); if (duration === 1 || duration === 7 || duration === 30 || duration === 60) return duration; throw new Error("Duration must be 1, 7, 30, or 60 days."); }
 function splitList(value: string) { return value.split(/\r?\n|,/).map((item) => item.trim()).filter(Boolean); }
-function zoningFromFactoryTypes(types: string[]): Zoning { return types.includes("B2") ? "B2" : types.includes("B1") ? "B1" : "UNKNOWN"; }
-function formatDeclaredType(types: string[], other: string) { const labels = types.map((value) => value === "OFFICE" ? "Office" : value === "OTHER" ? `Other${other ? `: ${other}` : ""}` : value); if (!labels.length && other) labels.push(`Other: ${other}`); return labels.length ? `Declared type: ${labels.join(", ")}` : ""; }
 function slugify(value: string) { return value.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, ""); }
 function buildCompanyAccountPaymentReference(email: string) { return `company_account_payment_${slugify(email).slice(0, 30)}_${Date.now()}`; }
 function fallbackListingImage(type: SpaceType) { return ({ MAKER_BENCH: "/assets/sample-workshop-photo-bench.png", SMALL_BAY: "/assets/sample-workshop-photo-small-bay.png", MEDIUM_BAY: "/assets/sample-workshop-photo-medium-bay.png", LARGE_BAY: "/assets/sample-workshop-photo-large-bay.png" } as const)[type]; }

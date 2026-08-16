@@ -59,11 +59,11 @@ export default async function HomePage() {
     },
     {
       icon: Factory,
-      text: "Hosts declare factory type, fire safety, electrical supply, access rules, and allowed work."
+      text: "Hosts declare the usable area, facilities, access rules, permitted activities, and restrictions."
     }
   ];
   const marketStats = [
-    { value: `${allListings.length}`, label: "spaces to compare", detail: "Across key Singapore industrial areas" },
+    { value: `${allListings.length}`, label: "spaces to compare", detail: "Business spaces listed by location and capability" },
     { value: "1-60", label: "day bookings", detail: "With custom-duration requests available" },
     { value: "S$0", label: "deal commission", detail: "A simple S$5 monthly platform subscription" }
   ];
@@ -84,7 +84,7 @@ export default async function HomePage() {
       icon: ClipboardCheck,
       label: "03 / Approve",
       title: "Route risk to the right person",
-      body: "Hosts review requests while high-risk work and factory mismatches go to admin."
+      body: "Hosts confirm each intended use while hazardous activities receive additional review."
     },
     {
       icon: ShieldCheck,
@@ -127,15 +127,15 @@ export default async function HomePage() {
         <div className="section-shell hero-stage__inner">
           <div className="hero-stage__copy">
             <div className="signal-kicker signal-kicker--dark">
-              <HardHat size={18} /> On-demand business space / Singapore
+              <HardHat size={18} /> Business space, available on demand
             </div>
             <div>
               <h1 className="max-w-4xl text-5xl font-black leading-[0.96] text-white md:text-7xl">
                 Space for business. Ready when you are.
               </h1>
               <p className="mt-5 max-w-2xl text-xl font-bold text-neutral-200">
-                Book verified workshops, production bays and operating space by the day or month. Compare power,
-                access, equipment and permitted use before you commit.
+                Find workshops, kitchens, warehouses, retail areas and other operating spaces by the day or month.
+                Compare size, access, equipment and permitted use, then discuss the job privately with the host.
               </p>
             </div>
             <div className="flex flex-wrap gap-3">
@@ -170,7 +170,7 @@ export default async function HomePage() {
         </div>
       </section>
 
-      <section className="home-search-band" aria-label="Find a fabrication workspace">
+      <section className="home-search-band" aria-label="Find business space">
         <div className="section-shell">
           <SearchForm />
         </div>
@@ -257,7 +257,7 @@ export default async function HomePage() {
             <p className="text-sm font-black uppercase text-hazard">Live inventory</p>
             <h2 className="text-3xl font-black md:text-5xl">Showcase spaces that feel ready to book.</h2>
             <p className="mt-3 max-w-3xl text-lg text-steel">
-              Compare real floor area, location, factory type, power, loading access, permitted work, and pricing.
+              Compare usable area, location, facilities, loading access, permitted activities, restrictions, and pricing.
             </p>
           </div>
           <a className="button-dark" href="/search">
@@ -294,7 +294,7 @@ export default async function HomePage() {
         </div>
         <div className="grid gap-3 sm:grid-cols-2">
           {[
-            "Search by location, required size, work type, duration, power, equipment, loading, and factory type.",
+            "Search by location, required area, intended activity, dates, equipment, facilities, and loading access.",
             "Review listing details including permitted work, prohibited work, safety rules, floor plan, and cancellation.",
             "Submit verification, choose add-ons, accept safety rules, and receive host/admin approval where needed.",
             "Submit payment proof, then upload check-in and check-out photos for deposit review."
@@ -345,7 +345,7 @@ export default async function HomePage() {
         </div>
         <div className="co-build-showcase-panel co-build-showcase-panel--dark">
           <p className="text-sm font-black uppercase text-safety">Safety and compliance</p>
-          <h2 className="mt-2 text-3xl font-black text-white md:text-4xl">B1/B2 suitability with high-risk admin approval.</h2>
+          <h2 className="mt-2 text-3xl font-black text-white md:text-4xl">Host-confirmed use with additional review for hazardous work.</h2>
           <div className="mt-5 grid gap-3">
             {safetyCards.map(({ icon: Icon, text }) => (
               <div key={text} className="safety-row">
@@ -381,7 +381,7 @@ export default async function HomePage() {
         <div className="grid gap-4 md:grid-cols-2">
           {[
             ["Can I book for one day?", "Yes. MVP durations are 1 day, 7 days, 30 days, and 60 days."],
-            ["Can I weld or grind?", "Only in suitable B2 spaces, and welding/hot work still requires admin approval."],
+            ["Can I do heavy or hazardous work?", "Describe the activity in the private chat. The host must confirm site suitability, and welding, hot work, spray painting, or chemical work requires additional approval."],
             ["Are deposits included?", "The checkout quote includes rental, deposit, cleaning fee, and selected equipment add-ons."],
             ["Are photos required?", "Yes. Check-in and check-out photos are required for deposit and dispute review."]
           ].map(([question, answer]) => (

@@ -2,7 +2,7 @@ import type { Prisma } from "@prisma/client";
 import type { EquipmentAddon, Listing, ListingFilters } from "./fabrication";
 import { filterListings } from "./fabrication";
 import { prisma } from "./db";
-import { getDummyListingImage, humanServiceAddonSlugs } from "./seed-data";
+import { getDummyListingImage, humanServiceAddonSlugs, seedListings } from "./seed-data";
 
 type ListingRecord = Awaited<ReturnType<typeof prisma.listing.findMany>>[number] & {
   equipmentAddons?: { equipmentAddon: EquipmentAddon }[];
@@ -161,9 +161,10 @@ export async function getDashboardData(options: { page?: number; pageSize?: numb
 export function toListing(record: ListingRecord): Listing {
   const uploadedPhotoUrls = record.uploads?.filter((upload) => upload.scanStatus === "SAFE" || upload.scanStatus === "NOT_REQUIRED").map((upload) => `/api/listings/${record.id}/photos/${upload.id}`) ?? [];
   const dummyImage = getDummyListingImage(record.slug);
+  const currentShowcaseListing = dummyImage ? seedListings.find((listing) => listing.slug === record.slug) : null;
   return {
     slug: record.slug,
-    title: record.title,
+    title: currentShowcaseListing?.title ?? record.title,
     address: record.address,
     location: record.location,
     sizeSqft: record.sizeSqft,

@@ -64,23 +64,23 @@ describe("pricing", () => {
   });
 });
 
-describe("zoning and risk", () => {
-  it("classifies B1-friendly work as standard risk", () => {
+describe("capability and risk", () => {
+  it("leaves ordinary activities for host confirmation regardless of legacy classification", () => {
     expect(classifyWorkRisk("Electronics", "B1")).toEqual({
       riskLevel: "STANDARD",
       requiresAdminApproval: false,
-      reason: "Electronics is suitable for B1 light industrial use."
+      reason: "Electronics requires host confirmation against the listing's permitted activities and site restrictions."
     });
   });
 
-  it("requires admin approval for hot work, spray painting, chemical work, and B1/B2 mismatches", () => {
+  it("requires admin approval for hazardous work without using B1/B2 as the decision", () => {
     expect(classifyWorkRisk("Welding", "B2").requiresAdminApproval).toBe(true);
     expect(classifyWorkRisk("Spray painting, approval-only", "B2").requiresAdminApproval).toBe(true);
     expect(classifyWorkRisk("Chemical work, approval-only", "B2").requiresAdminApproval).toBe(true);
     expect(classifyWorkRisk("Grinding", "B1")).toEqual({
-      riskLevel: "ADMIN_APPROVAL",
-      requiresAdminApproval: true,
-      reason: "Grinding is heavier/noisy work and needs a B2 space."
+      riskLevel: "STANDARD",
+      requiresAdminApproval: false,
+      reason: "Grinding requires host confirmation against the listing's permitted activities and site restrictions."
     });
   });
 });

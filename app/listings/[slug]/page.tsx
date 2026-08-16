@@ -2,7 +2,7 @@ import { ArrowRight, Bolt, CalendarDays, Check, ClipboardList, Ruler, ShieldAler
 import { notFound } from "next/navigation";
 import { ListingChat } from "@/components/listing-chat";
 import { StatusBadge } from "@/components/status-badge";
-import { formatCurrency, sizeRequirementLabel } from "@/src/lib/fabrication";
+import { formatArea, formatCurrency, sizeRequirementLabel } from "@/src/lib/fabrication";
 import { prisma } from "@/src/lib/db";
 import { getEquipmentAddons, getPublicListingBySlug } from "@/src/lib/repository";
 import { getOptionalUser } from "@/src/lib/authorization";
@@ -45,14 +45,14 @@ export default async function ListingDetailPage({ params }: PageProps) {
             <div>
               <div className="mb-3 flex flex-wrap gap-2">
                 {isDummy ? <span className="status-pill bg-neutral-700 text-white">Unavailable - dummy listing</span> : <StatusBadge status={listing.status} />}
-                <span className="status-pill bg-safety text-ink">{listing.zoning}</span>
+                <span className="status-pill bg-safety text-ink">Confirm intended use with host</span>
               </div>
               <p className="text-sm font-black uppercase text-safety">{sizeRequirementLabel(listing.sizeSqft)}</p>
               <h1 className="mt-2 text-4xl font-black md:text-5xl">{listing.title}</h1>
               <p className="mt-4 text-lg font-bold text-neutral-300">{listing.address}</p>
             </div>
             <div className="grid gap-3 sm:grid-cols-2">
-              <Spec icon={Ruler} label="Size" value={`${listing.sizeSqft} sqft`} />
+              <Spec icon={Ruler} label="Available area" value={formatArea(listing.sizeSqft)} />
               <Spec icon={Bolt} label="Power" value={listing.powerType === "THREE_PHASE" ? "Three-phase" : "Single-phase"} />
               <Spec icon={Truck} label="Loading" value={listing.loadingAccess.join(", ")} />
               <Spec icon={CalendarDays} label="Access" value={listing.accessHours} />
@@ -134,7 +134,7 @@ export default async function ListingDetailPage({ params }: PageProps) {
                 messages={conversation?.messages ?? []}
                 currentUserId={actor.id}
                 title="Chat with host before booking"
-                placeholder="Ask about access, loading, power, equipment, or timing before checkout."
+                placeholder="Describe your intended work and ask about equipment, access, noise, loading, local rules, or timing. Do not share contact details."
               />
             ) : !isDummy ? (
               <a className="button-secondary w-full" href="/sign-in">Sign in as a renter to start a private chat</a>

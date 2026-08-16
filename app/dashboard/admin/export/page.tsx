@@ -15,7 +15,7 @@ const exportCards = [
   },
   {
     countKey: "listings",
-    description: "Space inventory, size, factory type, pricing, deposits, power, and loading access.",
+    description: "Space inventory, usable area, pricing, deposits, facilities, and loading access.",
     href: "/dashboard/admin/export/listings.csv",
     icon: Database,
     title: "Listings"

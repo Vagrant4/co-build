@@ -15,7 +15,7 @@ export function LocationMapFields({ defaultLocation, defaultAddress }: LocationM
   const mapUrl = mapQuery ? `https://www.google.com/maps?q=${encodeURIComponent(mapQuery)}&output=embed` : "";
 
   function updateMap() {
-    setMapQuery([address.trim(), location.trim(), "Singapore"].filter(Boolean).join(", "));
+    setMapQuery([address.trim(), location.trim()].filter(Boolean).join(", "));
   }
 
   return (
@@ -27,7 +27,7 @@ export function LocationMapFields({ defaultLocation, defaultAddress }: LocationM
           name="location"
           value={location}
           onChange={(event) => setLocation(event.target.value)}
-          placeholder="Area or district, for example Tuas"
+          placeholder="City, area, or district"
           required
         />
       </label>
