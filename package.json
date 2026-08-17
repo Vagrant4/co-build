@@ -64,6 +64,7 @@
     "vitest": "latest"
   },
   "overrides": {
+    "deepmerge-ts": "8.0.1",
     "postcss": "8.5.23",
     "next": {
       "postcss": "8.5.23",
