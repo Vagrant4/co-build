@@ -3680,8 +3680,25 @@ body.spaceoncall-theme .listing-card__work span {
 }
 
 body.spaceoncall-theme .listing-card__signal {
-  background: var(--hazard);
   color: white;
+}
+
+body.spaceoncall-theme .listing-card__signal--available {
+  border-color: #39d98a;
+  background: #137a4b;
+}
+
+body.spaceoncall-theme .listing-card__signal--available::before {
+  background: #72f2ad;
+}
+
+body.spaceoncall-theme .listing-card__signal--unavailable {
+  border-color: #ff6b6b;
+  background: #b4232c;
+}
+
+body.spaceoncall-theme .listing-card__signal--unavailable::before {
+  background: #ff9a9a;
 }
 
 body.spaceoncall-theme .account-switcher,

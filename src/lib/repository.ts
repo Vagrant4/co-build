@@ -183,7 +183,9 @@ export function toListing(record: ListingRecord): Listing {
     prohibitedWork: parseJsonArray(record.prohibitedWorkJson),
     safetyRules: parseJsonArray(record.safetyRulesJson),
     cancellationPolicy: record.cancellationPolicy,
-    photoUrls: uploadedPhotoUrls.length ? uploadedPhotoUrls : dummyImage ? [dummyImage] : parseJsonArray(record.photoUrlsJson),
+    // Showcase records always use their curated unique image. This prevents
+    // stale demo uploads from making multiple public cards look identical.
+    photoUrls: dummyImage ? [dummyImage] : uploadedPhotoUrls.length ? uploadedPhotoUrls : parseJsonArray(record.photoUrlsJson),
     floorPlanUrl: record.floorPlanUrl,
     prices: {
       day: record.priceDay,
