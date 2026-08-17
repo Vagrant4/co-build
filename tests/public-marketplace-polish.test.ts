@@ -1,4 +1,5 @@
-import { readFileSync } from "node:fs";
+import { createHash } from "node:crypto";
+import { existsSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { dummyListingImages, dummyListingSlugs, isDummyListingSlug, seedListings } from "../src/lib/seed-data";
@@ -33,10 +34,22 @@ describe("public marketplace polish", () => {
     expect(dummyListings).toHaveLength(dummyListingSlugs.length);
     expect(new Set(primaryImages).size).toBe(primaryImages.length);
     expect(new Set(Object.values(dummyListingImages)).size).toBe(dummyListingSlugs.length);
+    const imageHashes: string[] = [];
+    for (const imagePath of primaryImages) {
+      const assetPath = join(root, "public", imagePath.replace(/^\/assets\//, "assets/"));
+      expect(existsSync(assetPath), `${imagePath} should exist`).toBe(true);
+      expect(statSync(assetPath).size, `${imagePath} should be a real photo`).toBeGreaterThan(100_000);
+      imageHashes.push(createHash("sha256").update(readFileSync(assetPath)).digest("hex"));
+    }
+    expect(new Set(imageHashes).size).toBe(imageHashes.length);
   });
 
   it("labels dummy listings unavailable and blocks their checkout", () => {
-    expect(read("components/listing-card.tsx")).toContain("Unavailable - showcase only");
+    const listingCard = read("components/listing-card.tsx");
+    expect(listingCard).toContain('isDummy ? "Unavailable" : "Available"');
+    expect(listingCard).not.toContain("showcase only");
+    expect(listingCard).not.toContain("Dummy listing");
+    expect(listingCard).not.toContain("Host approval required");
     expect(read("app/checkout/[listingId]/page.tsx")).toContain("isDummyListingSlug");
     expect(read("app/actions.ts")).toContain("dummy showcase listing and is unavailable for booking");
   });
