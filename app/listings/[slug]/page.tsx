@@ -44,7 +44,7 @@ export default async function ListingDetailPage({ params }: PageProps) {
           <div className="flex flex-col justify-between gap-6">
             <div>
               <div className="mb-3 flex flex-wrap gap-2">
-                {isDummy ? <span className="status-pill bg-neutral-700 text-white">Unavailable - dummy listing</span> : <StatusBadge status={listing.status} />}
+                {isDummy ? <span className="status-pill bg-neutral-700 text-white">Unavailable</span> : <StatusBadge status={listing.status} />}
                 <span className="status-pill bg-safety text-ink">Confirm intended use with host</span>
               </div>
               <p className="text-sm font-black uppercase text-safety">{sizeRequirementLabel(listing.sizeSqft)}</p>
@@ -58,7 +58,7 @@ export default async function ListingDetailPage({ params }: PageProps) {
               <Spec icon={CalendarDays} label="Access" value={listing.accessHours} />
             </div>
             {isDummy ? (
-              <div className="border border-safety bg-safety/10 p-4 font-black text-safety">Showcase listing only. Booking is unavailable.</div>
+              <div className="border border-safety bg-safety/10 p-4 font-black text-safety">This listing is currently unavailable.</div>
             ) : (
               <a href={`/checkout/${listing.slug}`} className="button-primary">
                 Request booking <ArrowRight size={18} />
@@ -120,7 +120,7 @@ export default async function ListingDetailPage({ params }: PageProps) {
           </div>
           <p className="mt-4 text-sm font-bold text-steel">Welding/hot work adds an extra deposit where available.</p>
           {isDummy ? (
-            <p className="mt-5 border border-neutral-300 bg-smoke p-3 text-center font-black">Unavailable - dummy listing</p>
+            <p className="mt-5 border border-neutral-300 bg-smoke p-3 text-center font-black">Unavailable</p>
           ) : (
             <a className="button-dark mt-5 w-full" href={`/checkout/${listing.slug}`}>
               Continue to checkout

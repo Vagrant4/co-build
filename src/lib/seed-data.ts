@@ -93,12 +93,12 @@ export const dummyListingImages: Record<(typeof dummyListingSlugs)[number], stri
   "small-bay-eunos": "/assets/sample-workshop-photo-small-bay.png",
   "medium-bay-woodlands": "/assets/sample-workshop-photo-medium-bay.png",
   "large-bay-tuas": "/assets/sample-workshop-photo-large-bay.png",
-  "electronics-bench-ubi": "/assets/maker-bench.png",
-  "woodworking-bay-bedok": "/assets/medium-bay.png",
-  "signage-bay-jurong": "/assets/large-bay.png",
-  "ecommerce-packing-changi": "/assets/small-bay.png",
+  "electronics-bench-ubi": "/assets/spaceoncall-electronics-studio.webp",
+  "woodworking-bay-bedok": "/assets/spaceoncall-woodworking-workshop.webp",
+  "signage-bay-jurong": "/assets/spaceoncall-popup-retail.webp",
+  "ecommerce-packing-changi": "/assets/spaceoncall-warehouse.webp",
   "metalwork-bay-bukit-batok": "/assets/spaceoncall-fabrication-bay.webp",
-  "project-hall-tuas-west": "/assets/spaceoncall-warehouse.webp"
+  "project-hall-tuas-west": "/assets/spaceoncall-project-hall.webp"
 };
 
 export function isDummyListingSlug(slug: string): boolean {
@@ -128,7 +128,7 @@ export const seedListings: Listing[] = [
     prohibitedWork: ["Welding", "Grinding", "Spray painting, approval-only", "Chemical work, approval-only"],
     safetyRules: commonSafetyRules,
     cancellationPolicy: "Cancel 24 hours before check-in for a 70% refund.",
-    photoUrls: ["/assets/maker-bench.png"],
+    photoUrls: ["/assets/sample-workshop-photo-bench.png"],
     floorPlanUrl: "/assets/floor-plan-maker-bench.png",
     prices: {
       day: 45,
@@ -160,7 +160,7 @@ export const seedListings: Listing[] = [
     prohibitedWork: ["Welding", "Grinding", "Spray painting, approval-only", "Chemical work, approval-only"],
     safetyRules: commonSafetyRules,
     cancellationPolicy: "Cancel 72 hours before check-in for a 70% refund.",
-    photoUrls: [sampleWorkshopPhotos[1].src],
+    photoUrls: ["/assets/sample-workshop-photo-small-bay.png"],
     floorPlanUrl: "/assets/floor-plan-small-bay.png",
     prices: {
       day: 120,
@@ -209,7 +209,7 @@ export const seedListings: Listing[] = [
     prohibitedWork: ["Spray painting, approval-only", "Chemical work, approval-only"],
     safetyRules: commonSafetyRules,
     cancellationPolicy: "Cancel 7 days before check-in for a 60% refund.",
-    photoUrls: ["/assets/medium-bay.png"],
+    photoUrls: ["/assets/sample-workshop-photo-medium-bay.png"],
     floorPlanUrl: "/assets/floor-plan-medium-bay.png",
     prices: {
       day: 260,
@@ -257,7 +257,7 @@ export const seedListings: Listing[] = [
     prohibitedWork: ["Spray painting, approval-only", "Chemical work, approval-only"],
     safetyRules: commonSafetyRules,
     cancellationPolicy: "Cancel 14 days before check-in for a 50% refund.",
-    photoUrls: ["/assets/large-bay.png"],
+    photoUrls: ["/assets/sample-workshop-photo-large-bay.png"],
     floorPlanUrl: "/assets/floor-plan-large-bay.png",
     prices: {
       day: 650,
@@ -289,7 +289,7 @@ export const seedListings: Listing[] = [
     prohibitedWork: ["Welding", "Grinding", "Spray painting, approval-only", "Chemical work, approval-only"],
     safetyRules: commonSafetyRules,
     cancellationPolicy: "Cancel 24 hours before check-in for a 70% refund.",
-    photoUrls: [sampleWorkshopPhotos[0].src],
+    photoUrls: ["/assets/spaceoncall-electronics-studio.webp"],
     floorPlanUrl: "/assets/floor-plan-maker-bench.png",
     prices: {
       day: 70,
@@ -321,7 +321,7 @@ export const seedListings: Listing[] = [
     prohibitedWork: ["Welding", "Spray painting, approval-only", "Chemical work, approval-only"],
     safetyRules: commonSafetyRules,
     cancellationPolicy: "Cancel 7 days before check-in for a 60% refund.",
-    photoUrls: [sampleWorkshopPhotos[2].src],
+    photoUrls: ["/assets/spaceoncall-woodworking-workshop.webp"],
     floorPlanUrl: "/assets/floor-plan-medium-bay.png",
     prices: {
       day: 380,
@@ -353,7 +353,7 @@ export const seedListings: Listing[] = [
     prohibitedWork: ["Welding", "Spray painting, approval-only", "Chemical work, approval-only"],
     safetyRules: commonSafetyRules,
     cancellationPolicy: "Cancel 7 days before check-in for a 60% refund.",
-    photoUrls: [sampleWorkshopPhotos[3].src],
+    photoUrls: ["/assets/spaceoncall-popup-retail.webp"],
     floorPlanUrl: "/assets/floor-plan-large-bay.png",
     prices: {
       day: 430,
@@ -385,7 +385,7 @@ export const seedListings: Listing[] = [
     prohibitedWork: ["Metal fabrication", "Welding", "Grinding", "Spray painting, approval-only", "Chemical work, approval-only"],
     safetyRules: commonSafetyRules,
     cancellationPolicy: "Cancel 7 days before check-in for a 65% refund.",
-    photoUrls: ["/assets/small-bay.png"],
+    photoUrls: ["/assets/spaceoncall-warehouse.webp"],
     floorPlanUrl: "/assets/floor-plan-large-bay.png",
     prices: {
       day: 520,
@@ -449,7 +449,7 @@ export const seedListings: Listing[] = [
     prohibitedWork: ["Spray painting, approval-only", "Chemical work, approval-only"],
     safetyRules: commonSafetyRules,
     cancellationPolicy: "Cancel 14 days before check-in for a 50% refund.",
-    photoUrls: ["/assets/spaceoncall-warehouse.webp"],
+    photoUrls: ["/assets/spaceoncall-project-hall.webp"],
     floorPlanUrl: "/assets/floor-plan-large-bay.png",
     prices: {
       day: 980,

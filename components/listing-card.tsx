@@ -12,20 +12,16 @@ export function ListingCard({ listing }: { listing: Listing }) {
     <article className="card listing-card overflow-hidden">
       <a href={`/listings/${listing.slug}`} className="listing-card__media" aria-label={`View ${listing.title}`}>
         <img src={listing.photoUrls[0]} alt={`${listing.title} workspace`} className="h-56 w-full object-cover" loading="lazy" />
-        <span className="listing-card__signal">{isDummy ? "Unavailable - showcase only" : "Available"}</span>
+        <span className="listing-card__signal">{isDummy ? "Unavailable" : "Available"}</span>
         <span className="listing-card__badge">{sizeRequirementLabel(listing.sizeSqft)}</span>
         <span className="listing-card__location">
           <MapPin size={14} /> {listing.location}
         </span>
       </a>
       <div className="listing-card__body">
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div className="min-w-0">
-            <p className="text-xs font-black uppercase text-hazard">{isDummy ? "Dummy listing - unavailable" : "Available workspace"}</p>
-            <h3 className="mt-1 text-xl font-black leading-tight">{listing.title}</h3>
-            <p className="mt-1 text-sm font-bold text-steel">{listing.address}</p>
-          </div>
-          <span className="status-pill status-pill--strong">Host approval required</span>
+        <div className="min-w-0">
+          <h3 className="text-xl font-black leading-tight">{listing.title}</h3>
+          <p className="mt-1 text-sm font-bold text-steel">{listing.address}</p>
         </div>
         <div className="listing-card__specs">
           <span className="listing-card__spec">
