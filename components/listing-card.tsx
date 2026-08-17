@@ -12,7 +12,9 @@ export function ListingCard({ listing }: { listing: Listing }) {
     <article className="card listing-card overflow-hidden">
       <a href={`/listings/${listing.slug}`} className="listing-card__media" aria-label={`View ${listing.title}`}>
         <img src={listing.photoUrls[0]} alt={`${listing.title} workspace`} className="h-56 w-full object-cover" loading="lazy" />
-        <span className="listing-card__signal">{isDummy ? "Unavailable" : "Available"}</span>
+        <span className={`listing-card__signal listing-card__signal--${isDummy ? "unavailable" : "available"}`}>
+          {isDummy ? "Unavailable" : "Available"}
+        </span>
         <span className="listing-card__badge">{sizeRequirementLabel(listing.sizeSqft)}</span>
         <span className="listing-card__location">
           <MapPin size={14} /> {listing.location}
