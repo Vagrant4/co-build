@@ -131,6 +131,8 @@ export type AdditionalRequirementContractInput = {
 
 export type ListingFilters = {
   location?: string;
+  checkIn?: string;
+  checkOut?: string;
   minSqft?: number;
   maxSqft?: number;
   sizeBand?: SizeBand;

@@ -7,6 +7,8 @@ import { getEquipmentAddons, getPublicListingBySlug } from "@/src/lib/repository
 import { isDummyListingSlug, workTypes } from "@/src/lib/seed-data";
 import { requirePageRole } from "@/src/lib/page-authorization";
 import { singaporeToday } from "@/src/lib/booking-window";
+import { ActionForm } from "@/components/action-form";
+import { SubmitButton } from "@/components/submit-button";
 
 export const dynamic = "force-dynamic";
 
@@ -30,7 +32,7 @@ export default async function CheckoutPage({ params }: PageProps) {
         <p className="text-sm font-black uppercase text-hazard">Booking checkout</p>
         <h1 className="mt-2 text-4xl font-black">{listing.title}</h1>
         <p className="mt-2 font-bold text-steel">{listing.address}</p>
-        <form action={createBookingAction} className="mt-8 space-y-6">
+        <ActionForm action={createBookingAction} className="mt-8 space-y-6">
           <input type="hidden" name="listingSlug" value={listing.slug} />
           <div className="grid gap-4 md:grid-cols-2">
             <label>
@@ -89,10 +91,8 @@ export default async function CheckoutPage({ params }: PageProps) {
             </span>
           </label>
 
-          <button className="button-primary w-full" type="submit">
-            Submit booking request
-          </button>
-        </form>
+          <SubmitButton className="button-primary w-full" pendingLabel="Submitting booking...">Submit booking request</SubmitButton>
+        </ActionForm>
       </section>
 
       <aside className="h-fit border border-ink bg-white p-5">

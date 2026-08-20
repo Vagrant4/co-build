@@ -1,4 +1,7 @@
 import { Mail } from "lucide-react";
+import { ActionForm } from "@/components/action-form";
+import { SubmitButton } from "@/components/submit-button";
+import { sendContactInquiryAction } from "./actions";
 
 export default function ContactPage() {
   return (
@@ -15,18 +18,18 @@ export default function ContactPage() {
           </p>
         </div>
       </section>
-      <form className="card grid gap-4 p-6">
+      <ActionForm action={sendContactInquiryAction} className="card grid gap-4 p-6">
         <label>
           <span className="label">Name</span>
-          <input className="field" placeholder="Your name" />
+          <input className="field" name="name" placeholder="Your name" required />
         </label>
         <label>
           <span className="label">Email</span>
-          <input className="field" type="email" placeholder="you@example.com" />
+          <input className="field" name="email" type="email" placeholder="you@example.com" required />
         </label>
         <label>
           <span className="label">Topic</span>
-          <select className="field">
+          <select className="field" name="topic">
             <option>Rent a space</option>
             <option>List a space</option>
             <option>High-risk work approval</option>
@@ -35,12 +38,10 @@ export default function ContactPage() {
         </label>
         <label>
           <span className="label">Message</span>
-          <textarea className="field min-h-36" placeholder="Tell us what you need." />
+          <textarea className="field min-h-36" name="message" maxLength={2000} placeholder="Tell us what you need." required />
         </label>
-        <button className="button-primary" type="button">
-          Send inquiry
-        </button>
-      </form>
+        <SubmitButton pendingLabel="Sending enquiry...">Send inquiry</SubmitButton>
+      </ActionForm>
     </main>
   );
 }

@@ -50,6 +50,18 @@ export function AdminAuthPanel({
         strategy: "password"
       });
 
+      if (result.status === "needs_second_factor") {
+        const emailCodeFactor = result.supportedSecondFactors?.find((factor) => factor.strategy === "email_code");
+        if (!emailCodeFactor || !("emailAddressId" in emailCodeFactor)) {
+          setError("Email verification is unavailable. Contact the operations owner.");
+          return;
+        }
+        await signIn.prepareSecondFactor({ strategy: "email_code", emailAddressId: emailCodeFactor.emailAddressId });
+        setSecondFactorCode("");
+        setSecondFactorRequired(true);
+        return;
+      }
+
       if (result.status !== "complete" || !result.createdSessionId) {
         setError("Additional administrator verification is required. Contact the operations owner.");
         return;
@@ -215,6 +227,28 @@ export function AdminAuthPanel({
         <button className="admin-auth-page__button" type="submit" disabled={submitting}>
           {submitting ? <LoaderCircle className="animate-spin" size={18} /> : <KeyRound size={18} />}
           {submitting ? "Verifying..." : "Verify and open admin console"}
+        </button>
+        <button
+          className="admin-auth-page__button admin-auth-page__button--secondary"
+          type="button"
+          onClick={async () => {
+            setSubmitting(true);
+            setError("");
+            try {
+              if (!signIn) return;
+              const emailCodeFactor = signIn.supportedSecondFactors?.find((factor) => factor.strategy === "email_code");
+              if (!emailCodeFactor || !("emailAddressId" in emailCodeFactor)) throw new Error("Email verification is unavailable.");
+              await signIn.prepareSecondFactor({ strategy: "email_code", emailAddressId: emailCodeFactor.emailAddressId });
+              setSecondFactorCode("");
+            } catch (caught) {
+              setError(safeSignInError(caught));
+            } finally {
+              setSubmitting(false);
+            }
+          }}
+          disabled={submitting}
+        >
+          Resend verification code
         </button>
         <button
           className="admin-auth-page__button admin-auth-page__button--secondary"

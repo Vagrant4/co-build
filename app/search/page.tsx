@@ -73,6 +73,8 @@ function parseFilters(params: Record<string, string | string[] | undefined>): Li
   const duration = one(params.durationDays);
   return {
     location: one(params.location),
+    checkIn: one(params.checkIn),
+    checkOut: one(params.checkOut),
     minSqft: areaInSqft(one(params.minArea) ?? one(params.minSqft), one(params.areaUnit)),
     maxSqft: areaInSqft(one(params.maxArea) ?? one(params.maxSqft), one(params.areaUnit)),
     durationDays: parseDuration(duration),

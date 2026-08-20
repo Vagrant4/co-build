@@ -1,5 +1,6 @@
 import { Search } from "lucide-react";
 import { seedEquipmentAddons, workTypes } from "@/src/lib/seed-data";
+import { SearchDateFields } from "@/components/search-date-fields";
 
 export function SearchForm({ compact = false }: { compact?: boolean }) {
   return (
@@ -30,14 +31,7 @@ export function SearchForm({ compact = false }: { compact?: boolean }) {
             ))}
           </select>
         </label>
-        <label className="search-form__check-in">
-          <span className="label">Check in</span>
-          <input className="field search-form__date" name="checkIn" type="date" aria-label="Requested check-in date" />
-        </label>
-        <label className="search-form__check-out">
-          <span className="label">Check out</span>
-          <input className="field search-form__date" name="checkOut" type="date" aria-label="Requested check-out date" />
-        </label>
+        <SearchDateFields />
         <label className="search-form__power">
           <span className="label">Power</span>
           <select className="field" name="powerType" defaultValue="">

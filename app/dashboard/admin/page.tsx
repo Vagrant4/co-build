@@ -27,6 +27,7 @@ import { requirePageRole } from "@/src/lib/page-authorization";
 import { getAppMode } from "@/src/lib/app-mode";
 import { prisma } from "@/src/lib/db";
 import { collectOperationsSnapshot } from "@/src/lib/operations-snapshot";
+import { SubmitButton } from "@/components/submit-button";
 
 export const dynamic = "force-dynamic";
 
@@ -194,12 +195,8 @@ export default async function AdminDashboardPage({ searchParams }: PageProps) {
                 </p>
                 <form action={approvePlatformSubscriptionAction} className="mt-3 grid grid-cols-2 gap-2">
                   <input type="hidden" name="userId" value={user.id} />
-                  <button className="button-primary w-full" name="decision" value="verify" type="submit" disabled={user.platformSubscriptionStatus !== "PENDING_ADMIN"}>
-                    Verify and activate
-                  </button>
-                  <button className="button-secondary w-full" name="decision" value="reject" type="submit" disabled={user.platformSubscriptionStatus !== "PENDING_ADMIN"}>
-                    Reject reference
-                  </button>
+                  <SubmitButton className="button-primary w-full" pendingLabel="Verifying..." name="decision" value="verify" disabled={user.platformSubscriptionStatus !== "PENDING_ADMIN"}>Verify and activate</SubmitButton>
+                  <SubmitButton className="button-secondary w-full" pendingLabel="Rejecting..." name="decision" value="reject" disabled={user.platformSubscriptionStatus !== "PENDING_ADMIN"}>Reject reference</SubmitButton>
                 </form>
               </article>
             );
@@ -276,7 +273,7 @@ export default async function AdminDashboardPage({ searchParams }: PageProps) {
                     <input type="hidden" name="acknowledgement" value="TEST ONLY - NO MONEY MOVED" />
                     <p className="text-xs font-black uppercase text-orange-900">Pilot rehearsal only</p>
                     <p className="mt-1 text-xs font-bold text-orange-900">Advances this confirmed booking to check-in testing. It does not charge, transfer, or reconcile money.</p>
-                    <button className="button-primary mt-3 w-full" type="submit">Mark pilot test ready for check-in</button>
+                    <SubmitButton className="button-primary mt-3 w-full" pendingLabel="Advancing pilot...">Mark pilot test ready for check-in</SubmitButton>
                   </form>
                 ) : null}
                 <BookingAdminButton bookingId={booking.id} action="ADMIN_APPROVE" label="Approve high-risk" disabled={booking.status !== "PENDING_ADMIN_HIGH_RISK"} />
@@ -295,7 +292,7 @@ export default async function AdminDashboardPage({ searchParams }: PageProps) {
                     <input className="field" name="depositRetained" type="number" min="0" placeholder="Retained amount" />
                   </div>
                   <input className="field" name="depositNote" placeholder="Required reconciliation or dispute note" required />
-                  <button className="button-secondary" type="submit">Record deposit outcome</button>
+                  <SubmitButton className="button-secondary" pendingLabel="Recording...">Record deposit outcome</SubmitButton>
                 </form>
               </div>
             </article>
@@ -320,14 +317,12 @@ export default async function AdminDashboardPage({ searchParams }: PageProps) {
                   <option value="APPROVED">Approved</option>
                   <option value="REJECTED">Rejected</option>
                 </select>
-                <button className="button-secondary" type="submit">Update verification</button>
+                <SubmitButton className="button-secondary" pendingLabel="Updating...">Update verification</SubmitButton>
               </form>
               <form action={toggleUserSuspensionAction} className="mt-2">
                 <input type="hidden" name="userId" value={user.id} />
                 <input type="hidden" name="suspended" value={String(!user.suspended)} />
-                <button className="button-dark w-full" type="submit">
-                  <UserX size={18} /> {user.suspended ? "Restore user" : "Suspend user"}
-                </button>
+                <SubmitButton className="button-dark w-full" pendingLabel="Updating account..."><UserX size={18} /> {user.suspended ? "Restore user" : "Suspend user"}</SubmitButton>
               </form>
             </article>
           ))}
@@ -479,7 +474,7 @@ function OperationsMetric({ label, value, detail, icon: Icon }: { label: string;
         <p className="text-xs font-black uppercase text-steel">{label}</p>
         <Icon size={18} className="text-hazard" aria-hidden="true" />
       </div>
-      <p className="mt-3 text-xl font-black">{value}</p>
+      <p className="mt-3 text-xl font-black text-ink">{value}</p>
       <p className="mt-1 text-xs font-bold text-steel">{detail}</p>
     </article>
   );
@@ -506,9 +501,9 @@ function ListingStatusButton({ listingId, status, label, icon, disabled = false 
     <form action={updateListingStatusAction}>
       <input type="hidden" name="listingId" value={listingId} />
       <input type="hidden" name="status" value={status} />
-      <button className={icon === "approve" ? "button-primary w-full" : "button-secondary w-full"} type="submit" disabled={disabled} title={disabled ? "Approve and activate the host account first" : undefined}>
+      <SubmitButton className={icon === "approve" ? "button-primary w-full" : "button-secondary w-full"} pendingLabel="Updating..." disabled={disabled}>
         <Icon size={18} /> {label}
-      </button>
+      </SubmitButton>
     </form>
   );
 }
@@ -518,9 +513,7 @@ function BookingAdminButton({ bookingId, action, label, disabled }: { bookingId:
     <form action={updateBookingStatusAction}>
       <input type="hidden" name="bookingId" value={bookingId} />
       <input type="hidden" name="action" value={action} />
-      <button className={action === "ADMIN_APPROVE" ? "button-primary w-full" : "button-secondary w-full"} disabled={disabled} type="submit">
-        {label}
-      </button>
+      <SubmitButton className={action === "ADMIN_APPROVE" ? "button-primary w-full" : "button-secondary w-full"} pendingLabel="Updating..." disabled={disabled}>{label}</SubmitButton>
     </form>
   );
 }
@@ -531,8 +524,8 @@ function PaymentReviewForm({ paymentId, action }: { paymentId: string; action: (
       <input type="hidden" name="paymentId" value={paymentId} />
       <input className="field" name="reviewNote" placeholder="Optional reconciliation note" />
       <div className="grid grid-cols-2 gap-2">
-        <button className="button-primary" name="decision" value="verify" type="submit">Verify paid</button>
-        <button className="button-secondary" name="decision" value="reject" type="submit">Reject proof</button>
+        <SubmitButton className="button-primary" pendingLabel="Verifying..." name="decision" value="verify">Verify paid</SubmitButton>
+        <SubmitButton className="button-secondary" pendingLabel="Rejecting..." name="decision" value="reject">Reject proof</SubmitButton>
       </div>
     </form>
   );

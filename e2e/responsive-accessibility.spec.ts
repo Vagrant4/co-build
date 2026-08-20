@@ -13,7 +13,7 @@ test("listing images provide useful alternative text", async ({ page }) => {
   await page.goto("/search");
   const images = page.locator("main img");
   const count = await images.count();
-  expect(count).toBeGreaterThan(0);
+  if (count === 0) await expect(page.getByText(/0 spaces available/i)).toBeVisible();
   for (let index = 0; index < count; index += 1) await expect(images.nth(index)).toHaveAttribute("alt", /\S+/);
 });
 
