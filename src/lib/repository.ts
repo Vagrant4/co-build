@@ -1,8 +1,9 @@
 import type { Prisma } from "@prisma/client";
 import type { EquipmentAddon, Listing, ListingFilters } from "./fabrication";
 import { filterListings } from "./fabrication";
+import { ACTIVE_BOOKING_STATUSES } from "./booking-window";
 import { prisma } from "./db";
-import { getDummyListingImage, humanServiceAddonSlugs, seedListings } from "./seed-data";
+import { dummyListingSlugs, getDummyListingImage, humanServiceAddonSlugs, seedListings } from "./seed-data";
 
 type ListingRecord = Awaited<ReturnType<typeof prisma.listing.findMany>>[number] & {
   equipmentAddons?: { equipmentAddon: EquipmentAddon }[];
@@ -54,8 +55,21 @@ function approvedListingWhere(filters?: ListingFilters): Prisma.ListingWhereInpu
   if (filters?.durationDays === 7) and.push({ priceSevenDays: { gt: 0 } });
   if (filters?.durationDays === 30) and.push({ priceThirtyDays: { gt: 0 } });
   if (filters?.durationDays === 60) and.push({ priceSixtyDays: { gt: 0 } });
+  const requestedWindow = parseSearchWindow(filters?.checkIn, filters?.checkOut);
+  if (requestedWindow) {
+    and.push({
+      bookings: {
+        none: {
+          status: { in: ACTIVE_BOOKING_STATUSES },
+          startAt: { lt: requestedWindow.endAt },
+          endAt: { gt: requestedWindow.startAt }
+        }
+      }
+    });
+  }
   return {
       status: "APPROVED",
+      slug: { notIn: [...dummyListingSlugs] },
       host: {
         is: {
           role: "HOST",
@@ -66,6 +80,30 @@ function approvedListingWhere(filters?: ListingFilters): Prisma.ListingWhereInpu
       },
       AND: and
   };
+}
+
+function parseSearchWindow(checkIn?: string, checkOut?: string) {
+  const startAt = parseSingaporeDate(checkIn);
+  const endAt = parseSingaporeDate(checkOut);
+  if (!startAt || !endAt || endAt <= startAt) return null;
+  return { startAt, endAt };
+}
+
+function parseSingaporeDate(value?: string) {
+  const match = value?.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!match) return null;
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  const day = Number(match[3]);
+  const date = new Date(Date.UTC(year, month - 1, day, -8));
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Singapore",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit"
+  }).formatToParts(date);
+  const values = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+  return `${values.year}-${values.month}-${values.day}` === value ? date : null;
 }
 
 export async function getPublicListingBySlug(slug: string): Promise<Listing | null> {

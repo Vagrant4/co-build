@@ -42,8 +42,17 @@ import { enforceRateLimit } from "@/src/lib/rate-limit";
 import { toListing } from "@/src/lib/repository";
 import { commonSafetyRules, isDummyListingSlug } from "@/src/lib/seed-data";
 import { remediateLegacyUploads } from "@/src/lib/upload-service";
+import type { FormActionState } from "@/components/action-form";
 
-export async function createBookingAction(formData: FormData) {
+export async function createBookingAction(_state: FormActionState, formData: FormData): Promise<FormActionState> {
+  try {
+    return await createBooking(formData);
+  } catch (error) {
+    return { error: safeFormActionError(error, "The booking request could not be submitted. Review the form and try again.") };
+  }
+}
+
+async function createBooking(formData: FormData): Promise<FormActionState> {
   const renter = await requireRole("RENTER");
   await enforceRateLimit({ action: "booking:create", identity: renter.id, limit: 5, windowSeconds: 60 * 60 });
   if (!canCreateBooking(renter)) throw new Error("An approved, active renter subscription is required before requesting a booking.");
@@ -114,7 +123,7 @@ export async function createBookingAction(formData: FormData) {
   }, { isolationLevel: "Serializable" });
 
   revalidateDashboards();
-  redirect("/dashboard/user?booking=submitted");
+  return { success: "Booking request submitted.", redirectTo: "/dashboard/user?booking=submitted" };
 }
 
 export async function updateBookingStatusAction(formData: FormData) {
@@ -561,7 +570,15 @@ export async function reviewAdditionalRequirementPaymentAction(formData: FormDat
   revalidateDashboards();
 }
 
-export async function createListingAction(formData: FormData) {
+export async function createListingAction(_state: FormActionState, formData: FormData): Promise<FormActionState> {
+  try {
+    return await createListing(formData);
+  } catch (error) {
+    return { error: safeFormActionError(error, "The listing could not be submitted. Review the form and try again.") };
+  }
+}
+
+async function createListing(formData: FormData): Promise<FormActionState> {
   const host = await requireRole("HOST");
   const title = requireString(formData, "title");
   assertNoRestrictedContact(title, requireString(formData, "amenities"), requireString(formData, "permittedWork"), requireString(formData, "restrictedWork"), optionalString(formData, "localClassification"), optionalString(formData, "equipmentOther"));
@@ -627,7 +644,7 @@ export async function createListingAction(formData: FormData) {
     await queueAdminNotifications(tx, { type: "LISTING_REVIEW", title: "Listing needs approval", body: `${title} was submitted for administrator review.`, dedupeKey: `listing:${listing.id}:admin-review`, email: true });
   });
   revalidateDashboards();
-  redirect("/dashboard/host?listing=submitted");
+  return { success: "Listing submitted for administrator approval.", redirectTo: "/dashboard/host?listing=submitted" };
 }
 
 export async function updateListingStatusAction(formData: FormData) {
@@ -878,3 +895,9 @@ function slugify(value: string) { return value.toLowerCase().replace(/[^a-z0-9]+
 function buildCompanyAccountPaymentReference(email: string) { return `company_account_payment_${slugify(email).slice(0, 30)}_${Date.now()}`; }
 function fallbackListingImage(type: SpaceType) { return ({ MAKER_BENCH: "/assets/sample-workshop-photo-bench.png", SMALL_BAY: "/assets/sample-workshop-photo-small-bay.png", MEDIUM_BAY: "/assets/sample-workshop-photo-medium-bay.png", LARGE_BAY: "/assets/sample-workshop-photo-large-bay.png" } as const)[type]; }
 function fallbackFloorPlan(type: SpaceType) { return ({ MAKER_BENCH: "/assets/floor-plan-maker-bench.png", SMALL_BAY: "/assets/floor-plan-small-bay.png", MEDIUM_BAY: "/assets/floor-plan-medium-bay.png", LARGE_BAY: "/assets/floor-plan-large-bay.png" } as const)[type]; }
+function safeFormActionError(error: unknown, fallback: string) {
+  if (!(error instanceof Error)) return fallback;
+  const message = error.message.trim();
+  if (!message || /prisma|database|sql|stack|digest|internal|NEXT_/i.test(message)) return fallback;
+  return message.slice(0, 240);
+}

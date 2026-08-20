@@ -22,7 +22,7 @@ export async function renderTextDocumentPdf(input: TextDocumentPdfInput): Promis
   const bold = await pdf.embedFont(StandardFonts.HelveticaBold);
   const pages: PDFPage[] = [];
   let page = addPage(pdf, pages, input, regular, bold);
-  let y = PAGE_HEIGHT - 128;
+  let y = PAGE_HEIGHT - 140;
 
   for (const rawLine of input.body.split("\n")) {
     const line = toPdfText(rawLine.trimEnd());
@@ -38,7 +38,7 @@ export async function renderTextDocumentPdf(input: TextDocumentPdfInput): Promis
 
     if (y - wrapped.length * LINE_HEIGHT < 62) {
       page = addPage(pdf, pages, input, regular, bold);
-      y = PAGE_HEIGHT - 92;
+      y = PAGE_HEIGHT - 140;
     }
 
     if (heading) y -= 4;
@@ -73,15 +73,17 @@ function addPage(
   pages.push(page);
   page.drawRectangle({ x: 0, y: PAGE_HEIGHT - 10, width: PAGE_WIDTH, height: 10, color: rgb(1, 0.43, 0) });
   page.drawText("SPACEONCALL", { x: MARGIN, y: PAGE_HEIGHT - 48, size: 16, font: bold, color: rgb(0.06, 0.07, 0.08) });
-  page.drawText(toPdfText(input.title), { x: MARGIN, y: PAGE_HEIGHT - 74, size: 12, font: bold, color: rgb(0.06, 0.07, 0.08) });
-  page.drawText(toPdfText(input.status), { x: MARGIN, y: PAGE_HEIGHT - 94, size: 8.5, font: bold, color: rgb(0.78, 0.24, 0.03) });
-  page.drawLine({ start: { x: MARGIN, y: PAGE_HEIGHT - 108 }, end: { x: PAGE_WIDTH - MARGIN, y: PAGE_HEIGHT - 108 }, thickness: 0.8, color: rgb(0.75, 0.76, 0.77) });
+  const titleLines = wrapLine(toPdfText(input.title), bold, 12, PAGE_WIDTH - MARGIN * 2).slice(0, 2);
+  titleLines.forEach((line, index) => page.drawText(line, { x: MARGIN, y: PAGE_HEIGHT - 74 - index * 15, size: 12, font: bold, color: rgb(0.06, 0.07, 0.08) }));
+  const statusY = PAGE_HEIGHT - 100 - Math.max(0, titleLines.length - 1) * 15;
+  page.drawText(fitText(toPdfText(input.status), bold, 8.5, PAGE_WIDTH - MARGIN * 2), { x: MARGIN, y: statusY, size: 8.5, font: bold, color: rgb(0.78, 0.24, 0.03) });
+  page.drawLine({ start: { x: MARGIN, y: PAGE_HEIGHT - 122 }, end: { x: PAGE_WIDTH - MARGIN, y: PAGE_HEIGHT - 122 }, thickness: 0.8, color: rgb(0.75, 0.76, 0.77) });
   page.drawText("Pilot operational document", { x: PAGE_WIDTH - MARGIN - 100, y: 30, size: 7.5, font: regular, color: rgb(0.36, 0.38, 0.4) });
   return page;
 }
 
 function wrapLine(text: string, font: PDFFont, size: number, maxWidth: number): string[] {
-  const words = text.split(/\s+/);
+  const words = text.split(/\s+/).flatMap((word) => breakLongWord(word, font, size, maxWidth));
   const lines: string[] = [];
   let current = "";
 
@@ -96,6 +98,28 @@ function wrapLine(text: string, font: PDFFont, size: number, maxWidth: number): 
   }
   if (current) lines.push(current);
   return lines.length ? lines : [""];
+}
+
+function breakLongWord(word: string, font: PDFFont, size: number, maxWidth: number): string[] {
+  if (font.widthOfTextAtSize(word, size) <= maxWidth) return [word];
+  const segments: string[] = [];
+  let current = "";
+  for (const character of word) {
+    const candidate = current + character;
+    if (current && font.widthOfTextAtSize(candidate, size) > maxWidth) {
+      segments.push(current);
+      current = character;
+    } else current = candidate;
+  }
+  if (current) segments.push(current);
+  return segments;
+}
+
+function fitText(text: string, font: PDFFont, size: number, maxWidth: number): string {
+  if (font.widthOfTextAtSize(text, size) <= maxWidth) return text;
+  let fitted = text;
+  while (fitted && font.widthOfTextAtSize(`${fitted}...`, size) > maxWidth) fitted = fitted.slice(0, -1);
+  return `${fitted}...`;
 }
 
 function isHeading(line: string): boolean {

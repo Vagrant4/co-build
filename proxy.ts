@@ -41,6 +41,7 @@ export const config = {
   matcher: [
     "/((?!_next|[^?]*\\.(?:html?|css|js(?!on)|jpe?g|webp|png|gif|svg|ttf|woff2?|ico|docx?|xlsx?|zip|webmanifest)).*)",
     "/(api|trpc)(.*)",
-    "/__clerk/(.*)"
+    "/__clerk/(.*)",
+    "/favicon.ico"
   ]
 };

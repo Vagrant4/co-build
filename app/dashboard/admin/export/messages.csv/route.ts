@@ -8,26 +8,23 @@ export const dynamic = "force-dynamic";
 export async function GET() {
   const admin = await requireAdmin();
   await enforceRateLimit({ action: "export:messages", identity: admin.id, limit: 3, windowSeconds: 60 * 60 });
-  const rows = await prisma.$transaction(async (tx) => {
-    const [bookingMessages, conversationMessages] = await Promise.all([
-      tx.bookingMessage.findMany({
+  const [bookingMessages, conversationMessages] = await Promise.all([
+      prisma.bookingMessage.findMany({
         include: { booking: { select: { listing: { select: { title: true } } } }, sender: { select: { role: true } } },
         orderBy: { createdAt: "desc" }
       }),
-      tx.conversationMessage.findMany({
+      prisma.conversationMessage.findMany({
         include: { conversation: { select: { listing: { select: { title: true } } } }, sender: { select: { role: true } } },
         orderBy: { createdAt: "desc" }
       })
     ]);
-    const exportRows = [
+  const rows = [
       ...bookingMessages.map((message) => ({ contextId: message.bookingId, contextType: "booking", createdAt: message.createdAt, listingTitle: message.booking.listing.title, messageId: message.id, messageLength: message.body.length, senderRole: message.sender.role })),
       ...conversationMessages.map((message) => ({ contextId: message.conversationId, contextType: "conversation", createdAt: message.createdAt, listingTitle: message.conversation.listing.title, messageId: message.id, messageLength: message.body.length, senderRole: message.sender.role }))
     ].sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
-    await tx.adminExportEvent.create({ data: { actorId: admin.id, exportType: "messages", rowCount: exportRows.length } });
-    return exportRows;
-  });
+  await prisma.adminExportEvent.create({ data: { actorId: admin.id, exportType: "messages", rowCount: rows.length } });
 
-  return csvResponse("co-build-messages.csv", toCsv(rows, [
+  return csvResponse("spaceoncall-messages.csv", toCsv(rows, [
     { key: "messageId", header: "Message ID" },
     { key: "contextType", header: "Chat type" },
     { key: "contextId", header: "Chat record ID" },

@@ -4,6 +4,8 @@ import { LocationMapFields } from "@/components/location-map-fields";
 import { PrivateUploadField } from "@/components/private-upload-field";
 import { requirePageRole } from "@/src/lib/page-authorization";
 import { workTypes } from "@/src/lib/seed-data";
+import { ActionForm } from "@/components/action-form";
+import { SubmitButton } from "@/components/submit-button";
 
 export const dynamic = "force-dynamic";
 
@@ -26,7 +28,7 @@ export default async function NewListingPage() {
           allowed work, restricted work, available equipment, pricing, deposits, and cleaning rules.
         </p>
       </div>
-      <form action={createListingAction} className="co-build-form grid gap-5">
+      <ActionForm action={createListingAction} className="co-build-form grid gap-5">
         <FormSection id="location" number="1" title="Location" summary="Name the space and pin the access point renters need to find.">
           <div className="grid gap-4 md:grid-cols-2">
             <Input name="title" label="Space name" />
@@ -118,12 +120,10 @@ export default async function NewListingPage() {
             <PrivateUploadField label="Floor plan" name="floorPlan" type="FLOOR_PLAN" accept="image/jpeg,image/png,application/pdf" />
           </div>
           <div className="signal-submit mt-5 p-3">
-            <button className="button-primary w-full bg-transparent shadow-none hover:shadow-none" type="submit">
-              Submit for admin approval
-            </button>
+            <SubmitButton className="button-primary w-full bg-transparent shadow-none hover:shadow-none" pendingLabel="Submitting listing...">Submit for admin approval</SubmitButton>
           </div>
         </FormSection>
-      </form>
+      </ActionForm>
       </div>
     </main>
   );
