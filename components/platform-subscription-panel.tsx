@@ -1,4 +1,4 @@
-import { CreditCard, ExternalLink } from "lucide-react";
+import { CircleAlert, CreditCard, ExternalLink } from "lucide-react";
 import { openStripeBillingPortalAction, startStripeSubscriptionAction } from "@/app/subscription-actions";
 import { StatusBadge } from "@/components/status-badge";
 import { formatCurrency, PLATFORM_SUBSCRIPTION_MONTHLY } from "@/src/lib/fabrication";
@@ -42,6 +42,16 @@ export function PlatformSubscriptionPanel(props: Props) {
             <div>
               <p className="label">Automatic card subscription</p>
               <p className="text-sm font-bold text-steel">Stripe securely manages the card, monthly renewal, receipts, and cancellation.</p>
+              <div className="mt-3 flex gap-2 border-l-4 border-hazard bg-amber-50 p-3 text-sm text-neutral-900">
+                <CircleAlert className="mt-0.5 shrink-0 text-hazard" size={18} aria-hidden="true" />
+                <div>
+                  <p className="font-black">Before paying</p>
+                  <p className="mt-1 font-bold">
+                    Use a Visa or Mastercard enabled for online international recurring payments. India-issued Maestro and some domestic-only cards cannot create a Stripe recurring mandate.
+                  </p>
+                  <p className="mt-1 font-bold">Apple Pay may also appear in Stripe Checkout when supported on your device.</p>
+                </div>
+              </div>
             </div>
             {isStripeCustomer ? (
               <form action={openStripeBillingPortalAction}>
