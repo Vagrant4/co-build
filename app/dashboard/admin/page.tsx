@@ -28,6 +28,7 @@ import { getAppMode } from "@/src/lib/app-mode";
 import { prisma } from "@/src/lib/db";
 import { collectOperationsSnapshot } from "@/src/lib/operations-snapshot";
 import { SubmitButton } from "@/components/submit-button";
+import { TransientMessage } from "@/components/transient-message";
 
 export const dynamic = "force-dynamic";
 
@@ -54,7 +55,7 @@ export default async function AdminDashboardPage({ searchParams }: PageProps) {
   return (
     <main className="admin-console">
       <aside className="admin-console__sidebar">
-        <div className="admin-console__brand"><span className="admin-console__mark">$</span><span>SpaceOnCall</span></div>
+        <Link className="admin-console__brand" href="/" aria-label="SpaceOnCall home"><span className="admin-console__mark">$</span><span>SpaceOnCall</span></Link>
         <p className="admin-console__eyebrow">Operations console</p>
         <AdminSectionNav counts={{ approvals: totals.pendingListingCount, accounts: totals.pendingUserCount, payments: totals.submittedPaymentCount, safety: totals.pendingBookingCount }} />
         <div className="admin-console__utility">
@@ -77,22 +78,22 @@ export default async function AdminDashboardPage({ searchParams }: PageProps) {
       </header>
 
       {params.approvalError === "host-ineligible" ? (
-        <div className="admin-console__action-message admin-console__action-message--error" role="alert">
+        <TransientMessage className="admin-console__action-message admin-console__action-message--error">
           <ShieldAlert size={20} />
           <div><strong>Listing remains pending.</strong><span>Approve the host account, confirm it is not suspended, and activate its subscription before approving the listing.</span></div>
-        </div>
+        </TransientMessage>
       ) : null}
       {params.listingUpdate ? (
-        <div className="admin-console__action-message" role="status">
+        <TransientMessage className="admin-console__action-message">
           <CheckCircle2 size={20} />
           <div><strong>Listing updated.</strong><span>The listing is now {params.listingUpdate}.</span></div>
-        </div>
+        </TransientMessage>
       ) : null}
       {params.pilotPayment === "verified" ? (
-        <div className="admin-console__action-message" role="status">
+        <TransientMessage className="admin-console__action-message">
           <CheckCircle2 size={20} />
           <div><strong>Pilot workflow advanced.</strong><span>Test only. No money moved and no payment reconciliation was recorded.</span></div>
-        </div>
+        </TransientMessage>
       ) : null}
 
       <section className="admin-console__metrics" aria-label="Platform overview">
@@ -137,7 +138,7 @@ export default async function AdminDashboardPage({ searchParams }: PageProps) {
             ) : null}
           </div>
         ) : <p className="mt-4 text-sm font-bold text-steel">No automated operating threshold is currently breached.</p>}
-        {params.uploadRemediation ? <p className="mt-3 text-sm font-black text-green-700" role="status">Legacy upload remediation completed: {params.uploadRemediation.replace("-", " safe, ")} rejected.</p> : null}
+        {params.uploadRemediation ? <TransientMessage className="mt-3 text-sm font-black text-green-700">Legacy upload remediation completed: {params.uploadRemediation.replace("-", " safe, ")} rejected.</TransientMessage> : null}
       </section>
 
       <LaunchReadinessPanel />

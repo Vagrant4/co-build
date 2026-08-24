@@ -31,11 +31,11 @@ export default async function SearchPage({ searchParams }: PageProps) {
         <form action="/search" className="mt-4 grid gap-3 border-t border-neutral-200 pt-4 md:grid-cols-4">
           <label>
             <span className="label">Minimum area</span>
-            <input className="field" name="minArea" type="number" placeholder="100" />
+            <input className="field" name="minArea" type="number" min="1" step="1" inputMode="numeric" placeholder="100" />
           </label>
           <label>
             <span className="label">Maximum area</span>
-            <input className="field" name="maxArea" type="number" placeholder="400" />
+            <input className="field" name="maxArea" type="number" min="1" step="1" inputMode="numeric" placeholder="400" />
           </label>
           <label>
             <span className="label">Area unit</span>

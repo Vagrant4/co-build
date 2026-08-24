@@ -22,6 +22,7 @@ describe("QA bug regressions", () => {
     expect(fields).toContain("min={minimumCheckOut}");
     expect(fields).toContain('value ? new Date(`${value}T00:00:00`) : new Date()');
     expect(fields).toContain("checkOut <= value");
+    expect(fields.match(/search-form__date w-full min-w-0 pr-3/g)).toHaveLength(2);
   });
 
   it("hides dummy showcase inventory from available search results", () => {
@@ -40,8 +41,35 @@ describe("QA bug regressions", () => {
   });
 
   it("submits contact enquiries and provides visible result states", () => {
-    expect(read("app/contact/page.tsx")).toContain("sendContactInquiryAction");
-    expect(read("app/contact/actions.ts")).toContain("Your enquiry was sent");
+    const page = read("app/contact/page.tsx");
+    const action = read("app/contact/actions.ts");
+    const form = read("components/action-form.tsx");
+    expect(page).toContain("sendContactInquiryAction");
+    expect(page).toContain('href="mailto:support@spaceoncall.com"');
+    expect(page).toContain('pattern="[A-Za-zÀ-ÖØ-öø-ÿ\' .-]+"');
+    expect(action).toContain("Enter a valid name using letters and standard punctuation.");
+    expect(action).toContain("Your enquiry was sent");
+    expect(form).toContain("setTimeout(() => setShowSuccess(false), 3000)");
+  });
+
+  it("keeps detailed area filters positive and integer-only", () => {
+    const searchPage = read("app/search/page.tsx");
+    expect(searchPage.match(/min="1" step="1" inputMode="numeric"/g)).toHaveLength(2);
+  });
+
+  it("keeps safety next to overview and makes the admin brand navigable", () => {
+    const nav = read("components/admin-section-nav.tsx");
+    const dashboard = read("app/dashboard/admin/page.tsx");
+    expect(nav.indexOf('{ id: "safety"')).toBeLessThan(nav.indexOf('{ id: "approvals"'));
+    expect(dashboard).toContain('className="admin-console__brand" href="/"');
+  });
+
+  it("automatically clears transient admin status notices", () => {
+    const message = read("components/transient-message.tsx");
+    const dashboard = read("app/dashboard/admin/page.tsx");
+    expect(message).toContain("setVisible(false)");
+    expect(message).toContain('url.searchParams.delete(key)');
+    expect(dashboard).toContain("<TransientMessage");
   });
 
   it("routes favicon through Clerk middleware", () => {

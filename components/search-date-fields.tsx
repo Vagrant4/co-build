@@ -24,7 +24,7 @@ export function SearchDateFields() {
       <label className="search-form__check-in">
         <span className="label">Check in</span>
         <input
-          className="field search-form__date"
+          className="field search-form__date w-full min-w-0 pr-3"
           name="checkIn"
           type="date"
           min={today}
@@ -40,7 +40,7 @@ export function SearchDateFields() {
       <label className="search-form__check-out">
         <span className="label">Check out</span>
         <input
-          className="field search-form__date"
+          className="field search-form__date w-full min-w-0 pr-3"
           name="checkOut"
           type="date"
           min={minimumCheckOut}
