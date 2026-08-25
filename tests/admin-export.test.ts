@@ -18,6 +18,7 @@ describe("admin CSV export", () => {
     expect(exportPage).toContain("/dashboard/admin/export/listings.csv");
     expect(exportPage).toContain("/dashboard/admin/export/bookings.csv");
     expect(exportPage).toContain("/dashboard/admin/export/messages.csv");
+    expect(exportPage).toContain("prefetch={false}");
     expect(adminDashboard).toContain("/dashboard/admin/export");
   });
 

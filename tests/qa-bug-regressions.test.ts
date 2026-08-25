@@ -72,6 +72,20 @@ describe("QA bug regressions", () => {
     expect(dashboard).toContain("<TransientMessage");
   });
 
+  it("does not report committed mutations as failed when cache refresh fails", () => {
+    const actions = read("app/actions.ts");
+    expect(actions).toContain('"post_commit_revalidation_failed"');
+    expect(actions).toContain('redirect(`/dashboard/admin?paymentReview=');
+    expect(actions).toContain('redirect(`/dashboard/admin?subscriptionReview=');
+    expect(actions).toContain('redirect(`/dashboard/admin?accountUpdate=');
+  });
+
+  it("bounds message exports and permits normal QA retries", () => {
+    const route = read("app/dashboard/admin/export/messages.csv/route.ts");
+    expect(route).toContain("limit: 20");
+    expect(route.match(/take: 10_000/g)).toHaveLength(2);
+  });
+
   it("routes favicon through Clerk middleware", () => {
     expect(read("proxy.ts")).toContain('"/favicon.ico"');
   });

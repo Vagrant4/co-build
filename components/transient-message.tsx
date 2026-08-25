@@ -9,7 +9,7 @@ export function TransientMessage({ children, className, timeoutMs = 3000 }: { ch
     const timeout = window.setTimeout(() => {
       setVisible(false);
       const url = new URL(window.location.href);
-      ["approvalError", "listingUpdate", "uploadRemediation", "pilotPayment"].forEach((key) => url.searchParams.delete(key));
+      ["approvalError", "listingUpdate", "uploadRemediation", "pilotPayment", "paymentReview", "subscriptionReview", "accountUpdate"].forEach((key) => url.searchParams.delete(key));
       window.history.replaceState(window.history.state, "", `${url.pathname}${url.search}${url.hash}`);
     }, timeoutMs);
     return () => window.clearTimeout(timeout);

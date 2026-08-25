@@ -4,8 +4,10 @@ import { PrismaClient } from "@prisma/client";
 const prisma = new PrismaClient();
 
 async function switchDemoUser(page: Page, userId: string, nextPath: string) {
-  await page.goto(`/demo/session?user=${userId}&next=${encodeURIComponent(nextPath)}`, { waitUntil: "commit" });
-  await page.waitForURL(`**${nextPath}`);
+  const response = await page.request.get(`/demo/session?user=${userId}&next=${encodeURIComponent(nextPath)}`, { maxRedirects: 0 });
+  expect(response.status()).toBeGreaterThanOrEqual(300);
+  expect(response.status()).toBeLessThan(400);
+  await page.goto(nextPath);
 }
 
 test.afterAll(async () => {

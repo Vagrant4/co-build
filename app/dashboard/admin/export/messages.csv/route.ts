@@ -7,15 +7,17 @@ export const dynamic = "force-dynamic";
 
 export async function GET() {
   const admin = await requireAdmin();
-  await enforceRateLimit({ action: "export:messages", identity: admin.id, limit: 3, windowSeconds: 60 * 60 });
+  await enforceRateLimit({ action: "export:messages", identity: admin.id, limit: 20, windowSeconds: 60 * 60 });
   const [bookingMessages, conversationMessages] = await Promise.all([
       prisma.bookingMessage.findMany({
-        include: { booking: { select: { listing: { select: { title: true } } } }, sender: { select: { role: true } } },
-        orderBy: { createdAt: "desc" }
+        select: { id: true, bookingId: true, body: true, createdAt: true, booking: { select: { listing: { select: { title: true } } } }, sender: { select: { role: true } } },
+        orderBy: { createdAt: "desc" },
+        take: 10_000
       }),
       prisma.conversationMessage.findMany({
-        include: { conversation: { select: { listing: { select: { title: true } } } }, sender: { select: { role: true } } },
-        orderBy: { createdAt: "desc" }
+        select: { id: true, conversationId: true, body: true, createdAt: true, conversation: { select: { listing: { select: { title: true } } } }, sender: { select: { role: true } } },
+        orderBy: { createdAt: "desc" },
+        take: 10_000
       })
     ]);
   const rows = [
