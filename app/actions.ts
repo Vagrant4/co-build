@@ -596,6 +596,7 @@ async function createListing(formData: FormData): Promise<FormActionState> {
   const photoUploadIds = formData.getAll("photoUploadId").map(String).filter(Boolean);
   const floorPlanUploadIds = formData.getAll("floorPlanUploadId").map(String).filter(Boolean);
   const submittedUploadIds = [...photoUploadIds, ...floorPlanUploadIds];
+  if (photoUploadIds.length === 0) throw new Error("Upload at least one workspace photo before submitting the listing.");
   if (photoUploadIds.length > 8) throw new Error("A listing may include up to eight workspace photos.");
   if (floorPlanUploadIds.length > 1) throw new Error("A listing may include only one floor plan.");
   if (new Set(submittedUploadIds).size !== submittedUploadIds.length) throw new Error("Duplicate listing uploads are not allowed.");

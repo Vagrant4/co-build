@@ -6,6 +6,7 @@ import { requirePageRole } from "@/src/lib/page-authorization";
 import { workTypes } from "@/src/lib/seed-data";
 import { ActionForm } from "@/components/action-form";
 import { SubmitButton } from "@/components/submit-button";
+import { getUploadPolicy } from "@/src/lib/uploads";
 
 export const dynamic = "force-dynamic";
 
@@ -14,6 +15,8 @@ const accessEndTimes = Array.from({ length: 24 }, (_, index) => `${String(index 
 
 export default async function NewListingPage() {
   await requirePageRole("HOST");
+  const photoMaximumMiB = getUploadPolicy("LISTING_PHOTO").maximumSizeInBytes / (1024 * 1024);
+  const floorPlanMaximumMiB = getUploadPolicy("FLOOR_PLAN").maximumSizeInBytes / (1024 * 1024);
 
   return (
     <main className="signal-page py-8">
@@ -116,8 +119,8 @@ export default async function NewListingPage() {
 
         <FormSection id="photos" number="6" title="Photos" summary="Upload up to eight workspace photos and one floor plan so renters understand the space before requesting it.">
           <div className="grid gap-4 md:grid-cols-2">
-            <PrivateUploadField label="Workspace photos (up to 8)" name="photo" type="LISTING_PHOTO" accept="image/jpeg,image/png,image/webp" maxFiles={8} />
-            <PrivateUploadField label="Floor plan" name="floorPlan" type="FLOOR_PLAN" accept="image/jpeg,image/png,application/pdf" />
+            <PrivateUploadField label="Workspace photos (up to 8)" name="photo" type="LISTING_PHOTO" accept="image/jpeg,image/png,image/webp" maxFiles={8} maximumSizeMiB={photoMaximumMiB} required />
+            <PrivateUploadField label="Floor plan" name="floorPlan" type="FLOOR_PLAN" accept="image/jpeg,image/png,application/pdf" maximumSizeMiB={floorPlanMaximumMiB} />
           </div>
           <div className="signal-submit mt-5 p-3">
             <SubmitButton className="button-primary w-full bg-transparent shadow-none hover:shadow-none" pendingLabel="Submitting listing...">Submit for admin approval</SubmitButton>

@@ -14,10 +14,11 @@ type Props = {
   listingId?: string;
   required?: boolean;
   maxFiles?: number;
+  maximumSizeMiB?: number;
   onReadyChange?: (ready: boolean) => void;
 };
 
-export function PrivateUploadField({ label, name, type, accept, bookingId, listingId, required = false, maxFiles = 1, onReadyChange }: Props) {
+export function PrivateUploadField({ label, name, type, accept, bookingId, listingId, required = false, maxFiles = 1, maximumSizeMiB: maximumSizeMiBProp, onReadyChange }: Props) {
   const [uploadIds, setUploadIds] = useState<string[]>([]);
   const [state, setState] = useState<"idle" | "uploading" | "ready" | "error">("idle");
   const [message, setMessage] = useState("");
@@ -30,7 +31,7 @@ export function PrivateUploadField({ label, name, type, accept, bookingId, listi
       setState("error");
       return setMessage(`Choose no more than ${maxFiles} file${maxFiles === 1 ? "" : "s"}.`);
     }
-    const maximumSizeMiB = type === "FLOOR_PLAN" ? 15 : ["CHECK_IN", "CHECK_OUT", "LISTING_PHOTO"].includes(type) ? 12 : 10;
+    const maximumSizeMiB = maximumSizeMiBProp ?? defaultMaximumSizeMiB(type);
     const maximumSize = maximumSizeMiB * 1024 * 1024;
     if (files.some((file) => !accept.split(",").includes(file.type))) {
       setState("error");
@@ -57,6 +58,9 @@ export function PrivateUploadField({ label, name, type, accept, bookingId, listi
   return (
     <label className="grid gap-2 text-sm font-bold">
       <span>{label}</span>
+      <span className="text-xs font-medium text-neutral-500">
+        {required ? "Required. " : "Optional. "}Accepted: {acceptedFormatLabel(accept)}. Maximum {formatMiB(maximumSizeMiBProp ?? defaultMaximumSizeMiB(type))} MB per file.
+      </span>
       <span className="relative flex min-h-12 items-center gap-3 border border-neutral-300 bg-white px-3 py-2">
         {state === "uploading" ? <LoaderCircle className="h-5 w-5 animate-spin text-orange-600" /> : state === "ready" ? <CheckCircle2 className="h-5 w-5 text-emerald-700" /> : state === "error" ? <ShieldAlert className="h-5 w-5 text-red-700" /> : <FileUp className="h-5 w-5 text-neutral-600" />}
         <input
@@ -73,6 +77,19 @@ export function PrivateUploadField({ label, name, type, accept, bookingId, listi
       {message ? <span className={state === "error" ? "text-xs text-red-500" : "text-xs text-neutral-500"}>{message}</span> : null}
     </label>
   );
+}
+
+function defaultMaximumSizeMiB(type: UploadType): number {
+  return type === "FLOOR_PLAN" ? 15 : ["CHECK_IN", "CHECK_OUT", "LISTING_PHOTO"].includes(type) ? 12 : 10;
+}
+
+function acceptedFormatLabel(accept: string): string {
+  const labels: Record<string, string> = { "image/jpeg": "JPG", "image/png": "PNG", "image/webp": "WebP", "application/pdf": "PDF" };
+  return accept.split(",").map((value) => labels[value] ?? value).join(", ");
+}
+
+function formatMiB(value: number): string {
+  return Number.isInteger(value) ? String(value) : value.toFixed(1);
 }
 
 async function uploadFile(file: File, context: { type: UploadType; bookingId?: string; listingId?: string }): Promise<string> {
