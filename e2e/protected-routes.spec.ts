@@ -41,6 +41,18 @@ test("admin can export and the export is audited", async ({ page }) => {
   expect(after).toBe(before + 1);
 });
 
+test("admin can download the bounded message export", async ({ page }) => {
+  await page.goto("/demo/session?user=demo-admin&next=/dashboard/admin/export");
+  const before = await prisma.adminExportEvent.count({ where: { actorId: "demo-admin", exportType: "messages" } });
+  const response = await page.request.get("/dashboard/admin/export/messages.csv");
+  expect(response.status()).toBe(200);
+  expect(response.headers()["content-type"]).toContain("text/csv");
+  expect(response.headers()["content-disposition"]).toContain("spaceoncall-messages.csv");
+  expect(await response.text()).toContain("Message ID,Chat type,Chat record ID,Listing,Sender role,Message length,Created");
+  const after = await prisma.adminExportEvent.count({ where: { actorId: "demo-admin", exportType: "messages" } });
+  expect(after).toBe(before + 1);
+});
+
 test("non-approved listings return 404 from detail and checkout", async ({ page }) => {
   const listing = await prisma.listing.findUniqueOrThrow({ where: { slug: "project-hall-tuas-west" }, select: { id: true, status: true } });
   await prisma.listing.update({ where: { id: listing.id }, data: { status: "PENDING_ADMIN" } });

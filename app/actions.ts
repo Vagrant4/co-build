@@ -43,6 +43,7 @@ import { toListing } from "@/src/lib/repository";
 import { commonSafetyRules, isDummyListingSlug } from "@/src/lib/seed-data";
 import { remediateLegacyUploads } from "@/src/lib/upload-service";
 import type { FormActionState } from "@/components/action-form";
+import { logEvent } from "@/src/lib/observability";
 
 export async function createBookingAction(_state: FormActionState, formData: FormData): Promise<FormActionState> {
   try {
@@ -206,7 +207,11 @@ export async function reviewBookingPaymentAction(formData: FormData) {
   const decision = requireString(formData, "decision") as "verify" | "reject";
   if (decision !== "verify" && decision !== "reject") throw new Error("Invalid payment decision.");
   const payment = await prisma.paymentRecord.findUnique({ where: { id: paymentId }, include: { booking: true } });
-  if (!payment?.booking || payment.kind !== "BOOKING_TOTAL" || payment.status !== "SUBMITTED") notFound();
+  if (!payment?.booking || payment.kind !== "BOOKING_TOTAL") notFound();
+  if (payment.status !== "SUBMITTED") {
+    revalidateDashboards();
+    redirect(`/dashboard/admin?paymentReview=${payment.status.toLowerCase()}#payments`);
+  }
   const paidBooking = payment.booking;
   const bookingStatus = nextPaymentState(paidBooking.status as "PAYMENT_SUBMITTED", decision === "verify" ? "ADMIN_VERIFY" : "ADMIN_REJECT");
   const now = new Date();
@@ -217,6 +222,7 @@ export async function reviewBookingPaymentAction(formData: FormData) {
     await queueUserNotification(tx, { userId: payment.payerId, type: "PAYMENT_RESULT", title: decision === "verify" ? "Payment verified" : "Payment proof rejected", body: decision === "verify" ? "Your booking payment was verified." : "Your payment proof was rejected. Review the admin note and submit a valid reference.", dedupeKey: `payment:${payment.id}:result`, email: true });
   });
   revalidateDashboards();
+  redirect(`/dashboard/admin?paymentReview=${decision === "verify" ? "verified" : "rejected"}#payments`);
 }
 
 export async function uploadBookingPhotoAction(formData: FormData) {
@@ -320,7 +326,10 @@ export async function approvePlatformSubscriptionAction(formData: FormData) {
   if (!user || (user.role !== "RENTER" && user.role !== "HOST")) notFound();
   if (user.platformSubscriptionProvider === "STRIPE") throw new Error("Stripe subscription status can be changed only by a verified Stripe webhook.");
   const payment = await prisma.paymentRecord.findFirst({ where: { payerId: userId, kind: "SUBSCRIPTION", status: "SUBMITTED" }, orderBy: { submittedAt: "desc" } });
-  if (!payment) throw new Error("No submitted subscription payment is available to verify.");
+  if (!payment) {
+    revalidateDashboards();
+    redirect(`/dashboard/admin?subscriptionReview=already-reviewed#subscriptions`);
+  }
   const period = buildRecurringSubscriptionPeriod(new Date());
   await prisma.$transaction(async (tx) => {
     await tx.paymentRecord.update({ where: { id: payment.id }, data: { status: decision === "verify" ? "VERIFIED" : "REJECTED", reviewerId: admin.id, reviewedAt: new Date() } });
@@ -332,6 +341,7 @@ export async function approvePlatformSubscriptionAction(formData: FormData) {
     await queueUserNotification(tx, { userId, type: "SUBSCRIPTION_RESULT", title: decision === "verify" ? "Subscription activated" : "Subscription proof rejected", body: decision === "verify" ? `Your subscription is active until ${period.periodEndAt.toISOString().slice(0, 10)}.` : "Your subscription payment proof was rejected.", dedupeKey: `subscription:${payment.id}:result`, email: true });
   });
   revalidateDashboards();
+  redirect(`/dashboard/admin?subscriptionReview=${decision === "verify" ? "activated" : "rejected"}#subscriptions`);
 }
 
 export async function confirmDealAction(formData: FormData) {
@@ -586,6 +596,7 @@ async function createListing(formData: FormData): Promise<FormActionState> {
   const photoUploadIds = formData.getAll("photoUploadId").map(String).filter(Boolean);
   const floorPlanUploadIds = formData.getAll("floorPlanUploadId").map(String).filter(Boolean);
   const submittedUploadIds = [...photoUploadIds, ...floorPlanUploadIds];
+  if (photoUploadIds.length === 0) throw new Error("Upload at least one workspace photo before submitting the listing.");
   if (photoUploadIds.length > 8) throw new Error("A listing may include up to eight workspace photos.");
   if (floorPlanUploadIds.length > 1) throw new Error("A listing may include only one floor plan.");
   if (new Set(submittedUploadIds).size !== submittedUploadIds.length) throw new Error("Duplicate listing uploads are not allowed.");
@@ -735,7 +746,8 @@ export async function updateUserVerificationAction(formData: FormData) {
     prisma.user.update({ where: { id: userId }, data: { verificationStatus: status } }),
     prisma.approvalEvent.create({ data: { actorId: admin.id, target: `user_verification:${userId}`, decision: status === "APPROVED" ? "APPROVED" : "REJECTED", note: `Admin changed user verification to ${status}.` } })
   ]);
-  revalidatePath("/dashboard/admin");
+  revalidateDashboards();
+  redirect(`/dashboard/admin?accountUpdate=verification#accounts`);
 }
 
 export async function toggleUserSuspensionAction(formData: FormData) {
@@ -747,7 +759,8 @@ export async function toggleUserSuspensionAction(formData: FormData) {
     prisma.user.update({ where: { id: userId }, data: { suspended } }),
     prisma.approvalEvent.create({ data: { actorId: admin.id, target: `user:${userId}`, decision: suspended ? "SUSPENDED" : "APPROVED", note: `Admin ${suspended ? "suspended" : "restored"} user.` } })
   ]);
-  revalidatePath("/dashboard/admin");
+  revalidateDashboards();
+  redirect(`/dashboard/admin?accountUpdate=${suspended ? "suspended" : "restored"}#accounts`);
 }
 
 export async function updateEquipmentPriceAction(formData: FormData) {
@@ -885,7 +898,20 @@ function assertNoRestrictedContact(...values: string[]) {
   if (values.some(containsRestrictedContactDetail)) throw new Error(CONTACT_POLICY_MESSAGE);
 }
 
-function revalidateDashboards() { revalidatePath("/dashboard/user"); revalidatePath("/dashboard/host"); revalidatePath("/dashboard/admin"); }
+function revalidateDashboards() {
+  for (const path of ["/dashboard/user", "/dashboard/host", "/dashboard/admin"]) {
+    try {
+      revalidatePath(path);
+    } catch (error) {
+      // The database mutation is already committed. A cache refresh failure must
+      // not turn a successful user action into a false error response.
+      logEvent("warn", "post_commit_revalidation_failed", {
+        path,
+        error: error instanceof Error ? error.message.slice(0, 160) : "UNKNOWN"
+      });
+    }
+  }
+}
 function requireString(formData: FormData, key: string) { const value = formData.get(key); if (typeof value !== "string" || !value.trim()) throw new Error(`${key} is required.`); return value.trim(); }
 function optionalString(formData: FormData, key: string) { const value = formData.get(key); return typeof value === "string" ? value.trim() : ""; }
 function numberField(formData: FormData, key: string) { const value = Number(requireString(formData, key)); if (!Number.isFinite(value) || value < 0) throw new Error(`${key} must be a valid non-negative number.`); return value; }

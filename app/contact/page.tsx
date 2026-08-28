@@ -13,15 +13,15 @@ export default function ContactPage() {
           Use this MVP contact page for workshop owners, renter verification, high-risk work review, and deposit disputes.
         </p>
         <div className="mt-6 space-y-3">
-          <p className="flex items-center gap-2 font-black">
+          <a className="flex items-center gap-2 font-black hover:text-hazard" href="mailto:support@spaceoncall.com">
             <Mail className="text-hazard" size={20} /> support@spaceoncall.com
-          </p>
+          </a>
         </div>
       </section>
       <ActionForm action={sendContactInquiryAction} className="card grid gap-4 p-6">
         <label>
           <span className="label">Name</span>
-          <input className="field" name="name" placeholder="Your name" required />
+          <input className="field" name="name" placeholder="Your name" pattern="[A-Za-zÀ-ÖØ-öø-ÿ' .-]+" title="Use letters, spaces, apostrophes, full stops, or hyphens." required />
         </label>
         <label>
           <span className="label">Email</span>

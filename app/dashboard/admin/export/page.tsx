@@ -95,7 +95,7 @@ export default async function AdminExportPage() {
                 </div>
                 <span className="status-pill">{counts[card.countKey]} rows</span>
               </div>
-              <Link className="button-primary w-full justify-center" href={card.href}>
+              <Link className="button-primary w-full justify-center" href={card.href} prefetch={false}>
                 <Download size={18} /> Download CSV
               </Link>
             </article>

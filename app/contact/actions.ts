@@ -10,6 +10,7 @@ export async function sendContactInquiryAction(_state: FormActionState, formData
   const topic = field(formData, "topic", 80);
   const message = field(formData, "message", 2000);
   if (!name || !email || !message) return { error: "Complete your name, email, and message." };
+  if (!/^[\p{L}\p{M}][\p{L}\p{M}' .-]*$/u.test(name)) return { error: "Enter a valid name using letters and standard punctuation." };
   if (!/^\S+@\S+\.\S+$/.test(email)) return { error: "Enter a valid email address." };
   if (!TOPICS.has(topic)) return { error: "Select a valid enquiry topic." };
 

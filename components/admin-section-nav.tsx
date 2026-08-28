@@ -5,10 +5,10 @@ import { Activity, CreditCard, LayoutDashboard, ListChecks, ShieldAlert, Users }
 
 const items = [
   { id: "overview", label: "Overview", icon: LayoutDashboard, countKey: null },
+  { id: "safety", label: "Safety & bookings", icon: ShieldAlert, countKey: "safety" },
   { id: "approvals", label: "Approvals", icon: ListChecks, countKey: "approvals" },
   { id: "accounts", label: "Hosts & renters", icon: Users, countKey: "accounts" },
   { id: "payments", label: "Payments", icon: CreditCard, countKey: "payments" },
-  { id: "safety", label: "Safety & bookings", icon: ShieldAlert, countKey: "safety" },
   { id: "activity", label: "Activity log", icon: Activity, countKey: null }
 ] as const;
 
